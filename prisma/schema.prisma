@@ -1,0 +1,450 @@
+// Kool - Schema de base de datos
+// PostgreSQL + Prisma ORM
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ─────────────────────────────────────────────
+// WORKSPACES Y USUARIOS
+// ─────────────────────────────────────────────
+
+model Workspace {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique // ej: "agencia-bloom"
+  logo      String?
+  plan      Plan     @default(FREE)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relaciones
+  members      WorkspaceMember[]
+  links        Link[]
+  creators     Creator[]
+  programs     AffiliateProgram[]
+  giftingOrders GiftingOrder[]
+  briefings    Briefing[]
+  tiendanubeConnection TiendanubeConnection?
+
+  @@map("workspaces")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  avatar    String?
+  role      UserRole @default(BRAND)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relaciones
+  workspaces WorkspaceMember[]
+  creatorProfile Creator?
+
+  @@map("users")
+}
+
+model WorkspaceMember {
+  id          String          @id @default(cuid())
+  workspaceId String
+  userId      String
+  role        WorkspaceRole   @default(MEMBER)
+  createdAt   DateTime        @default(now())
+
+  workspace   Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, userId])
+  @@map("workspace_members")
+}
+
+// ─────────────────────────────────────────────
+// LINKS Y TRACKING
+// ─────────────────────────────────────────────
+
+model Link {
+  id          String    @id @default(cuid())
+  workspaceId String
+  creatorId   String?   // Si el link está asignado a un creator
+  
+  // URL
+  slug        String    @unique  // ej: "camila-verano"
+  domain      String    @default("kool.link") // dominio corto
+  destination String    // URL de destino (ML, Tiendanube, etc.)
+  
+  // Metadata
+  title       String?
+  description String?
+  image       String?   // OG image
+  
+  // UTM params (se agregan automáticamente al destino)
+  utmSource   String?
+  utmMedium   String?
+  utmCampaign String?
+  utmContent  String?
+  
+  // Configuración
+  password    String?
+  expiresAt   DateTime?
+  maxClicks   Int?
+  
+  // Descuento Tiendanube/Shopify (si aplica)
+  discountCode String?   // ej: "CAMILA15"
+  
+  // Estado
+  archived    Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Relaciones
+  workspace   Workspace  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  creator     Creator?   @relation(fields: [creatorId], references: [id])
+  clicks      Click[]
+  conversions Conversion[]
+
+  @@map("links")
+}
+
+model Click {
+  id        String   @id @default(cuid())
+  linkId    String
+  
+  // Datos del clic
+  timestamp DateTime @default(now())
+  
+  // Geo
+  country   String?  // "AR"
+  city      String?  // "Buenos Aires"
+  region    String?  // "Buenos Aires"
+  latitude  Float?
+  longitude Float?
+  
+  // Dispositivo
+  device    String?  // "mobile" | "desktop" | "tablet"
+  os        String?  // "iOS" | "Android" | "Windows" | "macOS"
+  browser   String?  // "Chrome" | "Safari" | "Instagram" | "TikTok"
+  
+  // Origen
+  referer   String?  // URL completa del referer
+  source    String?  // "instagram" | "tiktok" | "whatsapp" | "direct"
+  
+  // IP anonimizada (hash)
+  ipHash    String?
+  
+  link      Link     @relation(fields: [linkId], references: [id], onDelete: Cascade)
+
+  // En producción, los clicks se guardan en Tinybird (ClickHouse)
+  // Esta tabla es solo para dev local o clicks recientes
+  @@map("clicks")
+}
+
+// ─────────────────────────────────────────────
+// CREATORS Y PROGRAMA DE AFILIADOS
+// ─────────────────────────────────────────────
+
+model Creator {
+  id          String        @id @default(cuid())
+  workspaceId String
+  userId      String?       @unique // Si tiene cuenta en Kool
+  
+  // Info personal
+  name        String
+  email       String
+  phone       String?
+  avatar      String?
+  
+  // Redes sociales
+  instagram   String?       // handle sin @
+  tiktok      String?
+  youtube     String?
+  twitter     String?
+  
+  // Nicho y audiencia
+  niche       String?       // "moda" | "tecnologia" | "gastronomia" etc
+  audienceSize Int?         // seguidores estimados
+  
+  // Dirección para gifting
+  address     String?
+  city        String?
+  province    String?
+  country     String?       @default("AR")
+  zipCode     String?
+  
+  // Programa
+  tier        CreatorTier   @default(BRONZE)
+  status      CreatorStatus @default(ACTIVE)
+  
+  // Código de descuento asignado
+  discountCode String?      // ej: "CAMILA15"
+  commissionPct Float       @default(10) // % de comisión
+  
+  // Notas internas
+  notes       String?
+  
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  // Relaciones
+  workspace     Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user          User?           @relation(fields: [userId], references: [id])
+  links         Link[]
+  giftingOrders GiftingOrder[]
+  commissions   Commission[]
+  conversions   Conversion[]
+  briefings     BriefingRecipient[]
+
+  @@unique([workspaceId, email])
+  @@map("creators")
+}
+
+// ─────────────────────────────────────────────
+// GIFTING
+// ─────────────────────────────────────────────
+
+model GiftingOrder {
+  id          String        @id @default(cuid())
+  workspaceId String
+  creatorId   String
+  
+  // Orden en Tiendanube
+  tiendanubeOrderId String? @unique // ID de la orden creada en TN
+  tiendanubeStoreId String?
+  
+  // Productos enviados (JSON array de productos)
+  products    Json          // [{ id, name, variant, quantity, value }]
+  totalValue  Float         // Valor total del gifting en ARS
+  
+  // Envío
+  trackingNumber String?
+  shippingCarrier String?
+  
+  // Estado
+  status      GiftingStatus @default(PENDING)
+  
+  // Notas
+  notes       String?       // Mensaje para el creator
+  
+  // Fechas
+  sentAt      DateTime?
+  deliveredAt DateTime?
+  confirmedAt DateTime?     // Cuando el creator confirma recepción
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  workspace   Workspace     @relation(fields: [workspaceId], references: [id])
+  creator     Creator       @relation(fields: [creatorId], references: [id])
+
+  @@map("gifting_orders")
+}
+
+// ─────────────────────────────────────────────
+// BRIEFINGS
+// ─────────────────────────────────────────────
+
+model Briefing {
+  id          String    @id @default(cuid())
+  workspaceId String
+  
+  // Contenido
+  subject     String
+  body        String    // HTML del email
+  
+  // Campaña
+  campaignName String?
+  startDate   DateTime?
+  endDate     DateTime?
+  
+  // Assets adjuntos (URLs de archivos)
+  assets      Json?     // [{ name, url, type }]
+  
+  // Estado
+  status      BriefingStatus @default(DRAFT)
+  sentAt      DateTime?
+  
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  workspace   Workspace          @relation(fields: [workspaceId], references: [id])
+  recipients  BriefingRecipient[]
+
+  @@map("briefings")
+}
+
+model BriefingRecipient {
+  id          String    @id @default(cuid())
+  briefingId  String
+  creatorId   String
+  
+  // Estado de envío
+  emailSent   Boolean   @default(false)
+  sentAt      DateTime?
+  openedAt    DateTime? // Si se implementa tracking de apertura
+  
+  briefing    Briefing  @relation(fields: [briefingId], references: [id], onDelete: Cascade)
+  creator     Creator   @relation(fields: [creatorId], references: [id])
+
+  @@unique([briefingId, creatorId])
+  @@map("briefing_recipients")
+}
+
+// ─────────────────────────────────────────────
+// CONVERSIONES Y COMISIONES
+// ─────────────────────────────────────────────
+
+model Conversion {
+  id          String    @id @default(cuid())
+  linkId      String
+  creatorId   String?
+  
+  // Orden de la tienda
+  orderId     String    // ID de la orden en Tiendanube/Shopify
+  platform    Platform  @default(TIENDANUBE)
+  
+  // Valores
+  orderAmount Float     // Valor total de la orden
+  currency    String    @default("ARS")
+  
+  // Timing
+  clickedAt   DateTime? // Cuando hizo clic en el link
+  convertedAt DateTime  @default(now())
+  
+  link        Link      @relation(fields: [linkId], references: [id])
+  creator     Creator?  @relation(fields: [creatorId], references: [id])
+  commission  Commission?
+
+  @@unique([orderId, platform])
+  @@map("conversions")
+}
+
+model Commission {
+  id           String           @id @default(cuid())
+  creatorId    String
+  conversionId String           @unique
+  
+  // Montos
+  orderAmount  Float
+  percentage   Float            // % aplicado
+  amount       Float            // Monto a pagar
+  currency     String           @default("ARS")
+  
+  // Estado
+  status       CommissionStatus @default(PENDING)
+  
+  // Fechas
+  approvedAt   DateTime?
+  paidAt       DateTime?
+  
+  // Pago
+  paymentMethod String?         // "mercadopago" | "transfer" | "manual"
+  paymentRef   String?          // Referencia del pago
+  
+  notes        String?
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  creator      Creator          @relation(fields: [creatorId], references: [id])
+  conversion   Conversion       @relation(fields: [conversionId], references: [id])
+
+  @@map("commissions")
+}
+
+// ─────────────────────────────────────────────
+// INTEGRACIÓN TIENDANUBE
+// ─────────────────────────────────────────────
+
+model TiendanubeConnection {
+  id          String   @id @default(cuid())
+  workspaceId String   @unique
+  
+  // OAuth
+  storeId     String   // ID de la tienda en TN
+  accessToken String   // Token de acceso (encriptado)
+  storeName   String?
+  storeUrl    String?
+  storeDomain String?
+  
+  // Estado
+  active      Boolean  @default(true)
+  installedAt DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@map("tiendanube_connections")
+}
+
+// ─────────────────────────────────────────────
+// ENUMS
+// ─────────────────────────────────────────────
+
+enum Plan {
+  FREE
+  PRO
+  BUSINESS
+}
+
+enum UserRole {
+  BRAND      // Dueño de marca/agencia
+  CREATOR    // Influencer/afiliado
+  ADMIN      // Admin de Kool
+}
+
+enum WorkspaceRole {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
+enum CreatorTier {
+  BRONZE
+  SILVER
+  GOLD
+}
+
+enum CreatorStatus {
+  ACTIVE
+  INACTIVE
+  PENDING   // Invitado pero no onboardeado
+}
+
+enum GiftingStatus {
+  PENDING       // Creado, no enviado
+  PROCESSING    // Orden creada en Tiendanube
+  SENT          // Enviado con tracking
+  DELIVERED     // Entregado
+  CONFIRMED     // Creator confirmó recepción
+  CANCELLED
+}
+
+enum BriefingStatus {
+  DRAFT
+  SENT
+  ARCHIVED
+}
+
+enum CommissionStatus {
+  PENDING    // Esperando ventana de aprobación
+  APPROVED   // Aprobada, lista para pagar
+  PAID       // Pagada
+  REJECTED   // Rechazada (ej: devolución)
+}
+
+enum Platform {
+  TIENDANUBE
+  SHOPIFY
+  MERCADOLIBRE  // Solo tracking de clics, sin conversiones
+  OTHER
+}
+
+enum AffiliateProgram {
+  STANDARD
+  PREMIUM
+}
