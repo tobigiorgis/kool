@@ -1,31 +1,22 @@
 "use client"
 
-import { useState } from "react"
-import { Plus, Instagram, Mail, Gift, Link2, MoreHorizontal } from "lucide-react"
+import { useState, useEffect, useCallback } from "react"
+import { Plus, Instagram, Mail, Gift, Link2, RefreshCw } from "lucide-react"
+import { generateDiscountCode } from "@/lib/utils"
 
-const MOCK_CREATORS = [
-  {
-    id: "1", name: "Camila Ruiz", email: "camila@email.com",
-    instagram: "camilaruiz", tier: "GOLD", status: "ACTIVE",
-    discountCode: "CAMILA15", commissionPct: 15,
-    clicks: 1284, conversions: 42, pendingAmount: 8400,
-    niche: "Moda", audienceSize: 45000,
-  },
-  {
-    id: "2", name: "Martina López", email: "marti@email.com",
-    instagram: "martinaok", tier: "SILVER", status: "ACTIVE",
-    discountCode: "MARTI10", commissionPct: 10,
-    clicks: 891, conversions: 28, pendingAmount: 4200,
-    niche: "Lifestyle", audienceSize: 22000,
-  },
-  {
-    id: "3", name: "Sofía Gómez", email: "sofi@email.com",
-    instagram: "sofiagomez", tier: "BRONZE", status: "PENDING",
-    discountCode: "SOFI10", commissionPct: 10,
-    clicks: 0, conversions: 0, pendingAmount: 0,
-    niche: "Fitness", audienceSize: 8000,
-  },
-]
+interface Creator {
+  id: string
+  name: string
+  email: string
+  instagram: string | null
+  tier: string
+  status: string
+  discountCode: string | null
+  commissionPct: number
+  niche: string | null
+  audienceSize: number | null
+  _count: { conversions: number }
+}
 
 const TIER_STYLES: Record<string, string> = {
   GOLD: "bg-amber-100 text-amber-700",
@@ -39,8 +30,41 @@ const STATUS_STYLES: Record<string, string> = {
   INACTIVE: "bg-gray-100 text-gray-500",
 }
 
+const STATUS_LABELS: Record<string, string> = {
+  ACTIVE: "Activo",
+  PENDING: "Pendiente",
+  INACTIVE: "Inactivo",
+}
+
 export default function CreatorsPage() {
+  const [creators, setCreators] = useState<Creator[]>([])
+  const [workspaceId, setWorkspaceId] = useState<string | null>(null)
   const [showInvite, setShowInvite] = useState(false)
+  const [loading, setLoading] = useState(true)
+
+  const loadData = useCallback(async () => {
+    setLoading(true)
+    try {
+      const wsRes = await fetch("/api/workspace/me")
+      if (!wsRes.ok) return
+      const { workspace } = await wsRes.json()
+      if (!workspace) return
+
+      setWorkspaceId(workspace.id)
+      const res = await fetch(`/api/creators?workspaceId=${workspace.id}`)
+      if (res.ok) {
+        const data = await res.json()
+        setCreators(data.creators)
+      }
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => { loadData() }, [loadData])
+
+  const active = creators.filter((c) => c.status === "ACTIVE").length
+  const totalConversions = creators.reduce((s, c) => s + (c._count?.conversions ?? 0), 0)
 
   return (
     <div className="p-8">
@@ -58,144 +82,194 @@ export default function CreatorsPage() {
         </button>
       </div>
 
-      {/* Stats rápidas */}
+      {/* Stats */}
       <div className="grid grid-cols-3 gap-4 mb-8">
         <div className="bg-white rounded-xl border border-gray-100 p-5">
           <p className="text-xs text-gray-500 mb-1">Creators activos</p>
-          <p className="text-2xl font-semibold text-gray-900">
-            {MOCK_CREATORS.filter((c) => c.status === "ACTIVE").length}
-          </p>
+          <p className="text-2xl font-semibold text-gray-900">{loading ? "—" : active}</p>
         </div>
         <div className="bg-white rounded-xl border border-gray-100 p-5">
           <p className="text-xs text-gray-500 mb-1">Conversiones totales</p>
-          <p className="text-2xl font-semibold text-gray-900">
-            {MOCK_CREATORS.reduce((s, c) => s + c.conversions, 0)}
-          </p>
+          <p className="text-2xl font-semibold text-gray-900">{loading ? "—" : totalConversions}</p>
         </div>
         <div className="bg-white rounded-xl border border-gray-100 p-5">
-          <p className="text-xs text-gray-500 mb-1">Comisiones pendientes</p>
-          <p className="text-2xl font-semibold text-gray-900">
-            ${MOCK_CREATORS.reduce((s, c) => s + c.pendingAmount, 0).toLocaleString()}
-          </p>
+          <p className="text-xs text-gray-500 mb-1">Total invitados</p>
+          <p className="text-2xl font-semibold text-gray-900">{loading ? "—" : creators.length}</p>
         </div>
       </div>
 
-      {/* Tabla */}
       <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
-        <table className="w-full">
-          <thead>
-            <tr className="border-b border-gray-100 bg-gray-50">
-              <th className="text-left px-6 py-3 text-xs font-medium text-gray-500">Creator</th>
-              <th className="text-left px-6 py-3 text-xs font-medium text-gray-500">Tier</th>
-              <th className="text-left px-6 py-3 text-xs font-medium text-gray-500">Código</th>
-              <th className="text-right px-6 py-3 text-xs font-medium text-gray-500">Clics</th>
-              <th className="text-right px-6 py-3 text-xs font-medium text-gray-500">Ventas</th>
-              <th className="text-right px-6 py-3 text-xs font-medium text-gray-500">Comisión pend.</th>
-              <th className="px-6 py-3" />
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-50">
-            {MOCK_CREATORS.map((creator) => (
-              <tr key={creator.id} className="hover:bg-gray-50">
-                <td className="px-6 py-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-brand-100 flex items-center justify-center text-brand-700 text-xs font-semibold">
-                      {creator.name.split(" ").map((n) => n[0]).join("").slice(0, 2)}
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-gray-900">{creator.name}</p>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        <span className="text-xs text-gray-400">{creator.email}</span>
-                        {creator.instagram && (
-                          <a
-                            href={`https://instagram.com/${creator.instagram}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-gray-400 hover:text-pink-500"
-                          >
-                            <Instagram size={11} />
-                          </a>
-                        )}
+        {loading ? (
+          <div className="p-10 flex items-center justify-center">
+            <RefreshCw size={20} className="animate-spin text-gray-400" />
+          </div>
+        ) : creators.length === 0 ? (
+          <div className="p-10 text-center">
+            <p className="text-sm text-gray-500 mb-4">Todavía no invitaste ningún creator.</p>
+            <button
+              onClick={() => setShowInvite(true)}
+              className="text-sm font-medium text-brand-600 hover:underline"
+            >
+              Invitar primer creator →
+            </button>
+          </div>
+        ) : (
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-gray-100 bg-gray-50">
+                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500">Creator</th>
+                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500">Tier</th>
+                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500">Estado</th>
+                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500">Código</th>
+                <th className="text-right px-6 py-3 text-xs font-medium text-gray-500">Ventas</th>
+                <th className="px-6 py-3" />
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-50">
+              {creators.map((creator) => (
+                <tr key={creator.id} className="hover:bg-gray-50">
+                  <td className="px-6 py-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-brand-100 flex items-center justify-center text-brand-700 text-xs font-semibold">
+                        {creator.name.split(" ").map((n) => n[0]).join("").slice(0, 2)}
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">{creator.name}</p>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <span className="text-xs text-gray-400">{creator.email}</span>
+                          {creator.instagram && (
+                            <a
+                              href={`https://instagram.com/${creator.instagram}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-gray-400 hover:text-pink-500"
+                            >
+                              <Instagram size={11} />
+                            </a>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </td>
-                <td className="px-6 py-4">
-                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${TIER_STYLES[creator.tier]}`}>
-                    {creator.tier}
-                  </span>
-                </td>
-                <td className="px-6 py-4">
-                  <span className="font-mono text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded">
-                    {creator.discountCode}
-                  </span>
-                  <span className="text-xs text-gray-400 ml-1.5">{creator.commissionPct}%</span>
-                </td>
-                <td className="px-6 py-4 text-right text-sm text-gray-700">
-                  {creator.clicks.toLocaleString()}
-                </td>
-                <td className="px-6 py-4 text-right text-sm text-gray-700">
-                  {creator.conversions}
-                </td>
-                <td className="px-6 py-4 text-right">
-                  <span className={`text-sm font-medium ${creator.pendingAmount > 0 ? "text-brand-600" : "text-gray-400"}`}>
-                    {creator.pendingAmount > 0 ? `$${creator.pendingAmount.toLocaleString()}` : "—"}
-                  </span>
-                </td>
-                <td className="px-6 py-4">
-                  <div className="flex items-center justify-end gap-1">
-                    <a
-                      href={`/dashboard/gifting?creatorId=${creator.id}`}
-                      title="Enviar gifting"
-                      className="p-1.5 text-gray-400 hover:text-brand-500 hover:bg-brand-50 rounded-lg"
-                    >
-                      <Gift size={14} />
-                    </a>
-                    <a
-                      href={`/dashboard/links?creatorId=${creator.id}`}
-                      title="Ver links"
-                      className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg"
-                    >
-                      <Link2 size={14} />
-                    </a>
-                    <a
-                      href={`/dashboard/briefing?creatorId=${creator.id}`}
-                      title="Enviar briefing"
-                      className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg"
-                    >
-                      <Mail size={14} />
-                    </a>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                  </td>
+                  <td className="px-6 py-4">
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${TIER_STYLES[creator.tier]}`}>
+                      {creator.tier}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4">
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_STYLES[creator.status]}`}>
+                      {STATUS_LABELS[creator.status]}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4">
+                    {creator.discountCode ? (
+                      <>
+                        <span className="font-mono text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded">
+                          {creator.discountCode}
+                        </span>
+                        <span className="text-xs text-gray-400 ml-1.5">{creator.commissionPct}%</span>
+                      </>
+                    ) : (
+                      <span className="text-xs text-gray-400">—</span>
+                    )}
+                  </td>
+                  <td className="px-6 py-4 text-right text-sm text-gray-700">
+                    {creator._count?.conversions ?? 0}
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="flex items-center justify-end gap-1">
+                      <a
+                        href={`/dashboard/gifting?creatorId=${creator.id}`}
+                        title="Enviar gifting"
+                        className="p-1.5 text-gray-400 hover:text-brand-500 hover:bg-brand-50 rounded-lg"
+                      >
+                        <Gift size={14} />
+                      </a>
+                      <a
+                        href={`/dashboard/links?creatorId=${creator.id}`}
+                        title="Ver links"
+                        className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg"
+                      >
+                        <Link2 size={14} />
+                      </a>
+                      <a
+                        href={`/dashboard/briefing?creatorId=${creator.id}`}
+                        title="Enviar briefing"
+                        className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg"
+                      >
+                        <Mail size={14} />
+                      </a>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </div>
 
-      {showInvite && <InviteCreatorModal onClose={() => setShowInvite(false)} />}
+      {showInvite && workspaceId && (
+        <InviteCreatorModal
+          workspaceId={workspaceId}
+          onClose={() => setShowInvite(false)}
+          onCreated={loadData}
+        />
+      )}
     </div>
   )
 }
 
-function InviteCreatorModal({ onClose }: { onClose: () => void }) {
+function InviteCreatorModal({
+  workspaceId,
+  onClose,
+  onCreated,
+}: {
+  workspaceId: string
+  onClose: () => void
+  onCreated: () => void
+}) {
   const [form, setForm] = useState({
     name: "", email: "", instagram: "",
     commissionPct: "10", discountCode: "",
   })
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState("")
 
   const handleNameChange = (name: string) => {
-    const code = name.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 8)
-    setForm((f) => ({ ...f, name, discountCode: code + f.commissionPct }))
+    const code = generateDiscountCode(name, parseInt(form.commissionPct) || 10)
+    setForm((f) => ({ ...f, name, discountCode: code }))
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
-    await new Promise((r) => setTimeout(r, 800))
-    setLoading(false)
-    onClose()
+    setError("")
+
+    try {
+      const res = await fetch("/api/creators", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          workspaceId,
+          name: form.name,
+          email: form.email,
+          instagram: form.instagram || undefined,
+          commissionPct: parseFloat(form.commissionPct),
+          discountCode: form.discountCode || undefined,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setError(data.error ?? "Error al invitar creator")
+        return
+      }
+      onCreated()
+      onClose()
+    } catch {
+      setError("Error de conexión")
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -203,9 +277,7 @@ function InviteCreatorModal({ onClose }: { onClose: () => void }) {
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-md">
         <div className="px-6 py-5 border-b border-gray-100">
           <h2 className="text-base font-semibold text-gray-900">Invitar creator</h2>
-          <p className="text-xs text-gray-500 mt-0.5">
-            Le llegará un email con el link de onboarding y su código de descuento.
-          </p>
+          <p className="text-xs text-gray-500 mt-0.5">Le llegará un email con su código de descuento.</p>
         </div>
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           <div className="grid grid-cols-2 gap-3">
@@ -266,6 +338,7 @@ function InviteCreatorModal({ onClose }: { onClose: () => void }) {
               />
             </div>
           </div>
+          {error && <p className="text-xs text-red-600 bg-red-50 p-2 rounded-lg">{error}</p>}
           <div className="flex gap-3 pt-2">
             <button type="button" onClick={onClose}
               className="flex-1 px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50">

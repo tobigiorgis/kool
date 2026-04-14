@@ -1,40 +1,50 @@
 "use client"
 
-import { useState } from "react"
-import { Plus, Send, FileText, Users, Eye } from "lucide-react"
+import { useState, useEffect, useCallback } from "react"
+import { Plus, Send, FileText, Users, Eye, RefreshCw } from "lucide-react"
 
-const MOCK_BRIEFINGS = [
-  {
-    id: "1",
-    subject: "Campaña Invierno 2026 — Colección Premium",
-    campaignName: "Invierno 2026",
-    status: "SENT",
-    sentAt: "2026-04-05",
-    recipients: 3,
-    opens: 2,
-  },
-  {
-    id: "2",
-    subject: "Brief: Lanzamiento Nueva Línea Running",
-    campaignName: "Running Launch",
-    status: "SENT",
-    sentAt: "2026-03-20",
-    recipients: 2,
-    opens: 2,
-  },
-  {
-    id: "3",
-    subject: "Campaña Día de la Madre — Mayo 2026",
-    campaignName: "Día de la Madre",
-    status: "DRAFT",
-    sentAt: null,
-    recipients: 0,
-    opens: 0,
-  },
-]
+interface Creator {
+  id: string
+  name: string
+  email: string
+}
+
+interface Briefing {
+  id: string
+  subject: string
+  campaignName: string | null
+  status: string
+  sentAt: string | null
+  createdAt: string
+  recipients: { creator: Creator }[]
+}
 
 export default function BriefingPage() {
+  const [briefings, setBriefings] = useState<Briefing[]>([])
+  const [workspaceId, setWorkspaceId] = useState<string | null>(null)
   const [showCreate, setShowCreate] = useState(false)
+  const [loading, setLoading] = useState(true)
+
+  const loadData = useCallback(async () => {
+    setLoading(true)
+    try {
+      const wsRes = await fetch("/api/workspace/me")
+      if (!wsRes.ok) return
+      const { workspace } = await wsRes.json()
+      if (!workspace) return
+
+      setWorkspaceId(workspace.id)
+      const res = await fetch(`/api/briefing?workspaceId=${workspace.id}`)
+      if (res.ok) {
+        const data = await res.json()
+        setBriefings(data.briefings)
+      }
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => { loadData() }, [loadData])
 
   return (
     <div className="p-8">
@@ -52,88 +62,136 @@ export default function BriefingPage() {
         </button>
       </div>
 
-      <div className="space-y-3">
-        {MOCK_BRIEFINGS.map((briefing) => (
-          <div key={briefing.id} className="bg-white rounded-xl border border-gray-100 p-5 hover:border-gray-200 transition-colors">
-            <div className="flex items-start justify-between">
-              <div className="flex items-start gap-3">
-                <div className="w-9 h-9 rounded-lg bg-blue-50 flex items-center justify-center mt-0.5">
-                  <FileText size={16} className="text-blue-500" />
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-gray-900">{briefing.subject}</p>
-                  <p className="text-xs text-gray-400 mt-0.5">{briefing.campaignName}</p>
-                  <div className="flex items-center gap-4 mt-2">
-                    {briefing.status === "SENT" ? (
-                      <>
-                        <span className="flex items-center gap-1 text-xs text-gray-500">
-                          <Users size={11} />
-                          {briefing.recipients} enviados
-                        </span>
-                        <span className="flex items-center gap-1 text-xs text-gray-500">
-                          <Eye size={11} />
-                          {briefing.opens} abiertos
-                        </span>
-                        <span className="text-xs text-gray-400">{briefing.sentAt}</span>
-                      </>
-                    ) : (
-                      <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full font-medium">
-                        Borrador
-                      </span>
+      {loading ? (
+        <div className="flex items-center justify-center py-10">
+          <RefreshCw size={20} className="animate-spin text-gray-400" />
+        </div>
+      ) : briefings.length === 0 ? (
+        <div className="bg-white rounded-xl border border-gray-100 p-10 text-center">
+          <FileText size={32} className="mx-auto text-gray-300 mb-3" />
+          <p className="text-sm text-gray-500 mb-4">Todavía no creaste ningún briefing.</p>
+          <button
+            onClick={() => setShowCreate(true)}
+            className="text-sm font-medium text-brand-600 hover:underline"
+          >
+            Crear primer briefing →
+          </button>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {briefings.map((briefing) => (
+            <div
+              key={briefing.id}
+              className="bg-white rounded-xl border border-gray-100 p-5 hover:border-gray-200 transition-colors"
+            >
+              <div className="flex items-start justify-between">
+                <div className="flex items-start gap-3">
+                  <div className="w-9 h-9 rounded-lg bg-blue-50 flex items-center justify-center mt-0.5">
+                    <FileText size={16} className="text-blue-500" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-900">{briefing.subject}</p>
+                    {briefing.campaignName && (
+                      <p className="text-xs text-gray-400 mt-0.5">{briefing.campaignName}</p>
                     )}
+                    <div className="flex items-center gap-4 mt-2">
+                      {briefing.status === "SENT" ? (
+                        <>
+                          <span className="flex items-center gap-1 text-xs text-gray-500">
+                            <Users size={11} />
+                            {briefing.recipients.length} enviados
+                          </span>
+                          {briefing.sentAt && (
+                            <span className="text-xs text-gray-400">
+                              {new Date(briefing.sentAt).toLocaleDateString("es-AR")}
+                            </span>
+                          )}
+                        </>
+                      ) : (
+                        <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full font-medium">
+                          Borrador
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
-              <div className="flex items-center gap-2">
-                {briefing.status === "DRAFT" && (
-                  <button className="flex items-center gap-1.5 text-xs font-medium text-brand-600 bg-brand-50 px-3 py-1.5 rounded-lg hover:bg-brand-100">
-                    <Send size={12} />
-                    Enviar
-                  </button>
-                )}
-                <button className="text-xs text-gray-500 px-3 py-1.5 border border-gray-200 rounded-lg hover:bg-gray-50">
-                  Ver
-                </button>
-              </div>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
 
-      {showCreate && <CreateBriefingModal onClose={() => setShowCreate(false)} />}
+      {showCreate && workspaceId && (
+        <CreateBriefingModal
+          workspaceId={workspaceId}
+          onClose={() => setShowCreate(false)}
+          onCreated={loadData}
+        />
+      )}
     </div>
   )
 }
 
-function CreateBriefingModal({ onClose }: { onClose: () => void }) {
+function CreateBriefingModal({
+  workspaceId,
+  onClose,
+  onCreated,
+}: {
+  workspaceId: string
+  onClose: () => void
+  onCreated: () => void
+}) {
   const [form, setForm] = useState({
-    subject: "",
-    campaignName: "",
-    startDate: "",
-    endDate: "",
-    body: "",
+    subject: "", campaignName: "", startDate: "", endDate: "", body: "",
   })
+  const [creators, setCreators] = useState<Creator[]>([])
   const [selectedCreators, setSelectedCreators] = useState<string[]>([])
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState("")
 
-  const MOCK_CREATORS = [
-    { id: "1", name: "Camila Ruiz", email: "camila@email.com" },
-    { id: "2", name: "Martina López", email: "marti@email.com" },
-    { id: "3", name: "Sofía Gómez", email: "sofi@email.com" },
-  ]
+  useEffect(() => {
+    fetch(`/api/creators?workspaceId=${workspaceId}`)
+      .then((r) => r.json())
+      .then((d) => setCreators(d.creators ?? []))
+      .catch(() => {})
+  }, [workspaceId])
 
-  const toggleCreator = (id: string) => {
-    setSelectedCreators((prev) =>
-      prev.includes(id) ? prev.filter((c) => c !== id) : [...prev, id]
-    )
-  }
+  const toggleCreator = (id: string) =>
+    setSelectedCreators((prev) => prev.includes(id) ? prev.filter((c) => c !== id) : [...prev, id])
 
-  const handleSubmit = async (e: React.FormEvent, send: boolean) => {
+  const handleSubmit = async (e: React.MouseEvent, send: boolean) => {
     e.preventDefault()
+    if (!form.subject || !form.body) return
     setLoading(true)
-    await new Promise((r) => setTimeout(r, 1000))
-    setLoading(false)
-    onClose()
+    setError("")
+
+    try {
+      const res = await fetch("/api/briefing", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          workspaceId,
+          subject: form.subject,
+          campaignName: form.campaignName || undefined,
+          startDate: form.startDate || undefined,
+          endDate: form.endDate || undefined,
+          body: form.body,
+          creatorIds: send ? selectedCreators : [],
+          send,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setError(data.error ?? "Error al crear el briefing")
+        return
+      }
+      onCreated()
+      onClose()
+    } catch {
+      setError("Error de conexión")
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -142,7 +200,7 @@ function CreateBriefingModal({ onClose }: { onClose: () => void }) {
         <div className="px-6 py-5 border-b border-gray-100">
           <h2 className="text-base font-semibold text-gray-900">Nuevo briefing</h2>
         </div>
-        <form className="p-6 space-y-4">
+        <div className="p-6 space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-medium text-gray-700 mb-1.5">Nombre de campaña</label>
@@ -155,12 +213,13 @@ function CreateBriefingModal({ onClose }: { onClose: () => void }) {
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1.5">Asunto del email</label>
+              <label className="block text-xs font-medium text-gray-700 mb-1.5">Asunto del email *</label>
               <input
                 type="text"
                 value={form.subject}
                 onChange={(e) => setForm((f) => ({ ...f, subject: e.target.value }))}
                 placeholder="Brief: Campaña Invierno 2026"
+                required
                 className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400"
               />
             </div>
@@ -186,46 +245,48 @@ function CreateBriefingModal({ onClose }: { onClose: () => void }) {
             </div>
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1.5">
-              Contenido del brief
-            </label>
+            <label className="block text-xs font-medium text-gray-700 mb-1.5">Contenido del brief *</label>
             <textarea
               value={form.body}
               onChange={(e) => setForm((f) => ({ ...f, body: e.target.value }))}
-              placeholder="Describí los objetivos, entregables, fechas clave, hashtags y cualquier instrucción importante para el creator..."
+              placeholder="Describí los objetivos, entregables, fechas clave, hashtags..."
               rows={6}
+              required
               className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400 resize-none"
             />
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-700 mb-2">
-              Destinatarios
-            </label>
-            <div className="space-y-2">
-              {MOCK_CREATORS.map((c) => (
-                <label
-                  key={c.id}
-                  className={`flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition-colors ${
-                    selectedCreators.includes(c.id)
-                      ? "border-brand-400 bg-brand-50"
-                      : "border-gray-200 hover:border-gray-300"
-                  }`}
-                >
-                  <input
-                    type="checkbox"
-                    checked={selectedCreators.includes(c.id)}
-                    onChange={() => toggleCreator(c.id)}
-                    className="rounded text-brand-400"
-                  />
-                  <div>
-                    <p className="text-sm font-medium text-gray-900">{c.name}</p>
-                    <p className="text-xs text-gray-400">{c.email}</p>
-                  </div>
-                </label>
-              ))}
-            </div>
+            <label className="block text-xs font-medium text-gray-700 mb-2">Destinatarios</label>
+            {creators.length === 0 ? (
+              <p className="text-xs text-gray-400">No hay creators disponibles todavía.</p>
+            ) : (
+              <div className="space-y-2">
+                {creators.map((c) => (
+                  <label
+                    key={c.id}
+                    className={`flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition-colors ${
+                      selectedCreators.includes(c.id)
+                        ? "border-brand-400 bg-brand-50"
+                        : "border-gray-200 hover:border-gray-300"
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedCreators.includes(c.id)}
+                      onChange={() => toggleCreator(c.id)}
+                      className="rounded text-brand-400"
+                    />
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">{c.name}</p>
+                      <p className="text-xs text-gray-400">{c.email}</p>
+                    </div>
+                  </label>
+                ))}
+              </div>
+            )}
           </div>
-        </form>
+          {error && <p className="text-xs text-red-600 bg-red-50 p-2 rounded-lg">{error}</p>}
+        </div>
         <div className="px-6 py-4 border-t border-gray-100 flex gap-3">
           <button onClick={onClose}
             className="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50">
@@ -233,18 +294,20 @@ function CreateBriefingModal({ onClose }: { onClose: () => void }) {
           </button>
           <button
             onClick={(e) => handleSubmit(e, false)}
-            disabled={loading}
+            disabled={loading || !form.subject || !form.body}
             className="px-4 py-2 text-sm text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50"
           >
             Guardar borrador
           </button>
           <button
             onClick={(e) => handleSubmit(e, true)}
-            disabled={loading || selectedCreators.length === 0 || !form.subject}
+            disabled={loading || selectedCreators.length === 0 || !form.subject || !form.body}
             className="flex-1 flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium bg-brand-400 text-white rounded-lg hover:bg-brand-500 disabled:opacity-50"
           >
             <Send size={14} />
-            {loading ? "Enviando..." : `Enviar a ${selectedCreators.length} creator${selectedCreators.length !== 1 ? "s" : ""}`}
+            {loading
+              ? "Enviando..."
+              : `Enviar a ${selectedCreators.length} creator${selectedCreators.length !== 1 ? "s" : ""}`}
           </button>
         </div>
       </div>

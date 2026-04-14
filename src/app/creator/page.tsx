@@ -3,7 +3,7 @@ import { redirect } from "next/navigation"
 import { prisma } from "@/lib/prisma"
 import { getCreatorStats } from "@/lib/tinybird"
 import { getDateRange, formatCurrency, formatNumber } from "@/lib/utils"
-import { Link2, Gift, DollarSign, MousePointerClick, Instagram, Copy } from "lucide-react"
+import { Link2, Gift, DollarSign, MousePointerClick, ArrowRight } from "lucide-react"
 import Link from "next/link"
 
 export default async function CreatorDashboardPage() {
@@ -105,6 +105,9 @@ export default async function CreatorDashboardPage() {
               <span className="text-xs text-gray-500">Listo para cobrar</span>
             </div>
             <p className="text-2xl font-semibold text-brand-600">{formatCurrency(approvedAmount)}</p>
+            <Link href="/creator/earnings" className="flex items-center gap-1 text-xs text-brand-600 hover:underline mt-1">
+              Ver historial <ArrowRight size={10} />
+            </Link>
           </div>
         </div>
 
