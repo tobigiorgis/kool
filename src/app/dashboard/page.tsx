@@ -1,171 +1,145 @@
 import { auth } from "@clerk/nextjs/server"
+import { redirect } from "next/navigation"
 import { prisma } from "@/lib/prisma"
-import { getWorkspaceStats, getWorkspaceClicksByDay } from "@/lib/tinybird"
+import { getWorkspaceStats } from "@/lib/tinybird"
 import { getDateRange, formatNumber, formatCurrency } from "@/lib/utils"
-import { Link2, Users, MousePointerClick, TrendingUp, ArrowUpRight } from "lucide-react"
+import { Link2, Users, MousePointerClick, TrendingUp, ArrowUpRight, Zap } from "lucide-react"
 import Link from "next/link"
 
 export default async function DashboardPage() {
   const { userId } = await auth()
 
-  // Obtener workspace del usuario
   const member = await prisma.workspaceMember.findFirst({
-    where: { user: { id: userId! } },
+    where: { userId: userId! },
     include: { workspace: { include: { tiendanubeConnection: true } } },
   })
 
-  if (!member) {
-    return <OnboardingPrompt />
-  }
+  if (!member) return <OnboardingPrompt />
 
   const workspace = member.workspace
   const { from, to } = getDateRange("30d")
 
-  // Datos en paralelo
-  const [stats, linksCount, creatorsCount, pendingCommissions, recentLinks] =
-    await Promise.all([
-      getWorkspaceStats(workspace.id, from, to).catch(() => ({ clicks: 0, unique_clicks: 0 })),
-      prisma.link.count({ where: { workspaceId: workspace.id, archived: false } }),
-      prisma.creator.count({ where: { workspaceId: workspace.id, status: "ACTIVE" } }),
-      prisma.commission.aggregate({
-        where: { creator: { workspaceId: workspace.id }, status: "PENDING" },
-        _sum: { amount: true },
-      }),
-      prisma.link.findMany({
-        where: { workspaceId: workspace.id, archived: false },
-        include: { creator: true },
-        orderBy: { createdAt: "desc" },
-        take: 5,
-      }),
-    ])
+  const [stats, linksCount, creatorsCount, pendingCommissions, recentLinks] = await Promise.all([
+    getWorkspaceStats(workspace.id, from, to).catch(() => ({ clicks: 0, unique_clicks: 0 })),
+    prisma.link.count({ where: { workspaceId: workspace.id, archived: false } }),
+    prisma.creator.count({ where: { workspaceId: workspace.id, status: "ACTIVE" } }),
+    prisma.commission.aggregate({
+      where: { creator: { workspaceId: workspace.id }, status: "PENDING" },
+      _sum: { amount: true },
+    }),
+    prisma.link.findMany({
+      where: { workspaceId: workspace.id, archived: false },
+      include: { creator: { select: { name: true } } },
+      orderBy: { createdAt: "desc" },
+      take: 5,
+    }),
+  ])
 
-  const pendingAmount = pendingCommissions._sum.amount || 0
+  const pendingAmount = pendingCommissions._sum.amount ?? 0
 
   return (
-    <div className="p-8">
+    <div className="max-w-5xl mx-auto px-8 py-10">
       {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-2xl font-semibold text-gray-900">Hola 👋</h1>
-        <p className="text-gray-500 text-sm mt-1">
-          Resumen de los últimos 30 días — {workspace.name}
-        </p>
+      <div className="mb-10">
+        <h1 className="text-xl font-semibold text-gray-900">{workspace.name}</h1>
+        <p className="text-sm text-gray-400 mt-0.5">Últimos 30 días</p>
       </div>
 
-      {/* Alerta Tiendanube no conectada */}
+      {/* Banner Tiendanube */}
       {!workspace.tiendanubeConnection && (
-        <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-xl flex items-center justify-between">
-          <div>
-            <p className="text-sm font-medium text-amber-800">Conectá tu tienda Tiendanube</p>
-            <p className="text-xs text-amber-600 mt-0.5">
-              Para trackear conversiones y crear códigos de descuento automáticamente.
-            </p>
-          </div>
+        <div className="mb-8 flex items-center justify-between px-4 py-3 border border-[#f0f0f0] rounded-lg bg-[#fafafa]">
+          <p className="text-[13px] text-gray-500">
+            Conectá tu tienda Tiendanube para trackear conversiones automáticamente.
+          </p>
           <Link
             href="/dashboard/settings?tab=integrations"
-            className="flex items-center gap-1 text-xs font-medium text-amber-700 hover:text-amber-900 bg-amber-100 px-3 py-1.5 rounded-lg"
+            className="flex items-center gap-1 text-[12px] font-medium text-gray-700 hover:text-gray-900 transition-colors ml-4 flex-shrink-0"
           >
-            Conectar <ArrowUpRight size={12} />
+            Conectar <ArrowUpRight size={11} />
           </Link>
         </div>
       )}
 
       {/* Métricas */}
-      <div className="grid grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-4 gap-4 mb-10">
+        <MetricCard label="Clics" value={formatNumber(stats.clicks)} sub="totales" />
         <MetricCard
-          label="Clics totales"
-          value={formatNumber(stats.clicks)}
-          sub="últimos 30 días"
-          icon={<MousePointerClick size={16} className="text-brand-500" />}
-          bg="bg-brand-50"
-        />
-        <MetricCard
-          label="Clics únicos"
+          label="Únicos"
           value={formatNumber(stats.unique_clicks)}
-          sub={`${stats.clicks > 0 ? Math.round((stats.unique_clicks / stats.clicks) * 100) : 0}% del total`}
-          icon={<TrendingUp size={16} className="text-blue-500" />}
-          bg="bg-blue-50"
+          sub={stats.clicks > 0 ? `${Math.round((stats.unique_clicks / stats.clicks) * 100)}% del total` : "—"}
         />
-        <MetricCard
-          label="Links activos"
-          value={linksCount.toString()}
-          sub={`${creatorsCount} creators`}
-          icon={<Link2 size={16} className="text-purple-500" />}
-          bg="bg-purple-50"
-        />
-        <MetricCard
-          label="Comisiones pendientes"
-          value={formatCurrency(pendingAmount)}
-          sub="por aprobar"
-          icon={<Users size={16} className="text-orange-500" />}
-          bg="bg-orange-50"
-        />
+        <MetricCard label="Links" value={linksCount.toString()} sub={`${creatorsCount} creators activos`} />
+        <MetricCard label="Comisiones" value={formatCurrency(pendingAmount)} sub="pendientes" accent />
       </div>
 
       {/* Links recientes */}
-      <div className="bg-white rounded-xl border border-gray-100">
-        <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-gray-900">Links recientes</h2>
-          <Link href="/dashboard/links" className="text-xs text-brand-600 hover:underline">
+      <div className="border border-[#f0f0f0] rounded-xl overflow-hidden">
+        <div className="flex items-center justify-between px-5 py-3.5 border-b border-[#f0f0f0]">
+          <span className="text-[13px] font-medium text-gray-900">Links recientes</span>
+          <Link href="/dashboard/links" className="text-[12px] text-gray-400 hover:text-gray-700 transition-colors">
             Ver todos →
           </Link>
         </div>
-        <div className="divide-y divide-gray-50">
-          {recentLinks.length === 0 ? (
-            <div className="px-6 py-10 text-center">
-              <p className="text-sm text-gray-500">Todavía no creaste ningún link.</p>
-              <Link
-                href="/dashboard/links"
-                className="mt-3 inline-block text-sm font-medium text-brand-600 hover:underline"
+
+        {recentLinks.length === 0 ? (
+          <div className="px-5 py-12 text-center">
+            <p className="text-[13px] text-gray-400">Todavía no creaste ningún link.</p>
+            <Link href="/dashboard/links" className="inline-block mt-3 text-[13px] font-medium text-brand-400 hover:text-brand-500">
+              Crear primer link →
+            </Link>
+          </div>
+        ) : (
+          <div>
+            {recentLinks.map((link, i) => (
+              <div
+                key={link.id}
+                className={`flex items-center gap-4 px-5 py-3.5 ${i < recentLinks.length - 1 ? "border-b border-[#f0f0f0]" : ""}`}
               >
-                Crear primer link →
-              </Link>
-            </div>
-          ) : (
-            recentLinks.map((link) => (
-              <div key={link.id} className="px-6 py-4 flex items-center gap-4">
-                <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center">
-                  <Link2 size={14} className="text-gray-400" />
+                <div className="w-7 h-7 rounded-md bg-[#f5f5f5] flex items-center justify-center flex-shrink-0">
+                  <Link2 size={12} className="text-gray-400" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-900 truncate">
+                  <p className="text-[13px] font-medium text-gray-900 truncate">
                     kool.link/{link.slug}
                   </p>
-                  <p className="text-xs text-gray-400 truncate">{link.destination}</p>
+                  <p className="text-[11px] text-gray-400 truncate mt-0.5">{link.destination}</p>
                 </div>
-                {link.creator && (
-                  <span className="text-xs bg-brand-50 text-brand-700 px-2 py-0.5 rounded-full">
-                    {link.creator.name}
-                  </span>
-                )}
-                {link.discountCode && (
-                  <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full font-mono">
-                    {link.discountCode}
-                  </span>
-                )}
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  {link.creator && (
+                    <span className="text-[11px] text-gray-500 bg-[#f5f5f5] px-2 py-0.5 rounded-md">
+                      {link.creator.name}
+                    </span>
+                  )}
+                  {link.discountCode && (
+                    <span className="text-[11px] font-mono text-gray-500 bg-[#f5f5f5] px-2 py-0.5 rounded-md">
+                      {link.discountCode}
+                    </span>
+                  )}
+                </div>
               </div>
-            ))
-          )}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   )
 }
 
 function MetricCard({
-  label, value, sub, icon, bg,
+  label, value, sub, accent = false,
 }: {
-  label: string; value: string; sub: string; icon: React.ReactNode; bg: string
+  label: string
+  value: string
+  sub: string
+  accent?: boolean
 }) {
   return (
-    <div className="bg-white rounded-xl border border-gray-100 p-5">
-      <div className="flex items-center justify-between mb-3">
-        <span className="text-xs text-gray-500">{label}</span>
-        <div className={`w-7 h-7 rounded-lg ${bg} flex items-center justify-center`}>
-          {icon}
-        </div>
-      </div>
-      <p className="text-2xl font-semibold text-gray-900">{value}</p>
-      <p className="text-xs text-gray-400 mt-0.5">{sub}</p>
+    <div className="border border-[#f0f0f0] rounded-xl p-5">
+      <p className="text-[11px] font-medium text-gray-400 uppercase tracking-wide mb-3">{label}</p>
+      <p className={`text-2xl font-semibold tracking-tight ${accent ? "text-brand-400" : "text-gray-900"}`}>
+        {value}
+      </p>
+      <p className="text-[11px] text-gray-400 mt-1">{sub}</p>
     </div>
   )
 }
@@ -173,17 +147,17 @@ function MetricCard({
 function OnboardingPrompt() {
   return (
     <div className="flex items-center justify-center h-full">
-      <div className="text-center max-w-sm">
-        <div className="w-12 h-12 bg-brand-50 rounded-xl flex items-center justify-center mx-auto mb-4">
-          <Zap size={20} className="text-brand-500" />
+      <div className="text-center max-w-xs">
+        <div className="w-10 h-10 border border-[#f0f0f0] rounded-xl flex items-center justify-center mx-auto mb-4">
+          <Zap size={16} className="text-brand-400" />
         </div>
-        <h2 className="text-lg font-semibold text-gray-900 mb-2">Configurá tu workspace</h2>
-        <p className="text-sm text-gray-500 mb-6">
+        <h2 className="text-base font-semibold text-gray-900 mb-2">Configurá tu workspace</h2>
+        <p className="text-[13px] text-gray-400 mb-6">
           Necesitás crear un workspace para empezar a usar Kool.
         </p>
         <Link
           href="/onboarding"
-          className="bg-brand-400 text-white px-5 py-2.5 rounded-lg text-sm font-medium hover:bg-brand-500"
+          className="inline-block bg-gray-900 text-white text-[13px] font-medium px-4 py-2.5 rounded-lg hover:bg-gray-800 transition-colors"
         >
           Crear workspace
         </Link>
@@ -191,6 +165,3 @@ function OnboardingPrompt() {
     </div>
   )
 }
-
-// Needed for the OnboardingPrompt component
-import { Zap } from "lucide-react"

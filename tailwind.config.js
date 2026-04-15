@@ -1,6 +1,5 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
-  darkMode: ["class"],
   content: [
     "./src/pages/**/*.{js,ts,jsx,tsx,mdx}",
     "./src/components/**/*.{js,ts,jsx,tsx,mdx}",
@@ -8,28 +7,26 @@ module.exports = {
   ],
   theme: {
     extend: {
+      fontFamily: {
+        sans: ["var(--font-inter)", "Inter", "system-ui", "sans-serif"],
+      },
       colors: {
         brand: {
           DEFAULT: "#00C46A",
-          50:  "#E6FAF2",
-          100: "#C0F2DC",
-          200: "#7DE5B8",
-          300: "#3AD494",
+          50:  "#f0fdf6",
+          100: "#dcfce9",
+          200: "#bbf7d4",
+          300: "#86efac",
           400: "#00C46A",
-          500: "#00A558",
-          600: "#008546",
-          700: "#006435",
-          800: "#004423",
-          900: "#002412",
+          500: "#00a857",
+          600: "#008a47",
+          700: "#006f38",
+          800: "#00572c",
+          900: "#003d1e",
         },
       },
-      fontFamily: {
-        sans: ["Inter", "system-ui", "sans-serif"],
-      },
-      borderRadius: {
-        lg: "var(--radius)",
-        md: "calc(var(--radius) - 2px)",
-        sm: "calc(var(--radius) - 4px)",
+      borderColor: {
+        DEFAULT: "#f0f0f0",
       },
     },
   },

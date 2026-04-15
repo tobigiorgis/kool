@@ -300,7 +300,7 @@ model BriefingRecipient {
 
 model Conversion {
   id          String    @id @default(cuid())
-  linkId      String
+  linkId      String?
   creatorId   String?
   
   // Orden de la tienda
@@ -315,7 +315,7 @@ model Conversion {
   clickedAt   DateTime? // Cuando hizo clic en el link
   convertedAt DateTime  @default(now())
   
-  link        Link      @relation(fields: [linkId], references: [id])
+  link        Link?     @relation(fields: [linkId], references: [id])
   creator     Creator?  @relation(fields: [creatorId], references: [id])
   commission  Commission?
 

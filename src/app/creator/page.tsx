@@ -1,38 +1,73 @@
-import { auth } from "@clerk/nextjs/server"
+import { auth, currentUser } from "@clerk/nextjs/server"
 import { redirect } from "next/navigation"
 import { prisma } from "@/lib/prisma"
-import { getCreatorStats } from "@/lib/tinybird"
 import { getDateRange, formatCurrency, formatNumber } from "@/lib/utils"
-import { Link2, Gift, DollarSign, MousePointerClick, ArrowRight } from "lucide-react"
+import { Link2, Gift, DollarSign, MousePointerClick, ArrowRight, Copy } from "lucide-react"
 import Link from "next/link"
 
 export default async function CreatorDashboardPage() {
   const { userId } = await auth()
   if (!userId) redirect("/login")
 
-  const creator = await prisma.creator.findFirst({
-    where: { user: { id: userId } },
-    include: {
-      links: { where: { archived: false } },
-      giftingOrders: {
-        orderBy: { createdAt: "desc" },
-        take: 3,
-      },
-      commissions: {
-        where: { status: { in: ["PENDING", "APPROVED"] } },
-        orderBy: { createdAt: "desc" },
-        take: 5,
-      },
+  const include = {
+    links: { where: { archived: false } },
+    giftingOrders: { orderBy: { createdAt: "desc" } as const, take: 3 },
+    commissions: {
+      where: { status: { in: ["PENDING", "APPROVED"] } },
+      orderBy: { createdAt: "desc" } as const,
+      take: 5,
     },
+  }
+
+  // Buscar por userId primero, luego por email como fallback
+  let creator = await prisma.creator.findFirst({
+    where: { userId },
+    include,
   })
+
+  if (!creator) {
+    const clerkUser = await currentUser()
+    const email = clerkUser?.emailAddresses[0]?.emailAddress
+
+    if (email) {
+      creator = await prisma.creator.findFirst({
+        where: { email },
+        include,
+      })
+
+      // Linkear automáticamente si encontramos por email
+      if (creator && !creator.userId) {
+        await prisma.user.upsert({
+          where: { id: userId },
+          create: {
+            id: userId,
+            email,
+            name: clerkUser?.fullName ?? creator.name,
+            role: "CREATOR",
+          },
+          update: {},
+        })
+        await prisma.creator.update({
+          where: { id: creator.id },
+          data: { userId },
+        })
+      }
+    }
+  }
 
   if (!creator) redirect("/onboarding/creator")
 
   const { from, to } = getDateRange("30d")
-  const stats = await getCreatorStats(creator.id, from, to).catch(() => ({
-    clicks: 0,
-    unique_clicks: 0,
-  }))
+  const creatorLinkIds = creator.links.map((l) => l.id)
+  const clickCount = creatorLinkIds.length
+    ? await prisma.click.count({
+        where: {
+          linkId: { in: creatorLinkIds },
+          timestamp: { gte: new Date(from + "T00:00:00.000Z"), lte: new Date(to + "T23:59:59.999Z") },
+        },
+      })
+    : 0
+  const stats = { clicks: clickCount, unique_clicks: 0 }
 
   const pendingAmount = creator.commissions
     .filter((c) => c.status === "PENDING")

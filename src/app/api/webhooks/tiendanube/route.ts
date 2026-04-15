@@ -87,7 +87,7 @@ export async function POST(request: NextRequest) {
     await prisma.$transaction(async (tx) => {
       const conversion = await tx.conversion.create({
         data: {
-          linkId: link?.id || "", // Puede no tener link asociado
+          linkId: link?.id || undefined,
           creatorId: creator.id,
           orderId: parsed.orderId,
           platform: "TIENDANUBE",

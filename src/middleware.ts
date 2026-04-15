@@ -5,8 +5,10 @@ const isPublicRoute = createRouteMatcher([
   "/",
   "/login(.*)",
   "/register(.*)",
+  "/onboarding/creator(.*)",        // Onboarding de creators — token como auth
   "/api/r/(.*)",                    // Shortlink redirects — público
   "/api/webhooks/(.*)",             // Webhooks de Tiendanube — público
+  "/api/onboarding/creator(.*)",    // API de onboarding creator — público
   "/scripts/(.*)",                  // Script de tracking — público
 ])
 

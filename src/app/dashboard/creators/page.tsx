@@ -1,7 +1,7 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
-import { Plus, Instagram, Mail, Gift, Link2, RefreshCw } from "lucide-react"
+import { useState, useEffect, useCallback, useRef } from "react"
+import { Plus, Instagram, Mail, Gift, Link2, RefreshCw, Upload, X, CheckCircle, AlertCircle } from "lucide-react"
 import { generateDiscountCode } from "@/lib/utils"
 
 interface Creator {
@@ -40,6 +40,7 @@ export default function CreatorsPage() {
   const [creators, setCreators] = useState<Creator[]>([])
   const [workspaceId, setWorkspaceId] = useState<string | null>(null)
   const [showInvite, setShowInvite] = useState(false)
+  const [showImport, setShowImport] = useState(false)
   const [loading, setLoading] = useState(true)
 
   const loadData = useCallback(async () => {
@@ -73,13 +74,22 @@ export default function CreatorsPage() {
           <h1 className="text-2xl font-semibold text-gray-900">Creators</h1>
           <p className="text-sm text-gray-500 mt-1">Gestioná tu programa de afiliados</p>
         </div>
-        <button
-          onClick={() => setShowInvite(true)}
-          className="flex items-center gap-2 bg-brand-400 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-brand-500"
-        >
-          <Plus size={16} />
-          Invitar creator
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowImport(true)}
+            className="flex items-center gap-2 px-4 py-2 text-[13px] font-medium text-gray-600 border border-[#e8e8e8] rounded-lg hover:bg-[#f5f5f5] transition-colors"
+          >
+            <Upload size={14} />
+            Importar CSV
+          </button>
+          <button
+            onClick={() => setShowInvite(true)}
+            className="flex items-center gap-2 bg-gray-900 text-white px-4 py-2 rounded-lg text-[13px] font-medium hover:bg-gray-800 transition-colors"
+          >
+            <Plus size={14} />
+            Invitar creator
+          </button>
+        </div>
       </div>
 
       {/* Stats */}
@@ -215,6 +225,13 @@ export default function CreatorsPage() {
           onCreated={loadData}
         />
       )}
+      {showImport && workspaceId && (
+        <ImportCSVModal
+          workspaceId={workspaceId}
+          onClose={() => setShowImport(false)}
+          onCreated={loadData}
+        />
+      )}
     </div>
   )
 }
@@ -345,11 +362,274 @@ function InviteCreatorModal({
               Cancelar
             </button>
             <button type="submit" disabled={loading}
-              className="flex-1 px-4 py-2 text-sm font-medium bg-brand-400 text-white rounded-lg hover:bg-brand-500 disabled:opacity-50">
+              className="flex-1 px-4 py-2 text-sm font-medium bg-gray-900 text-white rounded-lg hover:bg-gray-800 disabled:opacity-50">
               {loading ? "Enviando..." : "Enviar invitación"}
             </button>
           </div>
         </form>
+      </div>
+    </div>
+  )
+}
+
+// ─── CSV Import Modal ──────────────────────────────────────────────────────────
+
+interface CSVRow {
+  email: string
+  name: string
+  instagram: string
+  commissionPct: number
+  valid: boolean
+  error?: string
+}
+
+interface ImportResult {
+  imported: number
+  invited: number
+  skipped: number
+  errors: { email: string; reason: string }[]
+}
+
+function parseCSV(text: string): CSVRow[] {
+  const lines = text.trim().split("\n").map((l) => l.trim()).filter(Boolean)
+  if (!lines.length) return []
+
+  // Detectar header comprobando si la primera celda parece un email real
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  const firstCell = lines[0].split(",")[0].trim().replace(/^"|"$/g, "")
+  const hasHeader = !emailRegex.test(firstCell)
+  const dataLines = hasHeader ? lines.slice(1) : lines
+
+  return dataLines.map((line) => {
+    const cols = line.split(",").map((c) => c.trim().replace(/^"|"$/g, ""))
+    const email = cols[0] ?? ""
+    const name = cols[1] || email.split("@")[0]
+    const instagram = cols[2] ?? ""
+    const commissionPct = parseFloat(cols[3]) || 10
+
+    const valid = emailRegex.test(email)
+    return {
+      email,
+      name,
+      instagram,
+      commissionPct,
+      valid,
+      error: !valid ? "Email inválido" : undefined,
+    }
+  })
+}
+
+function ImportCSVModal({
+  workspaceId,
+  onClose,
+  onCreated,
+}: {
+  workspaceId: string
+  onClose: () => void
+  onCreated: () => void
+}) {
+  const fileRef = useRef<HTMLInputElement>(null)
+  const [rows, setRows] = useState<CSVRow[]>([])
+  const [loading, setLoading] = useState(false)
+  const [result, setResult] = useState<ImportResult | null>(null)
+  const [dragOver, setDragOver] = useState(false)
+
+  const processFile = (file: File) => {
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      const text = e.target?.result as string
+      setRows(parseCSV(text))
+    }
+    reader.readAsText(file)
+  }
+
+  const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) processFile(file)
+  }
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    setDragOver(false)
+    const file = e.dataTransfer.files[0]
+    if (file) processFile(file)
+  }
+
+  const validRows = rows.filter((r) => r.valid)
+
+  const handleImport = async () => {
+    if (!validRows.length) return
+    setLoading(true)
+    try {
+      const res = await fetch("/api/creators/import", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          workspaceId,
+          creators: validRows.map((r) => ({
+            email: r.email,
+            name: r.name,
+            instagram: r.instagram || undefined,
+            commissionPct: r.commissionPct,
+          })),
+        }),
+      })
+      const data = await res.json()
+      if (res.ok) {
+        setResult(data)
+        onCreated()
+      }
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/20 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[85vh] flex flex-col">
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-5 border-b border-[#f0f0f0]">
+          <div>
+            <h2 className="text-[15px] font-semibold text-gray-900">Importar creators desde CSV</h2>
+            <p className="text-[12px] text-gray-400 mt-0.5">
+              Formato: <span className="font-mono">email, nombre, instagram, comision%</span>
+            </p>
+          </div>
+          <button onClick={onClose} className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-[#f5f5f5] rounded-lg">
+            <X size={16} />
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-auto p-6 space-y-4">
+          {/* Resultado final */}
+          {result ? (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 text-brand-400">
+                <CheckCircle size={18} />
+                <span className="text-[14px] font-medium text-gray-900">Importación completada</span>
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                <div className="border border-[#f0f0f0] rounded-xl p-4 text-center">
+                  <p className="text-2xl font-semibold text-gray-900">{result.imported}</p>
+                  <p className="text-[11px] text-gray-400 mt-0.5">Activados directo</p>
+                </div>
+                <div className="border border-[#f0f0f0] rounded-xl p-4 text-center">
+                  <p className="text-2xl font-semibold text-gray-900">{result.invited}</p>
+                  <p className="text-[11px] text-gray-400 mt-0.5">Invitaciones enviadas</p>
+                </div>
+                <div className="border border-[#f0f0f0] rounded-xl p-4 text-center">
+                  <p className="text-2xl font-semibold text-gray-900">{result.skipped}</p>
+                  <p className="text-[11px] text-gray-400 mt-0.5">Ya existían</p>
+                </div>
+              </div>
+              {result.errors.length > 0 && (
+                <div className="p-3 bg-red-50 rounded-lg">
+                  <p className="text-[12px] font-medium text-red-700 mb-1">Errores:</p>
+                  {result.errors.map((e) => (
+                    <p key={e.email} className="text-[11px] text-red-600">{e.email}: {e.reason}</p>
+                  ))}
+                </div>
+              )}
+              <button
+                onClick={onClose}
+                className="w-full py-2.5 text-[13px] font-medium bg-gray-900 text-white rounded-lg hover:bg-gray-800"
+              >
+                Cerrar
+              </button>
+            </div>
+          ) : rows.length === 0 ? (
+            /* Upload area */
+            <div
+              onDragOver={(e) => { e.preventDefault(); setDragOver(true) }}
+              onDragLeave={() => setDragOver(false)}
+              onDrop={handleDrop}
+              onClick={() => fileRef.current?.click()}
+              className={`border-2 border-dashed rounded-xl p-10 text-center cursor-pointer transition-colors ${
+                dragOver ? "border-brand-400 bg-brand-50" : "border-[#e8e8e8] hover:border-gray-300"
+              }`}
+            >
+              <Upload size={24} className="mx-auto text-gray-300 mb-3" />
+              <p className="text-[13px] font-medium text-gray-600">Arrastrá tu CSV o hacé click para subir</p>
+              <p className="text-[11px] text-gray-400 mt-1">Una fila por creator. El header es opcional.</p>
+              <input ref={fileRef} type="file" accept=".csv,.txt" onChange={handleFile} className="hidden" />
+              {/* Ejemplo */}
+              <div className="mt-5 p-3 bg-[#f8f8f8] rounded-lg text-left inline-block">
+                <p className="text-[10px] font-mono text-gray-400 leading-relaxed">
+                  camila@mail.com<br />
+                  marti@mail.com,Martina López,martinaok,15<br />
+                  sofi@mail.com,Sofi García
+                </p>
+              </div>
+              <p className="text-[11px] text-gray-400 mt-2">Solo el email es obligatorio. Nombre, Instagram y comisión son opcionales.</p>
+            </div>
+          ) : (
+            /* Preview */
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <p className="text-[13px] text-gray-600">
+                  <strong className="text-gray-900">{validRows.length}</strong> válidos
+                  {rows.length - validRows.length > 0 && (
+                    <span className="text-red-500 ml-2">· {rows.length - validRows.length} con error</span>
+                  )}
+                </p>
+                <button
+                  onClick={() => { setRows([]); if (fileRef.current) fileRef.current.value = "" }}
+                  className="text-[12px] text-gray-400 hover:text-gray-600"
+                >
+                  Cambiar archivo
+                </button>
+              </div>
+
+              <div className="border border-[#f0f0f0] rounded-xl overflow-hidden">
+                <table className="w-full">
+                  <thead>
+                    <tr className="bg-[#f8f8f8] border-b border-[#f0f0f0]">
+                      <th className="text-left px-4 py-2.5 text-[11px] font-medium text-gray-400">Email</th>
+                      <th className="text-left px-4 py-2.5 text-[11px] font-medium text-gray-400">Nombre</th>
+                      <th className="text-left px-4 py-2.5 text-[11px] font-medium text-gray-400">Instagram</th>
+                      <th className="text-right px-4 py-2.5 text-[11px] font-medium text-gray-400">Comisión</th>
+                      <th className="px-4 py-2.5 w-8" />
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[#f0f0f0]">
+                    {rows.map((row, i) => (
+                      <tr key={i} className={row.valid ? "" : "bg-red-50"}>
+                        <td className="px-4 py-2.5 text-[12px] text-gray-700">{row.email}</td>
+                        <td className="px-4 py-2.5 text-[12px] text-gray-700">{row.name}</td>
+                        <td className="px-4 py-2.5 text-[12px] text-gray-500">
+                          {row.instagram ? `@${row.instagram}` : "—"}
+                        </td>
+                        <td className="px-4 py-2.5 text-[12px] text-gray-700 text-right">{row.commissionPct}%</td>
+                        <td className="px-4 py-2.5 text-center">
+                          {row.valid
+                            ? <CheckCircle size={13} className="text-brand-400 mx-auto" />
+                            : <AlertCircle size={13} className="text-red-400 mx-auto" title={row.error} />
+                          }
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Footer con botón de importar */}
+        {!result && rows.length > 0 && (
+          <div className="px-6 py-4 border-t border-[#f0f0f0] flex items-center justify-between">
+            <p className="text-[12px] text-gray-400">
+              Los que ya tienen cuenta en Kool se activan directo. El resto recibe un email de invitación.
+            </p>
+            <button
+              onClick={handleImport}
+              disabled={loading || validRows.length === 0}
+              className="ml-4 flex-shrink-0 px-5 py-2 text-[13px] font-medium bg-gray-900 text-white rounded-lg hover:bg-gray-800 disabled:opacity-50 transition-colors"
+            >
+              {loading ? "Importando..." : `Importar ${validRows.length} creators`}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   )
