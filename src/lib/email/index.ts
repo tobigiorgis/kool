@@ -25,7 +25,7 @@ async function sendEmail(opts: SendEmailOptions) {
       to: Array.isArray(opts.to) ? opts.to : [opts.to],
       subject: opts.subject,
       html: opts.html,
-      reply_to: opts.replyTo,
+      replyTo: opts.replyTo,
     })
     if (error) throw error
     return { ok: true, id: data?.id }

@@ -102,7 +102,7 @@ export async function POST(request: NextRequest) {
       data: {
         workspaceId: data.workspaceId,
         creatorId: data.creatorId,
-        tiendanubeOrderId: tnOrder.id?.toString(),
+        tiendanubeOrderId: (tnOrder as any).id?.toString(),
         tiendanubeStoreId: connection.storeId,
         products: data.products,
         totalValue,
@@ -114,7 +114,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       ok: true,
       giftingOrder,
-      tiendanubeOrderId: tnOrder.id,
+      tiendanubeOrderId: (tnOrder as any).id,
     })
   } catch (error) {
     if (error instanceof z.ZodError) {

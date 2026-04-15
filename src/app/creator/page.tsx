@@ -1,41 +1,66 @@
 import { auth, currentUser } from "@clerk/nextjs/server"
 import { redirect } from "next/navigation"
 import { prisma } from "@/lib/prisma"
+import type { Prisma } from "@prisma/client"
 import { getDateRange, formatCurrency, formatNumber } from "@/lib/utils"
 import { Link2, Gift, DollarSign, MousePointerClick, ArrowRight, Copy } from "lucide-react"
 import Link from "next/link"
+
+type CreatorWithRelations = Prisma.CreatorGetPayload<{
+  include: {
+    links: { where: { archived: boolean } }
+    giftingOrders: { orderBy: { createdAt: "desc" }; take: number }
+    commissions: {
+      where: { status: { in: ["PENDING", "APPROVED"] } }
+      orderBy: { createdAt: "desc" }
+      take: number
+    }
+  }
+}>
+
+async function getCreator(userId: string): Promise<CreatorWithRelations | null> {
+  return prisma.creator.findFirst({
+    where: { userId },
+    include: {
+      links: { where: { archived: false } },
+      giftingOrders: { orderBy: { createdAt: "desc" }, take: 3 },
+      commissions: {
+        where: { status: { in: ["PENDING", "APPROVED"] } },
+        orderBy: { createdAt: "desc" },
+        take: 5,
+      },
+    },
+  }) as Promise<CreatorWithRelations | null>
+}
+
+async function getCreatorByEmail(email: string): Promise<CreatorWithRelations | null> {
+  return prisma.creator.findFirst({
+    where: { email },
+    include: {
+      links: { where: { archived: false } },
+      giftingOrders: { orderBy: { createdAt: "desc" }, take: 3 },
+      commissions: {
+        where: { status: { in: ["PENDING", "APPROVED"] } },
+        orderBy: { createdAt: "desc" },
+        take: 5,
+      },
+    },
+  }) as Promise<CreatorWithRelations | null>
+}
 
 export default async function CreatorDashboardPage() {
   const { userId } = await auth()
   if (!userId) redirect("/login")
 
-  const include = {
-    links: { where: { archived: false } },
-    giftingOrders: { orderBy: { createdAt: "desc" } as const, take: 3 },
-    commissions: {
-      where: { status: { in: ["PENDING", "APPROVED"] } },
-      orderBy: { createdAt: "desc" } as const,
-      take: 5,
-    },
-  }
-
-  // Buscar por userId primero, luego por email como fallback
-  let creator = await prisma.creator.findFirst({
-    where: { userId },
-    include,
-  })
+  let creator = await getCreator(userId)
 
   if (!creator) {
     const clerkUser = await currentUser()
     const email = clerkUser?.emailAddresses[0]?.emailAddress
 
     if (email) {
-      creator = await prisma.creator.findFirst({
-        where: { email },
-        include,
-      })
+      creator = await getCreatorByEmail(email)
 
-      // Linkear automáticamente si encontramos por email
       if (creator && !creator.userId) {
         await prisma.user.upsert({
           where: { id: userId },
@@ -63,11 +88,13 @@ export default async function CreatorDashboardPage() {
     ? await prisma.click.count({
         where: {
           linkId: { in: creatorLinkIds },
-          timestamp: { gte: new Date(from + "T00:00:00.000Z"), lte: new Date(to + "T23:59:59.999Z") },
+          timestamp: {
+            gte: new Date(from + "T00:00:00.000Z"),
+            lte: new Date(to + "T23:59:59.999Z"),
+          },
         },
       })
     : 0
-  const stats = { clicks: clickCount, unique_clicks: 0 }
 
   const pendingAmount = creator.commissions
     .filter((c) => c.status === "PENDING")
@@ -105,9 +132,7 @@ export default async function CreatorDashboardPage() {
             <p className="text-sm font-medium opacity-80 mb-1">Tu código de descuento</p>
             <div className="flex items-center justify-between">
               <span className="text-3xl font-bold tracking-wider">{creator.discountCode}</span>
-              <button
-                className="flex items-center gap-1.5 bg-white/20 hover:bg-white/30 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors"
-              >
+              <button className="flex items-center gap-1.5 bg-white/20 hover:bg-white/30 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors">
                 <Copy size={14} />
                 Copiar
               </button>
@@ -125,7 +150,7 @@ export default async function CreatorDashboardPage() {
               <MousePointerClick size={14} className="text-gray-400" />
               <span className="text-xs text-gray-500">Clics (30d)</span>
             </div>
-            <p className="text-2xl font-semibold text-gray-900">{formatNumber(stats.clicks)}</p>
+            <p className="text-2xl font-semibold text-gray-900">{formatNumber(clickCount)}</p>
           </div>
           <div className="bg-white rounded-xl border border-gray-100 p-4">
             <div className="flex items-center gap-2 mb-2">
@@ -185,7 +210,7 @@ export default async function CreatorDashboardPage() {
                 <div key={order.id} className="px-5 py-4 flex items-center justify-between">
                   <div>
                     <p className="text-sm text-gray-900">
-                      {(order.products as any[]).map((p: any) => p.name).join(", ")}
+                      {(order.products as { name: string }[]).map((p) => p.name).join(", ")}
                     </p>
                     <p className="text-xs text-gray-400 mt-0.5">{order.status}</p>
                   </div>

@@ -603,7 +603,7 @@ function ImportCSVModal({
                         <td className="px-4 py-2.5 text-center">
                           {row.valid
                             ? <CheckCircle size={13} className="text-brand-400 mx-auto" />
-                            : <AlertCircle size={13} className="text-red-400 mx-auto" title={row.error} />
+                            : <AlertCircle size={13} className="text-red-400 mx-auto" />
                           }
                         </td>
                       </tr>
