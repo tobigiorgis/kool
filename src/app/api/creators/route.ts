@@ -1,9 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@clerk/nextjs/server"
 import { prisma } from "@/lib/prisma"
-import { createTiendanubeCoupon } from "@/lib/tiendanube"
-import { decrypt } from "@/lib/utils/crypto"
-import { generateDiscountCode } from "@/lib/utils"
 import { sendCreatorInvite } from "@/lib/email"
 import { z } from "zod"
 
@@ -13,7 +10,6 @@ const InviteCreatorSchema = z.object({
   email: z.string().email(),
   instagram: z.string().optional(),
   commissionPct: z.number().min(1).max(50).default(10),
-  discountCode: z.string().optional(),
   tier: z.enum(["BRONZE", "SILVER", "GOLD"]).default("BRONZE"),
 })
 
@@ -33,10 +29,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Este creator ya existe en tu programa" }, { status: 409 })
     }
 
-    // Generar código de descuento si no se proveyó
-    const discountCode = data.discountCode || generateDiscountCode(data.name, data.commissionPct)
-
-    // Crear el creator
+    // Crear el creator (sin código de descuento — se asigna por campaña)
     const creator = await prisma.creator.create({
       data: {
         workspaceId: data.workspaceId,
@@ -44,31 +37,10 @@ export async function POST(request: NextRequest) {
         email: data.email,
         instagram: data.instagram,
         commissionPct: data.commissionPct,
-        discountCode,
         tier: data.tier,
         status: "PENDING",
       },
     })
-
-    // Crear cupón en Tiendanube si está conectada (async)
-    const connection = await prisma.tiendanubeConnection.findUnique({
-      where: { workspaceId: data.workspaceId },
-    })
-
-    if (connection?.active) {
-      createTiendanubeCoupon(
-        connection.storeId,
-        decrypt(connection.accessToken),
-        {
-          code: discountCode,
-          type: "percentage",
-          value: data.commissionPct,
-          valid: true,
-        }
-      ).catch((err) =>
-        console.error("[Creator] Coupon creation failed:", err)
-      )
-    }
 
     // Enviar email de invitación
     const workspace = await prisma.workspace.findUnique({ where: { id: data.workspaceId } })
@@ -78,7 +50,7 @@ export async function POST(request: NextRequest) {
       to: data.email,
       creatorName: data.name,
       brandName: workspace?.name || "Kool",
-      discountCode,
+      discountCode: "",
       commissionPct: data.commissionPct,
       onboardingUrl,
     })

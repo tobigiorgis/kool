@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useCallback, useRef } from "react"
 import { Plus, Instagram, Mail, Gift, Link2, RefreshCw, Upload, X, CheckCircle, AlertCircle } from "lucide-react"
-import { generateDiscountCode } from "@/lib/utils"
 
 interface Creator {
   id: string
@@ -247,15 +246,10 @@ function InviteCreatorModal({
 }) {
   const [form, setForm] = useState({
     name: "", email: "", instagram: "",
-    commissionPct: "10", discountCode: "",
+    commissionPct: "10",
   })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
-
-  const handleNameChange = (name: string) => {
-    const code = generateDiscountCode(name, parseInt(form.commissionPct) || 10)
-    setForm((f) => ({ ...f, name, discountCode: code }))
-  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -272,7 +266,6 @@ function InviteCreatorModal({
           email: form.email,
           instagram: form.instagram || undefined,
           commissionPct: parseFloat(form.commissionPct),
-          discountCode: form.discountCode || undefined,
         }),
       })
       const data = await res.json()
@@ -294,7 +287,7 @@ function InviteCreatorModal({
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-md">
         <div className="px-6 py-5 border-b border-gray-100">
           <h2 className="text-base font-semibold text-gray-900">Invitar creator</h2>
-          <p className="text-xs text-gray-500 mt-0.5">Le llegará un email con su código de descuento.</p>
+          <p className="text-xs text-gray-500 mt-0.5">El código de descuento se asigna al agregar el creator a una campaña.</p>
         </div>
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           <div className="grid grid-cols-2 gap-3">
@@ -303,7 +296,7 @@ function InviteCreatorModal({
               <input
                 type="text"
                 value={form.name}
-                onChange={(e) => handleNameChange(e.target.value)}
+                onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
                 placeholder="Camila Ruiz"
                 required
                 className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400"
@@ -334,26 +327,15 @@ function InviteCreatorModal({
               />
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1.5">Comisión %</label>
-              <input
-                type="number"
-                value={form.commissionPct}
-                onChange={(e) => setForm((f) => ({ ...f, commissionPct: e.target.value }))}
-                min="1" max="50"
-                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1.5">Código de descuento</label>
-              <input
-                type="text"
-                value={form.discountCode}
-                onChange={(e) => setForm((f) => ({ ...f, discountCode: e.target.value.toUpperCase() }))}
-                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400 font-mono"
-              />
-            </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1.5">Comisión % por defecto</label>
+            <input
+              type="number"
+              value={form.commissionPct}
+              onChange={(e) => setForm((f) => ({ ...f, commissionPct: e.target.value }))}
+              min="1" max="50"
+              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400"
+            />
           </div>
           {error && <p className="text-xs text-red-600 bg-red-50 p-2 rounded-lg">{error}</p>}
           <div className="flex gap-3 pt-2">

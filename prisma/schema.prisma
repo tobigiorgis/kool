@@ -28,6 +28,7 @@ model Workspace {
   members      WorkspaceMember[]
   links        Link[]
   creators     Creator[]
+  campaigns    Campaign[]
   giftingOrders GiftingOrder[]
   briefings    Briefing[]
   tiendanubeConnection TiendanubeConnection?
@@ -66,6 +67,62 @@ model WorkspaceMember {
 }
 
 // ─────────────────────────────────────────────
+// CAMPAÑAS
+// ─────────────────────────────────────────────
+
+model Campaign {
+  id          String         @id @default(cuid())
+  workspaceId String
+
+  // Info
+  name        String
+  description String?
+
+  // Fechas
+  startDate   DateTime?
+  endDate     DateTime?
+
+  // Estado
+  status      CampaignStatus @default(PRE_LAUNCH)
+
+  // Presupuesto (opcional)
+  budget      Float?
+  currency    String         @default("ARS")
+
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  // Relaciones
+  workspace   Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  creators    CampaignCreator[]
+  links       Link[]
+  briefings   Briefing[]
+
+  @@map("campaigns")
+}
+
+model CampaignCreator {
+  id           String   @id @default(cuid())
+  campaignId   String
+  creatorId    String
+
+  // Override de comisión/descuento por campaña
+  commissionPct Float?   // Si es null, usa el del creator
+  discountCode  String?  // Código específico para esta campaña
+
+  // Estado dentro de la campaña
+  status       CampaignCreatorStatus @default(INVITED)
+
+  createdAt    DateTime @default(now())
+
+  campaign     Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  creator      Creator  @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+
+  @@unique([campaignId, creatorId])
+  @@map("campaign_creators")
+}
+
+// ─────────────────────────────────────────────
 // LINKS Y TRACKING
 // ─────────────────────────────────────────────
 
@@ -73,6 +130,7 @@ model Link {
   id          String    @id @default(cuid())
   workspaceId String
   creatorId   String?   // Si el link está asignado a un creator
+  campaignId  String?   // Si pertenece a una campaña
   
   // URL
   slug        String    @unique  // ej: "camila-verano"
@@ -106,6 +164,7 @@ model Link {
   // Relaciones
   workspace   Workspace  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   creator     Creator?   @relation(fields: [creatorId], references: [id])
+  campaign    Campaign?  @relation(fields: [campaignId], references: [id])
   clicks      Click[]
   conversions Conversion[]
 
@@ -195,6 +254,7 @@ model Creator {
   workspace     Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   user          User?           @relation(fields: [userId], references: [id])
   links         Link[]
+  campaigns     CampaignCreator[]
   giftingOrders GiftingOrder[]
   commissions   Commission[]
   conversions   Conversion[]
@@ -251,7 +311,8 @@ model GiftingOrder {
 model Briefing {
   id          String    @id @default(cuid())
   workspaceId String
-  
+  campaignId  String?
+
   // Contenido
   subject     String
   body        String    // HTML del email
@@ -272,6 +333,7 @@ model Briefing {
   updatedAt   DateTime  @updatedAt
 
   workspace   Workspace          @relation(fields: [workspaceId], references: [id])
+  campaign    Campaign?          @relation(fields: [campaignId], references: [id])
   recipients  BriefingRecipient[]
 
   @@map("briefings")
@@ -441,6 +503,18 @@ enum Platform {
   SHOPIFY
   MERCADOLIBRE  // Solo tracking de clics, sin conversiones
   OTHER
+}
+
+enum CampaignStatus {
+  PRE_LAUNCH
+  RUNNING
+  COMPLETED
+}
+
+enum CampaignCreatorStatus {
+  INVITED
+  ACCEPTED
+  DECLINED
 }
 
 enum AffiliateProgram {

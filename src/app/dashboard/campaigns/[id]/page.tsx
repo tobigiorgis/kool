@@ -1,0 +1,741 @@
+"use client"
+
+import { useState, useEffect, useCallback } from "react"
+import { useParams, useRouter } from "next/navigation"
+import {
+  ArrowLeft, MousePointerClick, ShoppingCart, DollarSign, TrendingUp,
+  Users, Link2, X, RefreshCw, UserPlus, Trash2, RefreshCcw,
+} from "lucide-react"
+import { formatNumber, formatCurrency, formatDate, generateDiscountCode } from "@/lib/utils"
+
+interface CampaignCreator {
+  id: string
+  commissionPct: number | null
+  discountCode: string | null
+  status: string
+  creator: {
+    id: string
+    name: string
+    email: string
+    instagram: string | null
+    discountCode: string | null
+    commissionPct: number
+    status: string
+  }
+}
+
+interface CampaignLink {
+  id: string
+  slug: string
+  destination: string
+  discountCode: string | null
+  creator: { name: string } | null
+}
+
+interface CampaignBriefing {
+  id: string
+  subject: string
+  status: string
+  sentAt: string | null
+}
+
+interface CampaignDetail {
+  id: string
+  name: string
+  description: string | null
+  status: "PRE_LAUNCH" | "RUNNING" | "COMPLETED"
+  startDate: string | null
+  endDate: string | null
+  budget: number | null
+  workspaceId: string
+  creators: CampaignCreator[]
+  links: CampaignLink[]
+  briefings: CampaignBriefing[]
+}
+
+interface Analytics {
+  clicks: number
+  conversions: number
+  revenue: number
+  commissions: number
+}
+
+interface AvailableCreator {
+  id: string
+  name: string
+  email: string
+  instagram: string | null
+  discountCode: string | null
+  commissionPct: number
+}
+
+const STATUS_CONFIG: Record<string, { label: string; style: string }> = {
+  PRE_LAUNCH: { label: "Pre-launch", style: "bg-amber-100 text-amber-700" },
+  RUNNING: { label: "Activa", style: "bg-green-100 text-green-700" },
+  COMPLETED: { label: "Completada", style: "bg-gray-100 text-gray-500" },
+}
+
+const STATUS_ORDER: ("PRE_LAUNCH" | "RUNNING" | "COMPLETED")[] = ["PRE_LAUNCH", "RUNNING", "COMPLETED"]
+
+type Tab = "overview" | "creators" | "links"
+
+export default function CampaignDetailPage() {
+  const { id } = useParams<{ id: string }>()
+  const router = useRouter()
+  const [campaign, setCampaign] = useState<CampaignDetail | null>(null)
+  const [analytics, setAnalytics] = useState<Analytics | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [tab, setTab] = useState<Tab>("overview")
+  const [showAddCreators, setShowAddCreators] = useState(false)
+  const [statusUpdating, setStatusUpdating] = useState(false)
+
+  const loadData = useCallback(async () => {
+    setLoading(true)
+    try {
+      const res = await fetch(`/api/campaigns/${id}`)
+      if (!res.ok) return
+      const data = await res.json()
+      setCampaign(data.campaign)
+      setAnalytics(data.analytics)
+    } finally {
+      setLoading(false)
+    }
+  }, [id])
+
+  useEffect(() => { loadData() }, [loadData])
+
+  const updateStatus = async (status: string) => {
+    setStatusUpdating(true)
+    try {
+      const res = await fetch(`/api/campaigns/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setCampaign((c) => c ? { ...c, status: data.campaign.status } : c)
+      }
+    } finally {
+      setStatusUpdating(false)
+    }
+  }
+
+  const removeCreator = async (creatorId: string) => {
+    await fetch(`/api/campaigns/${id}/creators?creatorId=${creatorId}`, { method: "DELETE" })
+    loadData()
+  }
+
+  if (loading) {
+    return (
+      <div className="p-8 flex items-center justify-center min-h-[400px]">
+        <RefreshCw size={20} className="animate-spin text-gray-400" />
+      </div>
+    )
+  }
+
+  if (!campaign || !analytics) {
+    return (
+      <div className="p-8 text-center">
+        <p className="text-sm text-gray-500">Campaña no encontrada.</p>
+      </div>
+    )
+  }
+
+  const cfg = STATUS_CONFIG[campaign.status]
+
+  return (
+    <div className="p-8">
+      {/* Header */}
+      <div className="mb-8">
+        <button
+          onClick={() => router.push("/dashboard/campaigns")}
+          className="flex items-center gap-1 text-[13px] text-gray-400 hover:text-gray-600 mb-4 transition-colors"
+        >
+          <ArrowLeft size={14} />
+          Campañas
+        </button>
+
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2.5 mb-1">
+              <h1 className="text-2xl font-semibold text-gray-900">{campaign.name}</h1>
+              <span className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${cfg.style}`}>
+                {cfg.label}
+              </span>
+            </div>
+            {campaign.description && (
+              <p className="text-[13px] text-gray-400 mt-1">{campaign.description}</p>
+            )}
+            {(campaign.startDate || campaign.endDate) && (
+              <p className="text-[12px] text-gray-400 mt-2">
+                {campaign.startDate ? formatDate(campaign.startDate) : "—"}
+                {" → "}
+                {campaign.endDate ? formatDate(campaign.endDate) : "—"}
+              </p>
+            )}
+          </div>
+
+          {/* Status controls */}
+          <div className="flex items-center gap-2">
+            {STATUS_ORDER.map((s) => {
+              const c = STATUS_CONFIG[s]
+              const isActive = campaign.status === s
+              return (
+                <button
+                  key={s}
+                  disabled={statusUpdating || isActive}
+                  onClick={() => updateStatus(s)}
+                  className={`text-[11px] px-3 py-1.5 rounded-lg font-medium transition-colors ${
+                    isActive
+                      ? `${c.style} cursor-default`
+                      : "text-gray-400 border border-gray-200 hover:border-gray-300 hover:text-gray-600"
+                  }`}
+                >
+                  {c.label}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* Metrics */}
+      <div className="grid grid-cols-4 gap-4 mb-8">
+        <MetricCard icon={MousePointerClick} label="Clics" value={formatNumber(analytics.clicks)} />
+        <MetricCard icon={ShoppingCart} label="Conversiones" value={analytics.conversions.toString()} />
+        <MetricCard icon={TrendingUp} label="Revenue" value={formatCurrency(analytics.revenue)} />
+        <MetricCard icon={DollarSign} label="Comisiones" value={formatCurrency(analytics.commissions)} accent />
+      </div>
+
+      {/* Tabs */}
+      <div className="border-b border-gray-100 mb-6">
+        <div className="flex gap-6">
+          {([
+            { key: "overview" as Tab, label: "Overview" },
+            { key: "creators" as Tab, label: `Creators (${campaign.creators.length})` },
+            { key: "links" as Tab, label: `Links (${campaign.links.length})` },
+          ]).map((t) => (
+            <button
+              key={t.key}
+              onClick={() => setTab(t.key)}
+              className={`pb-3 text-[13px] font-medium transition-colors border-b-2 ${
+                tab === t.key
+                  ? "text-gray-900 border-gray-900"
+                  : "text-gray-400 border-transparent hover:text-gray-600"
+              }`}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Tab content */}
+      {tab === "overview" && (
+        <OverviewTab campaign={campaign} analytics={analytics} />
+      )}
+
+      {tab === "creators" && (
+        <CreatorsTab
+          campaign={campaign}
+          onAdd={() => setShowAddCreators(true)}
+          onRemove={removeCreator}
+        />
+      )}
+
+      {tab === "links" && (
+        <LinksTab campaign={campaign} />
+      )}
+
+      {showAddCreators && (
+        <AddCreatorsModal
+          campaignId={campaign.id}
+          workspaceId={campaign.workspaceId}
+          existingCreatorIds={campaign.creators.map((cc) => cc.creator.id)}
+          onClose={() => setShowAddCreators(false)}
+          onAdded={loadData}
+        />
+      )}
+    </div>
+  )
+}
+
+function MetricCard({ icon: Icon, label, value, accent }: {
+  icon: React.ElementType
+  label: string
+  value: string
+  accent?: boolean
+}) {
+  return (
+    <div className="bg-white rounded-xl border border-gray-100 p-5">
+      <div className="flex items-center gap-2 mb-2">
+        <Icon size={14} className={accent ? "text-brand-500" : "text-gray-400"} />
+        <span className="text-[11px] font-medium text-gray-400 uppercase tracking-wide">{label}</span>
+      </div>
+      <p className={`text-2xl font-semibold tracking-tight ${accent ? "text-brand-500" : "text-gray-900"}`}>
+        {value}
+      </p>
+    </div>
+  )
+}
+
+function OverviewTab({ campaign, analytics }: { campaign: CampaignDetail; analytics: Analytics }) {
+  const convRate = analytics.clicks > 0
+    ? ((analytics.conversions / analytics.clicks) * 100).toFixed(1)
+    : "0"
+
+  return (
+    <div className="space-y-6">
+      {/* Summary cards */}
+      <div className="grid grid-cols-2 gap-4">
+        <div className="bg-white rounded-xl border border-gray-100 p-5">
+          <h3 className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-3">Resumen</h3>
+          <div className="space-y-2.5">
+            <div className="flex justify-between text-[13px]">
+              <span className="text-gray-500">Creators</span>
+              <span className="font-medium text-gray-900">{campaign.creators.length}</span>
+            </div>
+            <div className="flex justify-between text-[13px]">
+              <span className="text-gray-500">Links activos</span>
+              <span className="font-medium text-gray-900">{campaign.links.length}</span>
+            </div>
+            <div className="flex justify-between text-[13px]">
+              <span className="text-gray-500">Briefings enviados</span>
+              <span className="font-medium text-gray-900">
+                {campaign.briefings.filter((b) => b.status === "SENT").length}
+              </span>
+            </div>
+            <div className="flex justify-between text-[13px]">
+              <span className="text-gray-500">Tasa de conversión</span>
+              <span className="font-medium text-gray-900">{convRate}%</span>
+            </div>
+          </div>
+        </div>
+
+        {campaign.budget && (
+          <div className="bg-white rounded-xl border border-gray-100 p-5">
+            <h3 className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-3">Presupuesto</h3>
+            <div className="space-y-2.5">
+              <div className="flex justify-between text-[13px]">
+                <span className="text-gray-500">Asignado</span>
+                <span className="font-medium text-gray-900">{formatCurrency(campaign.budget)}</span>
+              </div>
+              <div className="flex justify-between text-[13px]">
+                <span className="text-gray-500">Comisiones generadas</span>
+                <span className="font-medium text-gray-900">{formatCurrency(analytics.commissions)}</span>
+              </div>
+              <div className="flex justify-between text-[13px]">
+                <span className="text-gray-500">Disponible</span>
+                <span className="font-medium text-brand-500">
+                  {formatCurrency(Math.max(0, campaign.budget - analytics.commissions))}
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Briefings */}
+      {campaign.briefings.length > 0 && (
+        <div className="bg-white rounded-xl border border-gray-100">
+          <div className="px-5 py-4 border-b border-gray-100">
+            <h3 className="text-sm font-semibold text-gray-900">Briefings</h3>
+          </div>
+          <div className="divide-y divide-gray-50">
+            {campaign.briefings.map((b) => (
+              <div key={b.id} className="px-5 py-3.5 flex items-center justify-between">
+                <span className="text-[13px] text-gray-700">{b.subject}</span>
+                <div className="flex items-center gap-2">
+                  {b.sentAt && (
+                    <span className="text-[11px] text-gray-400">{formatDate(b.sentAt)}</span>
+                  )}
+                  <span className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${
+                    b.status === "SENT" ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"
+                  }`}>
+                    {b.status === "SENT" ? "Enviado" : b.status === "DRAFT" ? "Borrador" : b.status}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function CreatorsTab({ campaign, onAdd, onRemove }: {
+  campaign: CampaignDetail
+  onAdd: () => void
+  onRemove: (id: string) => void
+}) {
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-4">
+        <p className="text-[13px] text-gray-500">
+          {campaign.creators.length} creator{campaign.creators.length !== 1 ? "s" : ""} en esta campaña
+        </p>
+        <button
+          onClick={onAdd}
+          className="flex items-center gap-1.5 text-[13px] font-medium text-gray-700 border border-gray-200 px-3 py-1.5 rounded-lg hover:bg-gray-50 transition-colors"
+        >
+          <UserPlus size={14} />
+          Agregar creators
+        </button>
+      </div>
+
+      {campaign.creators.length === 0 ? (
+        <div className="bg-white rounded-xl border border-gray-100 p-10 text-center">
+          <Users size={28} className="mx-auto text-gray-300 mb-3" />
+          <p className="text-sm text-gray-500 mb-3">No hay creators en esta campaña.</p>
+          <button onClick={onAdd} className="text-sm font-medium text-brand-600 hover:underline">
+            Agregar creators
+          </button>
+        </div>
+      ) : (
+        <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-gray-100 bg-gray-50">
+                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500">Creator</th>
+                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500">Código</th>
+                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500">Comisión</th>
+                <th className="px-6 py-3" />
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-50">
+              {campaign.creators.map((cc) => (
+                <tr key={cc.id} className="hover:bg-gray-50">
+                  <td className="px-6 py-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-brand-100 flex items-center justify-center text-brand-700 text-xs font-semibold">
+                        {cc.creator.name.split(" ").map((n) => n[0]).join("").slice(0, 2)}
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">{cc.creator.name}</p>
+                        <p className="text-xs text-gray-400">{cc.creator.email}</p>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4">
+                    <span className="font-mono text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded">
+                      {cc.discountCode || cc.creator.discountCode || "—"}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 text-sm text-gray-700">
+                    {cc.commissionPct ?? cc.creator.commissionPct}%
+                  </td>
+                  <td className="px-6 py-4">
+                    <button
+                      onClick={() => onRemove(cc.creator.id)}
+                      className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                      title="Quitar de la campaña"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function LinksTab({ campaign }: { campaign: CampaignDetail }) {
+  return (
+    <div>
+      <p className="text-[13px] text-gray-500 mb-4">
+        {campaign.links.length} link{campaign.links.length !== 1 ? "s" : ""} en esta campaña
+      </p>
+
+      {campaign.links.length === 0 ? (
+        <div className="bg-white rounded-xl border border-gray-100 p-10 text-center">
+          <Link2 size={28} className="mx-auto text-gray-300 mb-3" />
+          <p className="text-sm text-gray-500">
+            Creá links desde la sección Links y asignalos a esta campaña.
+          </p>
+        </div>
+      ) : (
+        <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-gray-100 bg-gray-50">
+                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500">Link</th>
+                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500">Creator</th>
+                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500">Código</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-50">
+              {campaign.links.map((link) => (
+                <tr key={link.id} className="hover:bg-gray-50">
+                  <td className="px-6 py-4">
+                    <p className="text-sm font-medium text-gray-900">kool.link/{link.slug}</p>
+                    <p className="text-xs text-gray-400 truncate max-w-[250px]">{link.destination}</p>
+                  </td>
+                  <td className="px-6 py-4 text-sm text-gray-700">
+                    {link.creator?.name ?? "—"}
+                  </td>
+                  <td className="px-6 py-4">
+                    {link.discountCode ? (
+                      <span className="font-mono text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded">
+                        {link.discountCode}
+                      </span>
+                    ) : (
+                      <span className="text-xs text-gray-400">—</span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  )
+}
+
+interface CreatorConfig {
+  commissionPct: string
+  discountCode: string
+}
+
+function AddCreatorsModal({ campaignId, workspaceId, existingCreatorIds, onClose, onAdded }: {
+  campaignId: string
+  workspaceId: string
+  existingCreatorIds: string[]
+  onClose: () => void
+  onAdded: () => void
+}) {
+  const [available, setAvailable] = useState<AvailableCreator[]>([])
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [configs, setConfigs] = useState<Record<string, CreatorConfig>>({})
+  const [step, setStep] = useState<"select" | "configure">("select")
+  const [loading, setLoading] = useState(true)
+  const [submitting, setSubmitting] = useState(false)
+
+  useEffect(() => {
+    fetch(`/api/creators?workspaceId=${workspaceId}`)
+      .then((r) => r.json())
+      .then((data) => {
+        const filtered = (data.creators as AvailableCreator[]).filter(
+          (c) => !existingCreatorIds.includes(c.id)
+        )
+        setAvailable(filtered)
+      })
+      .finally(() => setLoading(false))
+  }, [workspaceId, existingCreatorIds])
+
+  const toggle = (creator: AvailableCreator) => {
+    setSelected((prev) => {
+      const next = new Set(prev)
+      if (next.has(creator.id)) {
+        next.delete(creator.id)
+      } else {
+        next.add(creator.id)
+        // Pre-fill config with auto-generated code
+        setConfigs((c) => ({
+          ...c,
+          [creator.id]: {
+            commissionPct: creator.commissionPct.toString(),
+            discountCode: generateDiscountCode(creator.name, creator.commissionPct),
+          },
+        }))
+      }
+      return next
+    })
+  }
+
+  const updateConfig = (creatorId: string, field: keyof CreatorConfig, value: string) => {
+    setConfigs((c) => ({ ...c, [creatorId]: { ...c[creatorId], [field]: value } }))
+  }
+
+  const regenerateCode = (creator: AvailableCreator) => {
+    const pct = parseInt(configs[creator.id]?.commissionPct) || creator.commissionPct
+    const code = generateDiscountCode(creator.name, pct)
+    updateConfig(creator.id, "discountCode", code)
+  }
+
+  const handleNext = () => {
+    if (!selected.size) return
+    setStep("configure")
+  }
+
+  const handleAdd = async () => {
+    setSubmitting(true)
+    try {
+      const results = await Promise.all(
+        Array.from(selected).map((creatorId) => {
+          const cfg = configs[creatorId]
+          return fetch(`/api/campaigns/${campaignId}/creators`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              creatorIds: [creatorId],
+              commissionPct: cfg ? parseFloat(cfg.commissionPct) : undefined,
+              discountCode: cfg?.discountCode || undefined,
+            }),
+          })
+        })
+      )
+      if (results.every((r) => r.ok)) {
+        onAdded()
+        onClose()
+      }
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const selectedCreators = available.filter((c) => selected.has(c.id))
+
+  return (
+    <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[80vh] flex flex-col">
+        <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100">
+          <div>
+            <h2 className="text-base font-semibold text-gray-900">
+              {step === "select" ? "Agregar creators" : "Asignar códigos"}
+            </h2>
+            <p className="text-xs text-gray-500 mt-0.5">
+              {step === "select"
+                ? "Seleccioná los creators para esta campaña."
+                : "Revisá el código y comisión de cada creator en esta campaña."}
+            </p>
+          </div>
+          <button onClick={onClose} className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg">
+            <X size={16} />
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-auto p-4">
+          {step === "select" ? (
+            loading ? (
+              <div className="flex items-center justify-center py-10">
+                <RefreshCw size={18} className="animate-spin text-gray-400" />
+              </div>
+            ) : available.length === 0 ? (
+              <div className="text-center py-10">
+                <p className="text-sm text-gray-400">Todos tus creators ya están en esta campaña.</p>
+              </div>
+            ) : (
+              <div className="space-y-1">
+                {available.map((c) => {
+                  const isSelected = selected.has(c.id)
+                  return (
+                    <button
+                      key={c.id}
+                      onClick={() => toggle(c)}
+                      className={`w-full flex items-center gap-3 px-3 py-3 rounded-lg text-left transition-colors ${
+                        isSelected ? "bg-brand-50 border border-brand-200" : "hover:bg-gray-50 border border-transparent"
+                      }`}
+                    >
+                      <div className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 ${
+                        isSelected ? "bg-brand-400 border-brand-400" : "border-gray-300"
+                      }`}>
+                        {isSelected && (
+                          <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
+                            <path d="M1 4L3.5 6.5L9 1" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                          </svg>
+                        )}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium text-gray-900">{c.name}</p>
+                        <p className="text-xs text-gray-400">{c.email}</p>
+                      </div>
+                      <span className="text-[11px] text-gray-400">{c.commissionPct}%</span>
+                    </button>
+                  )
+                })}
+              </div>
+            )
+          ) : (
+            <div className="space-y-3">
+              {selectedCreators.map((c) => {
+                const cfg = configs[c.id] ?? { commissionPct: c.commissionPct.toString(), discountCode: "" }
+                return (
+                  <div key={c.id} className="border border-gray-100 rounded-xl p-4">
+                    <div className="flex items-center gap-2 mb-3">
+                      <div className="w-7 h-7 rounded-full bg-brand-100 flex items-center justify-center text-brand-700 text-xs font-semibold">
+                        {c.name.split(" ").map((n) => n[0]).join("").slice(0, 2)}
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">{c.name}</p>
+                        <p className="text-xs text-gray-400">{c.email}</p>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-[11px] font-medium text-gray-500 mb-1">Comisión %</label>
+                        <input
+                          type="number"
+                          value={cfg.commissionPct}
+                          onChange={(e) => updateConfig(c.id, "commissionPct", e.target.value)}
+                          min="1" max="50"
+                          className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-brand-400"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-medium text-gray-500 mb-1">Código de descuento</label>
+                        <div className="flex gap-1">
+                          <input
+                            type="text"
+                            value={cfg.discountCode}
+                            onChange={(e) => updateConfig(c.id, "discountCode", e.target.value.toUpperCase())}
+                            className="flex-1 min-w-0 px-2.5 py-1.5 text-sm font-mono border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-brand-400"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => regenerateCode(c)}
+                            title="Regenerar código"
+                            className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg flex-shrink-0"
+                          >
+                            <RefreshCcw size={13} />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
+
+        <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-between">
+          {step === "select" ? (
+            <>
+              <p className="text-[12px] text-gray-400">{selected.size} seleccionados</p>
+              <button
+                onClick={handleNext}
+                disabled={!selected.size}
+                className="px-5 py-2 text-[13px] font-medium bg-gray-900 text-white rounded-lg hover:bg-gray-800 disabled:opacity-50 transition-colors"
+              >
+                Continuar →
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                onClick={() => setStep("select")}
+                className="text-[13px] text-gray-500 hover:text-gray-700"
+              >
+                ← Volver
+              </button>
+              <button
+                onClick={handleAdd}
+                disabled={submitting}
+                className="px-5 py-2 text-[13px] font-medium bg-gray-900 text-white rounded-lg hover:bg-gray-800 disabled:opacity-50 transition-colors"
+              >
+                {submitting ? "Agregando..." : `Agregar ${selected.size} creator${selected.size !== 1 ? "s" : ""}`}
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
