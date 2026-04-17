@@ -157,13 +157,18 @@ export async function GET(request: NextRequest) {
   }
 
   const workspaceId = request.nextUrl.searchParams.get("workspaceId")
-  if (!workspaceId) {
-    return NextResponse.json({ error: "Missing workspaceId" }, { status: 400 })
+  const campaignId = request.nextUrl.searchParams.get("campaignId")
+
+  if (!workspaceId && !campaignId) {
+    return NextResponse.json({ error: "Missing workspaceId or campaignId" }, { status: 400 })
   }
 
   const giftingOrders = await prisma.giftingOrder.findMany({
-    where: { workspaceId },
-    include: { creator: true },
+    where: {
+      ...(workspaceId ? { workspaceId } : {}),
+      ...(campaignId ? { campaignId } : {}),
+    },
+    include: { creator: { select: { id: true, name: true, email: true } } },
     orderBy: { createdAt: "desc" },
   })
 

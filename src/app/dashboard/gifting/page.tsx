@@ -27,6 +27,7 @@ interface Campaign {
   id: string
   name: string
   status: string
+  creators: { creator: { id: string; name: string; address: string | null; city: string | null; province: string | null } }[]
 }
 
 const STATUS_CONFIG: Record<string, { label: string; icon: React.ReactNode; style: string }> = {
@@ -231,14 +232,16 @@ function CreateGiftingModal({
   onCreated: () => void
 }) {
   const [step, setStep] = useState<"creator" | "products" | "confirm">("creator")
+  const [mode, setMode] = useState<"creators" | "campaigns">("creators")
   const [creators, setCreators] = useState<Creator[]>([])
-  const [selectedCreator, setSelectedCreator] = useState<Creator | null>(null)
+  const [selectedCreators, setSelectedCreators] = useState<Creator[]>([])
+  const [campaigns, setCampaigns] = useState<Campaign[]>([])
+  const [selectedCampaign, setSelectedCampaign] = useState<Campaign | null>(null)
+  const [giftingCampaignId, setGiftingCampaignId] = useState("")
   const [products, setProducts] = useState<TiendanubeProduct[]>([])
   const [productsLoading, setProductsLoading] = useState(false)
   const [selected, setSelected] = useState<SelectedProduct[]>([])
   const [search, setSearch] = useState("")
-  const [campaigns, setCampaigns] = useState<Campaign[]>([])
-  const [selectedCampaign, setSelectedCampaign] = useState("")
   const [notes, setNotes] = useState("")
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState("")
@@ -248,11 +251,25 @@ function CreateGiftingModal({
       .then((r) => r.json())
       .then((d) => setCreators(d.creators ?? []))
       .catch(() => {})
+    // Fetch campaigns with their creators (detail endpoint per campaign would be heavy,
+    // so we fetch list then detail for active ones)
     fetch(`/api/campaigns?workspaceId=${workspaceId}`)
       .then((r) => r.json())
-      .then((d) => setCampaigns(
-        (d.campaigns ?? []).filter((c: Campaign) => c.status === "PRE_LAUNCH" || c.status === "RUNNING")
-      ))
+      .then(async (d) => {
+        const active: Campaign[] = (d.campaigns ?? []).filter(
+          (c: Campaign) => c.status === "PRE_LAUNCH" || c.status === "RUNNING"
+        )
+        // Fetch full detail (includes creators) for each active campaign
+        const detailed = await Promise.all(
+          active.map((c) =>
+            fetch(`/api/campaigns/${c.id}`)
+              .then((r) => r.json())
+              .then((data) => ({ ...c, creators: data.campaign?.creators ?? [] }))
+              .catch(() => ({ ...c, creators: [] }))
+          )
+        )
+        setCampaigns(detailed)
+      })
       .catch(() => {})
   }, [workspaceId])
 
@@ -271,6 +288,12 @@ function CreateGiftingModal({
     setStep("products")
     if (products.length === 0) loadProducts()
   }
+
+  // Creators that will receive the gifting
+  const targetCreators: Creator[] =
+    mode === "campaigns" && selectedCampaign
+      ? selectedCampaign.creators.map((cc) => cc.creator).filter((c) => c.city)
+      : selectedCreators
 
   const addVariant = (product: TiendanubeProduct, variant: TiendanubeVariant) => {
     const key = variant.id
@@ -309,29 +332,38 @@ function CreateGiftingModal({
   const totalValue = selected.reduce((s, p) => s + p.price * p.quantity, 0)
 
   const handleSubmit = async () => {
-    if (!selectedCreator || selected.length === 0) return
+    if (targetCreators.length === 0 || selected.length === 0) return
     setSubmitting(true)
     setError("")
     try {
-      const res = await fetch("/api/gifting", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          workspaceId,
-          creatorId: selectedCreator.id,
-          campaignId: selectedCampaign || undefined,
-          products: selected.map((p) => ({
-            variantId: p.variantId,
-            productId: p.productId,
-            name: p.variantName ? `${p.name} - ${p.variantName}` : p.name,
-            quantity: p.quantity,
-            value: p.price,
-          })),
-          notes: notes || undefined,
-        }),
-      })
-      const data = await res.json()
-      if (!res.ok) { setError(data.error ?? "Error al crear el gifting"); return }
+      const payload = selected.map((p) => ({
+        variantId: p.variantId,
+        productId: p.productId,
+        name: p.variantName ? `${p.name} - ${p.variantName}` : p.name,
+        quantity: p.quantity,
+        value: p.price,
+      }))
+      const campaignId = mode === "campaigns" && selectedCampaign
+        ? selectedCampaign.id
+        : giftingCampaignId || undefined
+
+      const results = await Promise.all(
+        targetCreators.map((creator) =>
+          fetch("/api/gifting", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              workspaceId,
+              creatorId: creator.id,
+              campaignId,
+              products: payload,
+              notes: notes || undefined,
+            }),
+          }).then((r) => r.json())
+        )
+      )
+      const failed = results.find((r) => r.error)
+      if (failed) { setError(failed.error); return }
       onCreated()
       onClose()
     } catch {
@@ -367,50 +399,122 @@ function CreateGiftingModal({
           </button>
         </div>
 
-        {/* Step 1: Creator */}
+        {/* Step 1: Creator / Campaign toggle */}
         {step === "creator" && (
           <>
             <div className="flex-1 overflow-auto p-6">
-              <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">Seleccioná el creator</p>
-              {creators.length === 0 ? (
-                <div className="flex items-center justify-center py-8">
-                  <RefreshCw size={16} className="animate-spin text-gray-400" />
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {creators.map((c) => (
-                    <button
-                      key={c.id}
-                      onClick={() => setSelectedCreator(c)}
-                      className={`w-full flex items-center gap-3 p-3 border rounded-xl text-left transition-colors ${
-                        selectedCreator?.id === c.id
-                          ? "border-gray-900 bg-gray-50"
-                          : "border-gray-200 hover:border-gray-300"
-                      }`}
-                    >
-                      <div className="w-8 h-8 rounded-full bg-brand-100 flex items-center justify-center text-brand-700 text-xs font-semibold flex-shrink-0">
-                        {c.name.split(" ").map((n) => n[0]).join("").slice(0, 2)}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-medium text-gray-900">{c.name}</p>
-                        <p className="text-xs text-gray-400 truncate">
-                          {c.city ? `${c.address ?? "Sin número"}, ${c.city}` : "Sin dirección cargada"}
-                        </p>
-                      </div>
-                      {!c.city && (
-                        <span className="text-[10px] text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded flex-shrink-0">
-                          Sin dirección
-                        </span>
-                      )}
-                    </button>
-                  ))}
-                </div>
+              {/* Toggle */}
+              <div className="flex gap-1 p-1 bg-gray-100 rounded-lg mb-5">
+                {(["creators", "campaigns"] as const).map((m) => (
+                  <button
+                    key={m}
+                    onClick={() => { setMode(m); setSelectedCreators([]); setSelectedCampaign(null) }}
+                    className={`flex-1 py-1.5 text-[13px] font-medium rounded-md transition-colors ${
+                      mode === m ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"
+                    }`}
+                  >
+                    {m === "creators" ? "Creators" : "Campañas"}
+                  </button>
+                ))}
+              </div>
+
+              {/* Creators mode */}
+              {mode === "creators" && (
+                creators.length === 0 ? (
+                  <div className="flex items-center justify-center py-8">
+                    <RefreshCw size={16} className="animate-spin text-gray-400" />
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {creators.map((c) => {
+                      const isSelected = selectedCreators.some((s) => s.id === c.id)
+                      return (
+                        <button
+                          key={c.id}
+                          onClick={() => setSelectedCreators((prev) =>
+                            isSelected ? prev.filter((s) => s.id !== c.id) : [...prev, c]
+                          )}
+                          className={`w-full flex items-center gap-3 p-3 border rounded-xl text-left transition-colors ${
+                            isSelected ? "border-gray-900 bg-gray-50" : "border-gray-200 hover:border-gray-300"
+                          }`}
+                        >
+                          <div className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 ${
+                            isSelected ? "bg-gray-900 border-gray-900" : "border-gray-300"
+                          }`}>
+                            {isSelected && (
+                              <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
+                                <path d="M1 4L3.5 6.5L9 1" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                              </svg>
+                            )}
+                          </div>
+                          <div className="w-8 h-8 rounded-full bg-brand-100 flex items-center justify-center text-brand-700 text-xs font-semibold flex-shrink-0">
+                            {c.name.split(" ").map((n) => n[0]).join("").slice(0, 2)}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-medium text-gray-900">{c.name}</p>
+                            <p className="text-xs text-gray-400 truncate">
+                              {c.city ? `${c.address ?? "Sin número"}, ${c.city}` : "Sin dirección cargada"}
+                            </p>
+                          </div>
+                          {!c.city && (
+                            <span className="text-[10px] text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded flex-shrink-0">
+                              Sin dirección
+                            </span>
+                          )}
+                        </button>
+                      )
+                    })}
+                  </div>
+                )
+              )}
+
+              {/* Campaigns mode */}
+              {mode === "campaigns" && (
+                campaigns.length === 0 ? (
+                  <p className="text-sm text-gray-400 text-center py-8">No hay campañas activas o en pre-launch.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {campaigns.map((c) => {
+                      const creatorCount = c.creators?.length ?? 0
+                      const withAddress = c.creators?.filter((cc) => cc.creator.city).length ?? 0
+                      return (
+                        <button
+                          key={c.id}
+                          onClick={() => setSelectedCampaign(c)}
+                          className={`w-full flex items-center gap-3 p-4 border rounded-xl text-left transition-colors ${
+                            selectedCampaign?.id === c.id ? "border-gray-900 bg-gray-50" : "border-gray-200 hover:border-gray-300"
+                          }`}
+                        >
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-medium text-gray-900">{c.name}</p>
+                            <p className="text-xs text-gray-400 mt-0.5">
+                              {creatorCount} creator{creatorCount !== 1 ? "s" : ""}
+                              {withAddress < creatorCount && (
+                                <span className="text-amber-500 ml-1">· {creatorCount - withAddress} sin dirección</span>
+                              )}
+                            </p>
+                          </div>
+                          <span className={`text-[11px] px-2 py-0.5 rounded-full font-medium flex-shrink-0 ${
+                            c.status === "RUNNING" ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-700"
+                          }`}>
+                            {c.status === "RUNNING" ? "Activa" : "Pre-launch"}
+                          </span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                )
               )}
             </div>
-            <div className="px-6 py-4 border-t border-gray-100 flex justify-end">
+            <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-between">
+              <p className="text-[12px] text-gray-400">
+                {mode === "creators"
+                  ? selectedCreators.length > 0 ? `${selectedCreators.length} seleccionado${selectedCreators.length !== 1 ? "s" : ""}` : ""
+                  : selectedCampaign ? `${targetCreators.length} creator${targetCreators.length !== 1 ? "s" : ""} con dirección` : ""}
+              </p>
               <button
                 onClick={goToProducts}
-                disabled={!selectedCreator || !selectedCreator.city}
+                disabled={mode === "creators" ? selectedCreators.length === 0 : !selectedCampaign || targetCreators.length === 0}
                 className="px-5 py-2 text-sm font-medium bg-gray-900 text-white rounded-lg hover:bg-gray-800 disabled:opacity-50"
               >
                 Elegir productos →
@@ -536,13 +640,25 @@ function CreateGiftingModal({
         )}
 
         {/* Step 3: Confirm */}
-        {step === "confirm" && selectedCreator && (
+        {step === "confirm" && targetCreators.length > 0 && (
           <>
             <div className="flex-1 overflow-auto p-6 space-y-4">
               <div className="border border-gray-100 rounded-xl p-4">
-                <p className="text-[11px] font-medium text-gray-400 uppercase tracking-wide mb-2">Creator</p>
-                <p className="text-sm font-medium text-gray-900">{selectedCreator.name}</p>
-                <p className="text-xs text-gray-400">{selectedCreator.address}, {selectedCreator.city}, {selectedCreator.province}</p>
+                <p className="text-[11px] font-medium text-gray-400 uppercase tracking-wide mb-2">
+                  {targetCreators.length === 1 ? "Creator" : `${targetCreators.length} Creators`}
+                </p>
+                {targetCreators.length === 1 ? (
+                  <>
+                    <p className="text-sm font-medium text-gray-900">{targetCreators[0].name}</p>
+                    <p className="text-xs text-gray-400">{targetCreators[0].address}, {targetCreators[0].city}</p>
+                  </>
+                ) : (
+                  <div className="space-y-1">
+                    {targetCreators.map((c) => (
+                      <p key={c.id} className="text-sm text-gray-700">{c.name} <span className="text-gray-400 text-xs">— {c.city}</span></p>
+                    ))}
+                  </div>
+                )}
               </div>
 
               <div className="border border-gray-100 rounded-xl p-4">
@@ -563,14 +679,14 @@ function CreateGiftingModal({
                 </div>
               </div>
 
-              {campaigns.length > 0 && (
+              {mode === "creators" && campaigns.length > 0 && (
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-1.5">
                     Asignar a campaña <span className="text-gray-400 font-normal">(opcional)</span>
                   </label>
                   <select
-                    value={selectedCampaign}
-                    onChange={(e) => setSelectedCampaign(e.target.value)}
+                    value={giftingCampaignId}
+                    onChange={(e) => setGiftingCampaignId(e.target.value)}
                     className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-gray-300 bg-white"
                   >
                     <option value="">Sin campaña</option>
@@ -580,6 +696,12 @@ function CreateGiftingModal({
                       </option>
                     ))}
                   </select>
+                </div>
+              )}
+              {mode === "campaigns" && selectedCampaign && (
+                <div className="border border-gray-100 rounded-xl p-4">
+                  <p className="text-[11px] font-medium text-gray-400 uppercase tracking-wide mb-1">Campaña</p>
+                  <p className="text-sm font-medium text-gray-900">{selectedCampaign.name}</p>
                 </div>
               )}
 
@@ -607,7 +729,9 @@ function CreateGiftingModal({
                 disabled={submitting}
                 className="px-5 py-2 text-sm font-medium bg-gray-900 text-white rounded-lg hover:bg-gray-800 disabled:opacity-50"
               >
-                {submitting ? "Creando orden..." : "Crear gifting en Tiendanube"}
+                {submitting
+                ? `Creando ${targetCreators.length > 1 ? targetCreators.length + " órdenes" : "orden"}...`
+                : `Crear gifting${targetCreators.length > 1 ? ` (${targetCreators.length} creators)` : ""}`}
               </button>
             </div>
           </>

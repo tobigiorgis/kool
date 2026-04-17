@@ -4,7 +4,8 @@ import { useState, useEffect, useCallback } from "react"
 import { useParams, useRouter } from "next/navigation"
 import {
   ArrowLeft, MousePointerClick, ShoppingCart, DollarSign, TrendingUp,
-  Users, Link2, X, RefreshCw, UserPlus, Trash2, RefreshCcw,
+  Users, Link2, X, RefreshCw, UserPlus, Trash2, RefreshCcw, Package,
+  Clock, Truck, CheckCircle,
 } from "lucide-react"
 import { formatNumber, formatCurrency, formatDate, generateDiscountCode } from "@/lib/utils"
 
@@ -53,6 +54,16 @@ interface CampaignDetail {
   briefings: CampaignBriefing[]
 }
 
+interface GiftingOrder {
+  id: string
+  totalValue: number
+  status: string
+  notes: string | null
+  createdAt: string
+  products: { name: string; quantity: number }[]
+  creator: { id: string; name: string; email: string }
+}
+
 interface Analytics {
   clicks: number
   conversions: number
@@ -77,7 +88,7 @@ const STATUS_CONFIG: Record<string, { label: string; style: string }> = {
 
 const STATUS_ORDER: ("PRE_LAUNCH" | "RUNNING" | "COMPLETED")[] = ["PRE_LAUNCH", "RUNNING", "COMPLETED"]
 
-type Tab = "overview" | "creators" | "links"
+type Tab = "overview" | "creators" | "links" | "gifting"
 
 export default function CampaignDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -88,6 +99,8 @@ export default function CampaignDetailPage() {
   const [tab, setTab] = useState<Tab>("overview")
   const [showAddCreators, setShowAddCreators] = useState(false)
   const [statusUpdating, setStatusUpdating] = useState(false)
+  const [giftingOrders, setGiftingOrders] = useState<GiftingOrder[]>([])
+  const [giftingLoading, setGiftingLoading] = useState(false)
 
   const loadData = useCallback(async () => {
     setLoading(true)
@@ -103,6 +116,15 @@ export default function CampaignDetailPage() {
   }, [id])
 
   useEffect(() => { loadData() }, [loadData])
+
+  useEffect(() => {
+    if (tab !== "gifting" || giftingOrders.length > 0) return
+    setGiftingLoading(true)
+    fetch(`/api/gifting?campaignId=${id}`)
+      .then((r) => r.json())
+      .then((d) => setGiftingOrders(d.giftingOrders ?? []))
+      .finally(() => setGiftingLoading(false))
+  }, [tab, id, giftingOrders.length])
 
   const updateStatus = async (status: string) => {
     setStatusUpdating(true)
@@ -215,6 +237,7 @@ export default function CampaignDetailPage() {
             { key: "overview" as Tab, label: "Overview" },
             { key: "creators" as Tab, label: `Creators (${campaign.creators.length})` },
             { key: "links" as Tab, label: `Links (${campaign.links.length})` },
+            { key: "gifting" as Tab, label: `Gifting (${giftingOrders.length})` },
           ]).map((t) => (
             <button
               key={t.key}
@@ -246,6 +269,10 @@ export default function CampaignDetailPage() {
 
       {tab === "links" && (
         <LinksTab campaign={campaign} />
+      )}
+
+      {tab === "gifting" && (
+        <GiftingTab orders={giftingOrders} loading={giftingLoading} />
       )}
 
       {showAddCreators && (
@@ -501,6 +528,76 @@ function LinksTab({ campaign }: { campaign: CampaignDetail }) {
 interface CreatorConfig {
   commissionPct: string
   discountCode: string
+}
+
+const GIFTING_STATUS: Record<string, { label: string; style: string }> = {
+  PENDING:    { label: "Pendiente",  style: "bg-yellow-100 text-yellow-700" },
+  PROCESSING: { label: "Procesando", style: "bg-blue-100 text-blue-700" },
+  SENT:       { label: "Enviado",    style: "bg-purple-100 text-purple-700" },
+  DELIVERED:  { label: "Entregado",  style: "bg-brand-100 text-brand-700" },
+  CONFIRMED:  { label: "Confirmado", style: "bg-green-100 text-green-700" },
+  CANCELLED:  { label: "Cancelado",  style: "bg-red-100 text-red-600" },
+}
+
+function GiftingTab({ orders, loading }: { orders: GiftingOrder[]; loading: boolean }) {
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <RefreshCw size={18} className="animate-spin text-gray-400" />
+      </div>
+    )
+  }
+
+  if (orders.length === 0) {
+    return (
+      <div className="bg-white rounded-xl border border-gray-100 p-10 text-center">
+        <Package size={28} className="mx-auto text-gray-300 mb-3" />
+        <p className="text-sm text-gray-500">No hay gifting registrado en esta campaña.</p>
+        <p className="text-xs text-gray-400 mt-1">Al crear un gifting podés asignarlo a esta campaña.</p>
+      </div>
+    )
+  }
+
+  const total = orders.reduce((s, o) => s + o.totalValue, 0)
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between mb-2">
+        <p className="text-[13px] text-gray-500">{orders.length} envío{orders.length !== 1 ? "s" : ""}</p>
+        <p className="text-[13px] font-medium text-gray-700">Total: {formatCurrency(total)}</p>
+      </div>
+      {orders.map((order) => {
+        const cfg = GIFTING_STATUS[order.status] ?? GIFTING_STATUS.PENDING
+        const products = Array.isArray(order.products)
+          ? (order.products as { name: string; quantity: number }[])
+          : []
+        return (
+          <div key={order.id} className="bg-white rounded-xl border border-gray-100 p-4 flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-brand-50 flex items-center justify-center flex-shrink-0">
+                <Package size={15} className="text-brand-500" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <p className="text-sm font-medium text-gray-900">{order.creator.name}</p>
+                  <span className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${cfg.style}`}>
+                    {cfg.label}
+                  </span>
+                </div>
+                <p className="text-xs text-gray-400 mt-0.5">
+                  {products.map((p) => `${p.quantity}x ${p.name}`).join(" · ")}
+                </p>
+              </div>
+            </div>
+            <div className="text-right flex-shrink-0">
+              <p className="text-sm font-semibold text-gray-900">{formatCurrency(order.totalValue)}</p>
+              <p className="text-xs text-gray-400">{new Date(order.createdAt).toLocaleDateString("es-AR")}</p>
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  )
 }
 
 function AddCreatorsModal({ campaignId, workspaceId, existingCreatorIds, onClose, onAdded }: {
