@@ -73,6 +73,10 @@ export async function POST(request: NextRequest) {
     )
 
     // Crear la orden en Tiendanube
+    const nameParts = creator.name.trim().split(" ")
+    const firstName = nameParts[0]
+    const lastName = nameParts.slice(1).join(" ") || nameParts[0]
+
     const accessToken = decrypt(connection.accessToken)
     const tnOrder = await createTiendanubeGiftingOrder(
       connection.storeId,
@@ -84,7 +88,8 @@ export async function POST(request: NextRequest) {
           price: 0, // Gifting = precio $0
         })),
         shipping_address: {
-          name: creator.name,
+          first_name: firstName,
+          last_name: lastName,
           address: creator.address!,
           city: creator.city!,
           province: creator.province || "",

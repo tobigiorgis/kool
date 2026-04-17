@@ -101,7 +101,8 @@ export interface CreateOrderPayload {
     price: number // 0 para gifting
   }[]
   shipping_address: {
-    name: string
+    first_name: string
+    last_name: string
     address: string
     city: string
     province: string
