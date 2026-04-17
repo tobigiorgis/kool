@@ -83,6 +83,7 @@ export async function POST(request: NextRequest) {
       accessToken,
       {
         contact_email: creator.email,
+        contact_name: creator.name,
         products: data.products.map((p) => ({
           variant_id: p.variantId,
           quantity: p.quantity,
