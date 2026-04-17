@@ -76,6 +76,19 @@ export default function SettingsPage() {
 }
 
 function IntegrationsTab({ connection }: { connection: TiendanubeConnection | null }) {
+  const [connecting, setConnecting] = useState(false)
+
+  const handleConnect = async () => {
+    setConnecting(true)
+    try {
+      const res = await fetch("/api/auth/tiendanube/connect")
+      const data = await res.json()
+      if (data.url) window.location.href = data.url
+    } finally {
+      setConnecting(false)
+    }
+  }
+
   return (
     <div className="space-y-4 max-w-2xl">
       {/* Tiendanube */}
@@ -111,21 +124,23 @@ function IntegrationsTab({ connection }: { connection: TiendanubeConnection | nu
                   <CheckCircle size={11} />
                   Conectada
                 </span>
-                <a
-                  href="/api/auth/tiendanube/connect"
-                  className="text-xs text-gray-400 hover:text-gray-600"
+                <button
+                  onClick={handleConnect}
+                  disabled={connecting}
+                  className="text-xs text-gray-400 hover:text-gray-600 disabled:opacity-50"
                 >
                   Reconectar
-                </a>
+                </button>
               </div>
             ) : (
-              <a
-                href="/api/auth/tiendanube/connect"
-                className="flex items-center gap-1.5 bg-gray-900 text-white px-4 py-2 rounded-lg text-xs font-medium hover:bg-gray-800 transition-colors"
+              <button
+                onClick={handleConnect}
+                disabled={connecting}
+                className="flex items-center gap-1.5 bg-gray-900 text-white px-4 py-2 rounded-lg text-xs font-medium hover:bg-gray-800 disabled:opacity-50 transition-colors"
               >
                 <Plug size={13} />
-                Conectar
-              </a>
+                {connecting ? "Redirigiendo..." : "Conectar"}
+              </button>
             )}
           </div>
         </div>

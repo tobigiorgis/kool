@@ -5,16 +5,15 @@ import { getTiendanubeAuthUrl } from "@/lib/tiendanube"
 
 export async function GET() {
   const { userId } = await auth()
-  if (!userId) return NextResponse.redirect(new URL("/login", process.env.NEXT_PUBLIC_APP_URL!))
+  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
   const member = await prisma.workspaceMember.findFirst({
     where: { userId },
     select: { workspaceId: true },
   })
 
-  if (!member) return NextResponse.redirect(new URL("/onboarding", process.env.NEXT_PUBLIC_APP_URL!))
+  if (!member) return NextResponse.json({ error: "No workspace" }, { status: 404 })
 
-  // state = workspaceId, lo recuperamos en el callback
   const authUrl = getTiendanubeAuthUrl(member.workspaceId)
-  return NextResponse.redirect(authUrl)
+  return NextResponse.json({ url: authUrl })
 }
