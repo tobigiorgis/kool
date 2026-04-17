@@ -93,10 +93,11 @@ model Campaign {
   updatedAt   DateTime       @updatedAt
 
   // Relaciones
-  workspace   Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  creators    CampaignCreator[]
-  links       Link[]
-  briefings   Briefing[]
+  workspace     Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  creators      CampaignCreator[]
+  links         Link[]
+  briefings     Briefing[]
+  giftingOrders GiftingOrder[]
 
   @@map("campaigns")
 }
@@ -272,6 +273,7 @@ model GiftingOrder {
   id          String        @id @default(cuid())
   workspaceId String
   creatorId   String
+  campaignId  String?
   
   // Orden en Tiendanube
   tiendanubeOrderId String? @unique // ID de la orden creada en TN
@@ -300,6 +302,7 @@ model GiftingOrder {
 
   workspace   Workspace     @relation(fields: [workspaceId], references: [id])
   creator     Creator       @relation(fields: [creatorId], references: [id])
+  campaign    Campaign?     @relation(fields: [campaignId], references: [id])
 
   @@map("gifting_orders")
 }

@@ -13,12 +13,13 @@ import { z } from "zod"
 const CreateGiftingSchema = z.object({
   workspaceId: z.string(),
   creatorId: z.string(),
+  campaignId: z.string().optional(),
   products: z.array(z.object({
     variantId: z.number(),
     productId: z.number(),
     name: z.string(),
     quantity: z.number().min(1),
-    value: z.number(), // Valor de mercado (para reporte de ROI)
+    value: z.number(),
   })),
   notes: z.string().optional(),
 })
@@ -109,6 +110,7 @@ export async function POST(request: NextRequest) {
       data: {
         workspaceId: data.workspaceId,
         creatorId: data.creatorId,
+        campaignId: data.campaignId,
         tiendanubeOrderId: (tnOrder as any).id?.toString(),
         tiendanubeStoreId: connection.storeId,
         products: data.products,

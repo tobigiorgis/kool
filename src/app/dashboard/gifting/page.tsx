@@ -23,6 +23,12 @@ interface Creator {
   province: string | null
 }
 
+interface Campaign {
+  id: string
+  name: string
+  status: string
+}
+
 const STATUS_CONFIG: Record<string, { label: string; icon: React.ReactNode; style: string }> = {
   PENDING:    { label: "Pendiente",  icon: <Clock size={12} />,        style: "bg-yellow-100 text-yellow-700" },
   PROCESSING: { label: "Procesando", icon: <Package size={12} />,      style: "bg-blue-100 text-blue-700" },
@@ -231,6 +237,8 @@ function CreateGiftingModal({
   const [productsLoading, setProductsLoading] = useState(false)
   const [selected, setSelected] = useState<SelectedProduct[]>([])
   const [search, setSearch] = useState("")
+  const [campaigns, setCampaigns] = useState<Campaign[]>([])
+  const [selectedCampaign, setSelectedCampaign] = useState("")
   const [notes, setNotes] = useState("")
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState("")
@@ -239,6 +247,12 @@ function CreateGiftingModal({
     fetch(`/api/creators?workspaceId=${workspaceId}`)
       .then((r) => r.json())
       .then((d) => setCreators(d.creators ?? []))
+      .catch(() => {})
+    fetch(`/api/campaigns?workspaceId=${workspaceId}`)
+      .then((r) => r.json())
+      .then((d) => setCampaigns(
+        (d.campaigns ?? []).filter((c: Campaign) => c.status === "PRE_LAUNCH" || c.status === "RUNNING")
+      ))
       .catch(() => {})
   }, [workspaceId])
 
@@ -305,6 +319,7 @@ function CreateGiftingModal({
         body: JSON.stringify({
           workspaceId,
           creatorId: selectedCreator.id,
+          campaignId: selectedCampaign || undefined,
           products: selected.map((p) => ({
             variantId: p.variantId,
             productId: p.productId,
@@ -547,6 +562,26 @@ function CreateGiftingModal({
                   </div>
                 </div>
               </div>
+
+              {campaigns.length > 0 && (
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1.5">
+                    Asignar a campaña <span className="text-gray-400 font-normal">(opcional)</span>
+                  </label>
+                  <select
+                    value={selectedCampaign}
+                    onChange={(e) => setSelectedCampaign(e.target.value)}
+                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-gray-300 bg-white"
+                  >
+                    <option value="">Sin campaña</option>
+                    {campaigns.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name} {c.status === "PRE_LAUNCH" ? "· Pre-launch" : "· Activa"}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
               <div>
                 <label className="block text-xs font-medium text-gray-700 mb-1.5">
