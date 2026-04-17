@@ -213,7 +213,7 @@ export async function getTiendanubeStore(
   accessToken: string
 ): Promise<TiendanubeStore> {
   return tiendanubeRequest<TiendanubeStore>(
-    storeId, accessToken, "GET", ""
+    storeId, accessToken, "GET", "/store"
   )
 }
 
