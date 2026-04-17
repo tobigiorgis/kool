@@ -60,8 +60,20 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: true, attributed: false })
     }
 
-    // Buscar el creator por su código de descuento
-    const creator = await prisma.creator.findFirst({
+    // Buscar el creator por su código de descuento en CampaignCreator (por campaña)
+    const campaignCreator = await prisma.campaignCreator.findFirst({
+      where: {
+        discountCode: parsed.creatorCode,
+        campaign: { workspaceId: connection.workspaceId },
+      },
+      include: {
+        creator: true,
+        campaign: true,
+      },
+    })
+
+    // Fallback: buscar por discountCode directo en el creator (legacy)
+    const creator = campaignCreator?.creator ?? await prisma.creator.findFirst({
       where: {
         workspaceId: connection.workspaceId,
         discountCode: parsed.creatorCode,
@@ -73,6 +85,9 @@ export async function POST(request: NextRequest) {
       // Código no corresponde a ningún creator activo
       return NextResponse.json({ ok: true, attributed: false })
     }
+
+    // Usar comisión de campaña si existe, si no la del creator
+    const commissionPct = campaignCreator?.commissionPct ?? creator.commissionPct
 
     // Buscar el link asociado al creator (para el registro)
     const link = await prisma.link.findFirst({
@@ -98,15 +113,14 @@ export async function POST(request: NextRequest) {
       })
 
       // Calcular comisión
-      const commissionAmount =
-        parsed.orderAmount * (creator.commissionPct / 100)
+      const commissionAmount = parsed.orderAmount * (commissionPct / 100)
 
       await tx.commission.create({
         data: {
           creatorId: creator.id,
           conversionId: conversion.id,
           orderAmount: parsed.orderAmount,
-          percentage: creator.commissionPct,
+          percentage: commissionPct,
           amount: commissionAmount,
           currency: parsed.currency,
           status: "PENDING",
