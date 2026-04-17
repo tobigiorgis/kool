@@ -112,6 +112,16 @@ export interface CreateOrderPayload {
     country: string
     phone: string
   }
+  billing_address: {
+    first_name: string
+    last_name: string
+    address: string
+    city: string
+    province: string
+    zipcode: string
+    country: string
+    phone: string
+  }
   note?: string
   send_email?: boolean
 }

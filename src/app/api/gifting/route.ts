@@ -100,6 +100,16 @@ export async function POST(request: NextRequest) {
           country: creator.country || "AR",
           phone: creator.phone || "",
         },
+        billing_address: {
+          first_name: firstName,
+          last_name: lastName,
+          address: creator.address!,
+          city: creator.city!,
+          province: creator.province || "",
+          zipcode: creator.zipCode || "",
+          country: creator.country || "AR",
+          phone: creator.phone || "",
+        },
         note: data.notes,
         send_email: false,
       }
