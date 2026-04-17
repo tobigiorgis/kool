@@ -82,6 +82,7 @@ export async function POST(request: NextRequest) {
       connection.storeId,
       accessToken,
       {
+        contact_email: creator.email,
         products: data.products.map((p) => ({
           variant_id: p.variantId,
           quantity: p.quantity,

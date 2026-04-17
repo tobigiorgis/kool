@@ -95,6 +95,7 @@ export interface CreateCouponPayload {
 
 export interface CreateOrderPayload {
   // Draft order para gifting
+  contact_email: string
   products: {
     variant_id: number
     quantity: number
