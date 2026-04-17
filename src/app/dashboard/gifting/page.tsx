@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
-import { Plus, Package, Truck, CheckCircle, Clock, XCircle, RefreshCw } from "lucide-react"
+import { Plus, Package, Truck, CheckCircle, Clock, XCircle, RefreshCw, Search, X, Minus } from "lucide-react"
 
 interface GiftingOrder {
   id: string
@@ -187,6 +187,34 @@ export default function GiftingPage() {
   )
 }
 
+interface TiendanubeVariant {
+  id: number
+  price: string
+  sku: string | null
+  stock: number | null
+}
+
+interface TiendanubeProduct {
+  id: number
+  name: { es: string } | string
+  variants: TiendanubeVariant[]
+  images: { src: string }[]
+}
+
+interface SelectedProduct {
+  variantId: number
+  productId: number
+  name: string
+  variantName: string
+  price: number
+  quantity: number
+  image: string | null
+}
+
+function productName(p: TiendanubeProduct): string {
+  return typeof p.name === "object" ? p.name.es : p.name
+}
+
 function CreateGiftingModal({
   workspaceId,
   onClose,
@@ -196,10 +224,15 @@ function CreateGiftingModal({
   onClose: () => void
   onCreated: () => void
 }) {
+  const [step, setStep] = useState<"creator" | "products" | "confirm">("creator")
   const [creators, setCreators] = useState<Creator[]>([])
-  const [selectedCreator, setSelectedCreator] = useState("")
+  const [selectedCreator, setSelectedCreator] = useState<Creator | null>(null)
+  const [products, setProducts] = useState<TiendanubeProduct[]>([])
+  const [productsLoading, setProductsLoading] = useState(false)
+  const [selected, setSelected] = useState<SelectedProduct[]>([])
+  const [search, setSearch] = useState("")
   const [notes, setNotes] = useState("")
-  const [loading, setLoading] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState("")
 
   useEffect(() => {
@@ -209,105 +242,341 @@ function CreateGiftingModal({
       .catch(() => {})
   }, [workspaceId])
 
-  const handleSubmit = async () => {
-    if (!selectedCreator) return
-    setLoading(true)
-    setError("")
+  const loadProducts = async () => {
+    setProductsLoading(true)
+    try {
+      const res = await fetch(`/api/tiendanube/products?workspaceId=${workspaceId}`)
+      const data = await res.json()
+      setProducts(data.products ?? [])
+    } finally {
+      setProductsLoading(false)
+    }
+  }
 
+  const goToProducts = () => {
+    setStep("products")
+    if (products.length === 0) loadProducts()
+  }
+
+  const addVariant = (product: TiendanubeProduct, variant: TiendanubeVariant) => {
+    const key = variant.id
+    const existing = selected.find((s) => s.variantId === key)
+    if (existing) {
+      setSelected((prev) => prev.map((s) => s.variantId === key ? { ...s, quantity: s.quantity + 1 } : s))
+    } else {
+      const name = productName(product)
+      const variantName = product.variants.length > 1
+        ? variant.sku || `Variante ${variant.id}`
+        : ""
+      setSelected((prev) => [...prev, {
+        variantId: variant.id,
+        productId: product.id,
+        name,
+        variantName,
+        price: parseFloat(variant.price) || 0,
+        quantity: 1,
+        image: product.images[0]?.src ?? null,
+      }])
+    }
+  }
+
+  const updateQty = (variantId: number, delta: number) => {
+    setSelected((prev) =>
+      prev
+        .map((s) => s.variantId === variantId ? { ...s, quantity: s.quantity + delta } : s)
+        .filter((s) => s.quantity > 0)
+    )
+  }
+
+  const filteredProducts = products.filter((p) =>
+    productName(p).toLowerCase().includes(search.toLowerCase())
+  )
+
+  const totalValue = selected.reduce((s, p) => s + p.price * p.quantity, 0)
+
+  const handleSubmit = async () => {
+    if (!selectedCreator || selected.length === 0) return
+    setSubmitting(true)
+    setError("")
     try {
       const res = await fetch("/api/gifting", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           workspaceId,
-          creatorId: selectedCreator,
-          products: [{ variantId: 0, productId: 0, name: "Gifting manual", quantity: 1, value: 0 }],
+          creatorId: selectedCreator.id,
+          products: selected.map((p) => ({
+            variantId: p.variantId,
+            productId: p.productId,
+            name: p.variantName ? `${p.name} - ${p.variantName}` : p.name,
+            quantity: p.quantity,
+            value: p.price,
+          })),
           notes: notes || undefined,
         }),
       })
       const data = await res.json()
-      if (!res.ok) {
-        setError(data.error ?? "Error al crear el gifting")
-        return
-      }
+      if (!res.ok) { setError(data.error ?? "Error al crear el gifting"); return }
       onCreated()
       onClose()
     } catch {
       setError("Error de conexión")
     } finally {
-      setLoading(false)
+      setSubmitting(false)
     }
   }
 
   return (
     <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg">
-        <div className="px-6 py-5 border-b border-gray-100">
-          <h2 className="text-base font-semibold text-gray-900">Nuevo gifting</h2>
-          <p className="text-xs text-gray-500 mt-0.5">Se crea una orden en Tiendanube con precio $0.</p>
-        </div>
-        <div className="p-6 space-y-4">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[85vh] flex flex-col">
+
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100">
           <div>
-            <label className="block text-xs font-medium text-gray-700 mb-2">Seleccioná el creator</label>
-            {creators.length === 0 ? (
-              <p className="text-xs text-gray-400">Cargando creators...</p>
-            ) : (
-              <div className="space-y-2">
-                {creators.map((c) => (
-                  <label
-                    key={c.id}
-                    className={`flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition-colors ${
-                      selectedCreator === c.id
-                        ? "border-brand-400 bg-brand-50"
-                        : "border-gray-200 hover:border-gray-300"
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="creator"
-                      value={c.id}
-                      checked={selectedCreator === c.id}
-                      onChange={() => setSelectedCreator(c.id)}
-                      className="text-brand-400"
-                    />
-                    <div>
-                      <p className="text-sm font-medium text-gray-900">{c.name}</p>
-                      <p className="text-xs text-gray-400">
-                        {c.city ? `${c.address ?? "Sin dirección"}, ${c.city}` : "Sin dirección cargada"}
-                      </p>
-                    </div>
-                  </label>
-                ))}
+            <h2 className="text-base font-semibold text-gray-900">Nuevo gifting</h2>
+            <div className="flex items-center gap-2 mt-1">
+              {["creator", "products", "confirm"].map((s, i) => (
+                <div key={s} className="flex items-center gap-2">
+                  <span className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${
+                    step === s ? "bg-gray-900 text-white" : "bg-gray-100 text-gray-400"
+                  }`}>
+                    {i + 1}. {s === "creator" ? "Creator" : s === "products" ? "Productos" : "Confirmar"}
+                  </span>
+                  {i < 2 && <span className="text-gray-200 text-xs">›</span>}
+                </div>
+              ))}
+            </div>
+          </div>
+          <button onClick={onClose} className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg">
+            <X size={16} />
+          </button>
+        </div>
+
+        {/* Step 1: Creator */}
+        {step === "creator" && (
+          <>
+            <div className="flex-1 overflow-auto p-6">
+              <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">Seleccioná el creator</p>
+              {creators.length === 0 ? (
+                <div className="flex items-center justify-center py-8">
+                  <RefreshCw size={16} className="animate-spin text-gray-400" />
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {creators.map((c) => (
+                    <button
+                      key={c.id}
+                      onClick={() => setSelectedCreator(c)}
+                      className={`w-full flex items-center gap-3 p-3 border rounded-xl text-left transition-colors ${
+                        selectedCreator?.id === c.id
+                          ? "border-gray-900 bg-gray-50"
+                          : "border-gray-200 hover:border-gray-300"
+                      }`}
+                    >
+                      <div className="w-8 h-8 rounded-full bg-brand-100 flex items-center justify-center text-brand-700 text-xs font-semibold flex-shrink-0">
+                        {c.name.split(" ").map((n) => n[0]).join("").slice(0, 2)}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium text-gray-900">{c.name}</p>
+                        <p className="text-xs text-gray-400 truncate">
+                          {c.city ? `${c.address ?? "Sin número"}, ${c.city}` : "Sin dirección cargada"}
+                        </p>
+                      </div>
+                      {!c.city && (
+                        <span className="text-[10px] text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded flex-shrink-0">
+                          Sin dirección
+                        </span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="px-6 py-4 border-t border-gray-100 flex justify-end">
+              <button
+                onClick={goToProducts}
+                disabled={!selectedCreator || !selectedCreator.city}
+                className="px-5 py-2 text-sm font-medium bg-gray-900 text-white rounded-lg hover:bg-gray-800 disabled:opacity-50"
+              >
+                Elegir productos →
+              </button>
+            </div>
+          </>
+        )}
+
+        {/* Step 2: Products */}
+        {step === "products" && (
+          <>
+            <div className="flex-1 overflow-auto flex flex-col min-h-0">
+              {/* Search */}
+              <div className="px-6 py-3 border-b border-gray-100">
+                <div className="relative">
+                  <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <input
+                    type="text"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="Buscar producto..."
+                    className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-gray-300"
+                  />
+                </div>
               </div>
-            )}
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1.5">
-              Nota para el creator <span className="text-gray-400 font-normal">(opcional)</span>
-            </label>
-            <textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="Ej: Esperamos que te encante el producto..."
-              rows={3}
-              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400 resize-none"
-            />
-          </div>
-          {error && <p className="text-xs text-red-600 bg-red-50 p-2 rounded-lg">{error}</p>}
-        </div>
-        <div className="px-6 py-4 border-t border-gray-100 flex gap-3">
-          <button onClick={onClose}
-            className="flex-1 px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50">
-            Cancelar
-          </button>
-          <button
-            onClick={handleSubmit}
-            disabled={!selectedCreator || loading}
-            className="flex-1 px-4 py-2 text-sm font-medium bg-brand-400 text-white rounded-lg hover:bg-brand-500 disabled:opacity-50"
-          >
-            {loading ? "Creando orden..." : "Crear gifting"}
-          </button>
-        </div>
+
+              <div className="flex flex-1 min-h-0">
+                {/* Product list */}
+                <div className="flex-1 overflow-auto p-4 space-y-2">
+                  {productsLoading ? (
+                    <div className="flex items-center justify-center py-10">
+                      <RefreshCw size={18} className="animate-spin text-gray-400" />
+                    </div>
+                  ) : filteredProducts.length === 0 ? (
+                    <p className="text-sm text-gray-400 text-center py-8">No se encontraron productos.</p>
+                  ) : (
+                    filteredProducts.map((product) => (
+                      <div key={product.id} className="border border-gray-100 rounded-xl p-3">
+                        <div className="flex items-center gap-3 mb-2">
+                          {product.images[0] ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={product.images[0].src} alt="" className="w-10 h-10 rounded-lg object-cover flex-shrink-0 bg-gray-100" />
+                          ) : (
+                            <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
+                              <Package size={14} className="text-gray-400" />
+                            </div>
+                          )}
+                          <p className="text-sm font-medium text-gray-900">{productName(product)}</p>
+                        </div>
+                        <div className="space-y-1.5 pl-13">
+                          {product.variants.map((variant) => {
+                            const inCart = selected.find((s) => s.variantId === variant.id)
+                            return (
+                              <div key={variant.id} className="flex items-center justify-between gap-2">
+                                <div className="min-w-0">
+                                  {product.variants.length > 1 && (
+                                    <span className="text-xs text-gray-500">{variant.sku || `Var. ${variant.id}`}</span>
+                                  )}
+                                  <span className="text-xs text-gray-400 ml-1">${parseFloat(variant.price).toLocaleString("es-AR")}</span>
+                                  {variant.stock !== null && (
+                                    <span className="text-[10px] text-gray-400 ml-1">({variant.stock} en stock)</span>
+                                  )}
+                                </div>
+                                {inCart ? (
+                                  <div className="flex items-center gap-1 flex-shrink-0">
+                                    <button onClick={() => updateQty(variant.id, -1)} className="w-6 h-6 flex items-center justify-center rounded-md hover:bg-gray-100">
+                                      <Minus size={12} />
+                                    </button>
+                                    <span className="text-sm font-medium w-5 text-center">{inCart.quantity}</span>
+                                    <button onClick={() => addVariant(product, variant)} className="w-6 h-6 flex items-center justify-center rounded-md hover:bg-gray-100">
+                                      <Plus size={12} />
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <button
+                                    onClick={() => addVariant(product, variant)}
+                                    className="flex-shrink-0 text-[11px] font-medium text-gray-700 border border-gray-200 px-2 py-1 rounded-md hover:bg-gray-50"
+                                  >
+                                    + Agregar
+                                  </button>
+                                )}
+                              </div>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+
+                {/* Cart sidebar */}
+                {selected.length > 0 && (
+                  <div className="w-52 border-l border-gray-100 p-4 flex flex-col gap-2 overflow-auto">
+                    <p className="text-[11px] font-medium text-gray-400 uppercase tracking-wide">Seleccionados</p>
+                    {selected.map((p) => (
+                      <div key={p.variantId} className="text-xs">
+                        <p className="font-medium text-gray-800 leading-tight">{p.name}</p>
+                        {p.variantName && <p className="text-gray-400">{p.variantName}</p>}
+                        <p className="text-gray-500">{p.quantity}x ${p.price.toLocaleString("es-AR")}</p>
+                      </div>
+                    ))}
+                    <div className="mt-auto pt-2 border-t border-gray-100">
+                      <p className="text-[11px] text-gray-400">Valor total</p>
+                      <p className="text-sm font-semibold text-gray-900">${totalValue.toLocaleString("es-AR")}</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-between">
+              <button onClick={() => setStep("creator")} className="text-sm text-gray-500 hover:text-gray-700">
+                ← Volver
+              </button>
+              <button
+                onClick={() => setStep("confirm")}
+                disabled={selected.length === 0}
+                className="px-5 py-2 text-sm font-medium bg-gray-900 text-white rounded-lg hover:bg-gray-800 disabled:opacity-50"
+              >
+                Confirmar ({selected.reduce((s, p) => s + p.quantity, 0)} items) →
+              </button>
+            </div>
+          </>
+        )}
+
+        {/* Step 3: Confirm */}
+        {step === "confirm" && selectedCreator && (
+          <>
+            <div className="flex-1 overflow-auto p-6 space-y-4">
+              <div className="border border-gray-100 rounded-xl p-4">
+                <p className="text-[11px] font-medium text-gray-400 uppercase tracking-wide mb-2">Creator</p>
+                <p className="text-sm font-medium text-gray-900">{selectedCreator.name}</p>
+                <p className="text-xs text-gray-400">{selectedCreator.address}, {selectedCreator.city}, {selectedCreator.province}</p>
+              </div>
+
+              <div className="border border-gray-100 rounded-xl p-4">
+                <p className="text-[11px] font-medium text-gray-400 uppercase tracking-wide mb-2">Productos</p>
+                <div className="space-y-2">
+                  {selected.map((p) => (
+                    <div key={p.variantId} className="flex justify-between text-sm">
+                      <span className="text-gray-700">
+                        {p.quantity}x {p.name}{p.variantName ? ` - ${p.variantName}` : ""}
+                      </span>
+                      <span className="text-gray-500 flex-shrink-0 ml-3">${(p.price * p.quantity).toLocaleString("es-AR")}</span>
+                    </div>
+                  ))}
+                  <div className="pt-2 border-t border-gray-100 flex justify-between text-sm font-medium">
+                    <span className="text-gray-900">Total</span>
+                    <span className="text-gray-900">${totalValue.toLocaleString("es-AR")}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1.5">
+                  Nota para el creator <span className="text-gray-400 font-normal">(opcional)</span>
+                </label>
+                <textarea
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  placeholder="Ej: Esperamos que te encante el producto..."
+                  rows={3}
+                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-gray-300 resize-none"
+                />
+              </div>
+
+              {error && <p className="text-xs text-red-600 bg-red-50 p-3 rounded-lg">{error}</p>}
+            </div>
+            <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-between">
+              <button onClick={() => setStep("products")} className="text-sm text-gray-500 hover:text-gray-700">
+                ← Volver
+              </button>
+              <button
+                onClick={handleSubmit}
+                disabled={submitting}
+                className="px-5 py-2 text-sm font-medium bg-gray-900 text-white rounded-lg hover:bg-gray-800 disabled:opacity-50"
+              >
+                {submitting ? "Creando orden..." : "Crear gifting en Tiendanube"}
+              </button>
+            </div>
+          </>
+        )}
       </div>
     </div>
   )
