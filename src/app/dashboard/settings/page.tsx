@@ -78,15 +78,9 @@ export default function SettingsPage() {
 function IntegrationsTab({ connection }: { connection: TiendanubeConnection | null }) {
   const [connecting, setConnecting] = useState(false)
 
-  const handleConnect = async () => {
+  const handleConnect = () => {
     setConnecting(true)
-    try {
-      const res = await fetch("/api/auth/tiendanube/connect")
-      const data = await res.json()
-      if (data.url) window.location.href = data.url
-    } finally {
-      setConnecting(false)
-    }
+    window.location.href = "/api/auth/tiendanube"
   }
 
   return (
