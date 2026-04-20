@@ -331,7 +331,7 @@ export async function registerTiendanubeWebhooks(
   const webhooks = [
     {
       event: "order/paid",
-      url: `${baseUrl}/api/webhooks/tiendanube`,
+      url: `${baseUrl}/api/webhooks/tiendanube/order-paid`,
     },
   ]
 
