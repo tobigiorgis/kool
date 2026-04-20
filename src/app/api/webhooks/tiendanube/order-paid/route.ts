@@ -1,5 +1,6 @@
 /**
  * Kool — Webhook handler: Tiendanube order/paid
+ * Route: POST /api/webhooks/tiendanube/order-paid
  *
  * Este es el endpoint más crítico del sistema.
  * Cuando alguien compra en una tienda conectada a Kool,
