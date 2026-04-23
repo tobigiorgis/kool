@@ -64,6 +64,13 @@ export async function PATCH(
         })
       }
 
+      // Add creator to the campaign (upsert to avoid duplicate errors)
+      await prisma.campaignCreator.upsert({
+        where: { campaignId_creatorId: { campaignId: id, creatorId: creator.id } },
+        create: { campaignId: id, creatorId: creator.id, status: "ACCEPTED" },
+        update: { status: "ACCEPTED" },
+      })
+
       // Update application
       const updated = await prisma.application.update({
         where: { id: applicationId },
