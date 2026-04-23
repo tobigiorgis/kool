@@ -30,7 +30,16 @@ export async function GET(
       },
       briefings: {
         orderBy: { createdAt: "desc" },
-        select: { id: true, subject: true, status: true, sentAt: true },
+        select: {
+          id: true,
+          subject: true,
+          body: true,
+          status: true,
+          sentAt: true,
+          createdAt: true,
+          assets: true,
+          _count: { select: { recipients: true } },
+        },
       },
     },
   })

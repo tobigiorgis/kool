@@ -6,12 +6,14 @@ import { z } from "zod"
 
 const CreateBriefingSchema = z.object({
   workspaceId: z.string(),
+  campaignId: z.string().optional(),
   subject: z.string().min(1),
   campaignName: z.string().optional(),
   startDate: z.string().optional(),
   endDate: z.string().optional(),
   body: z.string().min(1),
   creatorIds: z.array(z.string()),
+  assets: z.array(z.object({ name: z.string(), url: z.string(), type: z.string() })).optional(),
   send: z.boolean().default(false),
 })
 
@@ -35,11 +37,13 @@ export async function POST(request: NextRequest) {
     const briefing = await prisma.briefing.create({
       data: {
         workspaceId: data.workspaceId,
+        campaignId: data.campaignId,
         subject: data.subject,
         campaignName: data.campaignName,
         startDate: data.startDate ? new Date(data.startDate) : undefined,
         endDate: data.endDate ? new Date(data.endDate) : undefined,
         body: data.body,
+        assets: data.assets ?? [],
         status: data.send && data.creatorIds.length > 0 ? "SENT" : "DRAFT",
         sentAt: data.send && data.creatorIds.length > 0 ? new Date() : undefined,
         recipients: {

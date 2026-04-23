@@ -2,8 +2,8 @@ import { auth, currentUser } from "@clerk/nextjs/server"
 import { redirect } from "next/navigation"
 import { prisma } from "@/lib/prisma"
 import type { Prisma } from "@prisma/client"
-import { getDateRange, formatCurrency, formatNumber } from "@/lib/utils"
-import { Link2, Gift, DollarSign, MousePointerClick, ArrowRight, Copy } from "lucide-react"
+import { getDateRange, formatCurrency, formatNumber, formatDate } from "@/lib/utils"
+import { Link2, Gift, DollarSign, MousePointerClick, ArrowRight, Copy, FileText, Paperclip, ExternalLink } from "lucide-react"
 import Link from "next/link"
 
 type CreatorWithRelations = Prisma.CreatorGetPayload<{
@@ -81,6 +81,27 @@ export default async function CreatorDashboardPage() {
   }
 
   if (!creator) redirect("/onboarding/creator")
+
+  // Load briefings for this creator
+  const briefingRecipients = await prisma.briefingRecipient.findMany({
+    where: { creatorId: creator.id, briefing: { status: "SENT" } },
+    orderBy: { briefing: { sentAt: "desc" } },
+    take: 10,
+    include: {
+      briefing: {
+        select: {
+          id: true,
+          subject: true,
+          body: true,
+          assets: true,
+          sentAt: true,
+          campaign: { select: { name: true } },
+          workspace: { select: { name: true } },
+        },
+      },
+    },
+  })
+  const briefings = briefingRecipients.map((r) => r.briefing)
 
   const { from, to } = getDateRange("30d")
   const creatorLinkIds = creator.links.map((l) => l.id)
@@ -197,6 +218,56 @@ export default async function CreatorDashboardPage() {
             </div>
           )}
         </div>
+
+        {/* Briefings */}
+        {briefings.length > 0 && (
+          <div className="bg-white rounded-xl border border-gray-100">
+            <div className="px-5 py-4 border-b border-gray-100 flex items-center gap-2">
+              <FileText size={15} className="text-gray-400" />
+              <h2 className="text-sm font-semibold text-gray-900">Briefings de campaña</h2>
+            </div>
+            <div className="divide-y divide-gray-50">
+              {briefings.map((b) => {
+                const assets = (b.assets ?? []) as { name: string; url: string; type: string }[]
+                return (
+                  <div key={b.id} className="px-5 py-4">
+                    <div className="flex items-start justify-between gap-3 mb-1">
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">{b.subject}</p>
+                        {b.campaign && (
+                          <p className="text-xs text-gray-400 mt-0.5">{b.campaign.name} · {b.workspace.name}</p>
+                        )}
+                      </div>
+                      {b.sentAt && (
+                        <span className="text-[11px] text-gray-400 flex-shrink-0">{formatDate(b.sentAt)}</span>
+                      )}
+                    </div>
+                    {b.body && (
+                      <p className="text-xs text-gray-500 mt-1 line-clamp-2">{b.body}</p>
+                    )}
+                    {assets.length > 0 && (
+                      <div className="flex flex-wrap gap-2 mt-2">
+                        {assets.map((asset, i) => (
+                          <a
+                            key={i}
+                            href={asset.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-1.5 text-[11px] text-brand-600 bg-brand-50 hover:bg-brand-100 px-2 py-1 rounded-lg transition-colors"
+                          >
+                            <Paperclip size={10} />
+                            {asset.name}
+                            <ExternalLink size={10} />
+                          </a>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Gifting reciente */}
         {creator.giftingOrders.length > 0 && (
