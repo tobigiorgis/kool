@@ -217,6 +217,143 @@ export async function sendGiftingNotification({
   })
 }
 
+// ─── Aplicación recibida ──────────────────────
+
+export async function sendApplicationConfirmation({
+  to,
+  applicantName,
+  campaignName,
+  brandName,
+}: {
+  to: string
+  applicantName: string
+  campaignName: string
+  brandName: string
+}) {
+  const html = baseTemplate(
+    `
+    <h1>Recibimos tu aplicación ✅</h1>
+    <p>Hola ${applicantName},</p>
+    <p>Tu aplicación para <strong>${campaignName}</strong> fue recibida correctamente.</p>
+    <p><strong>${brandName}</strong> va a revisar tu perfil y te contactaremos con el resultado en los próximos días.</p>
+    <hr class="divider">
+    <p style="color:#6b7280; font-size:13px;">Gracias por tu interés. Estén atentos a tu casilla de correo.</p>
+    `,
+    brandName
+  )
+
+  return sendEmail({
+    to,
+    subject: `Recibimos tu aplicación para ${campaignName}`,
+    html,
+  })
+}
+
+// ─── Aplicación aceptada (sin cuenta) ────────
+
+export async function sendApplicationAccepted({
+  to,
+  applicantName,
+  campaignName,
+  brandName,
+  registerUrl,
+}: {
+  to: string
+  applicantName: string
+  campaignName: string
+  brandName: string
+  registerUrl: string
+}) {
+  const html = baseTemplate(
+    `
+    <h1>¡Fuiste aceptado/a en ${campaignName}! 🎉</h1>
+    <p>Hola ${applicantName},</p>
+    <p>¡Buenas noticias! <strong>${brandName}</strong> revisó tu aplicación y queremos que seas parte del programa.</p>
+    <p>Para acceder a tu panel, códigos de descuento y comisiones, creá tu cuenta en Kool:</p>
+    <p style="text-align:center;">
+      <a href="${registerUrl}" class="btn">Crear mi cuenta →</a>
+    </p>
+    <hr class="divider">
+    <p style="color:#6b7280; font-size:13px;">Si el botón no funciona, copiá y pegá este link: ${registerUrl}</p>
+    `,
+    brandName
+  )
+
+  return sendEmail({
+    to,
+    subject: `¡Fuiste aceptado/a en ${campaignName}! Creá tu cuenta`,
+    html,
+  })
+}
+
+// ─── Aplicación aceptada (con cuenta) ────────
+
+export async function sendApplicationAcceptedExisting({
+  to,
+  applicantName,
+  campaignName,
+  brandName,
+  dashboardUrl,
+}: {
+  to: string
+  applicantName: string
+  campaignName: string
+  brandName: string
+  dashboardUrl: string
+}) {
+  const html = baseTemplate(
+    `
+    <h1>¡Fuiste aceptado/a en ${campaignName}! 🎉</h1>
+    <p>Hola ${applicantName},</p>
+    <p>¡Buenas noticias! <strong>${brandName}</strong> te aceptó en el programa <strong>${campaignName}</strong>.</p>
+    <p>Ya podés ver tu código de descuento, links y comisiones desde tu panel:</p>
+    <p style="text-align:center;">
+      <a href="${dashboardUrl}" class="btn">Ver mi programa →</a>
+    </p>
+    `,
+    brandName
+  )
+
+  return sendEmail({
+    to,
+    subject: `¡Fuiste aceptado/a en ${campaignName}!`,
+    html,
+  })
+}
+
+// ─── Aplicación rechazada ─────────────────────
+
+export async function sendApplicationRejected({
+  to,
+  applicantName,
+  campaignName,
+  brandName,
+}: {
+  to: string
+  applicantName: string
+  campaignName: string
+  brandName: string
+}) {
+  const html = baseTemplate(
+    `
+    <h1>Actualización sobre tu aplicación</h1>
+    <p>Hola ${applicantName},</p>
+    <p>Gracias por aplicar a <strong>${campaignName}</strong> de <strong>${brandName}</strong>.</p>
+    <p>Luego de revisar las aplicaciones, en esta oportunidad no pudimos seleccionarte. Recibimos muchas aplicaciones y la decisión fue difícil.</p>
+    <p>Esto no significa que no puedas participar en el futuro. Te invitamos a estar atento/a a nuevas campañas.</p>
+    <hr class="divider">
+    <p style="color:#6b7280; font-size:13px;">Gracias nuevamente por tu interés en ${brandName}.</p>
+    `,
+    brandName
+  )
+
+  return sendEmail({
+    to,
+    subject: `Actualización sobre tu aplicación a ${campaignName}`,
+    html,
+  })
+}
+
 // ─── Notificación de comisión ─────────────────
 
 export async function sendCommissionApproved({

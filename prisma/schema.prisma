@@ -92,12 +92,21 @@ model Campaign {
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
 
+  // Landing page de aplicaciones
+  slug        String?  @unique          // URL pública: /apply/[slug]
+  fields      Json?                     // { name, age, city, instagram, tiktok, phone }
+  coverImage  String?
+  brandLogo   String?
+  brandColor  String?  @default("#00C46A")
+  formStatus  String   @default("ACTIVE") // "ACTIVE" | "PAUSED" | "CLOSED"
+
   // Relaciones
   workspace     Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   creators      CampaignCreator[]
   links         Link[]
   briefings     Briefing[]
   giftingOrders GiftingOrder[]
+  applications  Application[]
 
   @@map("campaigns")
 }
@@ -260,6 +269,7 @@ model Creator {
   commissions   Commission[]
   conversions   Conversion[]
   briefings     BriefingRecipient[]
+  applications  Application[]
 
   @@unique([workspaceId, email])
   @@map("creators")
@@ -523,4 +533,46 @@ enum CampaignCreatorStatus {
 enum AffiliateProgram {
   STANDARD
   PREMIUM
+}
+
+// ─────────────────────────────────────────────
+// APLICACIONES DE CREATORS
+// ─────────────────────────────────────────────
+
+model Application {
+  id          String            @id @default(cuid())
+  campaignId  String
+
+  // Datos del applicant
+  name        String
+  email       String
+  phone       String?
+  age         Int?
+  city        String?
+  instagram   String?
+  tiktok      String?
+
+  // Estado
+  status      ApplicationStatus @default(PENDING)
+
+  // Si fue aceptado, se vincula al Creator creado
+  creatorId   String?
+
+  // Notas internas
+  notes       String?
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  campaign    Campaign  @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  creator     Creator?  @relation(fields: [creatorId], references: [id])
+
+  @@unique([campaignId, email])
+  @@map("applications")
+}
+
+enum ApplicationStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
 }

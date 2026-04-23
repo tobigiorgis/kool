@@ -41,6 +41,7 @@ export async function GET(
           _count: { select: { recipients: true } },
         },
       },
+      _count: { select: { applications: true } },
     },
   })
 

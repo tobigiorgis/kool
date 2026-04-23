@@ -5,7 +5,8 @@ import { useParams, useRouter } from "next/navigation"
 import {
   ArrowLeft, MousePointerClick, ShoppingCart, DollarSign, TrendingUp,
   Users, Link2, X, RefreshCw, UserPlus, Trash2, RefreshCcw, Package,
-  FileText, Plus, Paperclip, ExternalLink, Upload,
+  FileText, Plus, Paperclip, ExternalLink, Upload, CheckCircle2,
+  XCircle, ChevronDown, ChevronUp, Copy, Check, Instagram,
 } from "lucide-react"
 import { formatNumber, formatCurrency, formatDate, generateDiscountCode } from "@/lib/utils"
 
@@ -50,18 +51,35 @@ interface CampaignBriefing {
   _count: { recipients: number }
 }
 
+interface Application {
+  id: string
+  name: string
+  email: string
+  phone: string | null
+  age: number | null
+  city: string | null
+  instagram: string | null
+  tiktok: string | null
+  status: "PENDING" | "ACCEPTED" | "REJECTED"
+  notes: string | null
+  createdAt: string
+}
+
 interface CampaignDetail {
   id: string
   name: string
   description: string | null
   status: "PRE_LAUNCH" | "RUNNING" | "COMPLETED"
+  formStatus: string
   startDate: string | null
   endDate: string | null
   budget: number | null
+  slug: string | null
   workspaceId: string
   creators: CampaignCreator[]
   links: CampaignLink[]
   briefings: CampaignBriefing[]
+  _count?: { applications: number }
 }
 
 interface GiftingOrder {
@@ -98,7 +116,7 @@ const STATUS_CONFIG: Record<string, { label: string; style: string }> = {
 
 const STATUS_ORDER: ("PRE_LAUNCH" | "RUNNING" | "COMPLETED")[] = ["PRE_LAUNCH", "RUNNING", "COMPLETED"]
 
-type Tab = "overview" | "creators" | "links" | "gifting" | "briefings"
+type Tab = "overview" | "creators" | "links" | "gifting" | "briefings" | "applications"
 
 export default function CampaignDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -112,6 +130,9 @@ export default function CampaignDetailPage() {
   const [statusUpdating, setStatusUpdating] = useState(false)
   const [giftingOrders, setGiftingOrders] = useState<GiftingOrder[]>([])
   const [giftingLoading, setGiftingLoading] = useState(false)
+  const [applications, setApplications] = useState<Application[]>([])
+  const [applicationsLoading, setApplicationsLoading] = useState(false)
+  const [applicationsFilter, setApplicationsFilter] = useState<"ALL" | "PENDING" | "ACCEPTED" | "REJECTED">("ALL")
 
   const loadData = useCallback(async () => {
     setLoading(true)
@@ -136,6 +157,19 @@ export default function CampaignDetailPage() {
       .then((d) => setGiftingOrders(d.giftingOrders ?? []))
       .finally(() => setGiftingLoading(false))
   }, [tab, id, giftingOrders.length])
+
+  const loadApplications = useCallback(() => {
+    if (!campaign?.slug) return
+    setApplicationsLoading(true)
+    fetch(`/api/campaigns/${id}/applications`)
+      .then((r) => r.json())
+      .then((d) => setApplications(d.applications ?? []))
+      .finally(() => setApplicationsLoading(false))
+  }, [id, campaign?.slug])
+
+  useEffect(() => {
+    if (tab === "applications") loadApplications()
+  }, [tab, loadApplications])
 
   const updateStatus = async (status: string) => {
     setStatusUpdating(true)
@@ -250,6 +284,12 @@ export default function CampaignDetailPage() {
             { key: "links" as Tab, label: `Links (${campaign.links.length})` },
             { key: "gifting" as Tab, label: `Gifting (${giftingOrders.length})` },
             { key: "briefings" as Tab, label: `Briefings (${campaign.briefings.length})` },
+            ...(campaign.slug
+              ? [{
+                  key: "applications" as Tab,
+                  label: `Aplicaciones${applications.filter((a) => a.status === "PENDING").length > 0 ? ` · ${applications.filter((a) => a.status === "PENDING").length} pendientes` : ""}`,
+                }]
+              : []),
           ]).map((t) => (
             <button
               key={t.key}
@@ -291,6 +331,17 @@ export default function CampaignDetailPage() {
         <BriefingsTab
           campaign={campaign}
           onCreateBriefing={() => setShowCreateBriefing(true)}
+        />
+      )}
+
+      {tab === "applications" && campaign.slug && (
+        <ApplicationsTab
+          campaignId={campaign.id}
+          applications={applications}
+          loading={applicationsLoading}
+          filter={applicationsFilter}
+          onFilterChange={setApplicationsFilter}
+          onRefresh={loadApplications}
         />
       )}
 
@@ -1156,6 +1207,332 @@ function CreateBriefingModal({
               className="px-4 py-2 text-[13px] font-medium bg-gray-900 text-white rounded-lg hover:bg-gray-800 disabled:opacity-50"
             >
               {submitting ? "Enviando..." : `Enviar a ${creatorCount} creator${creatorCount !== 1 ? "s" : ""}`}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────
+// APPLICATIONS TAB
+// ─────────────────────────────────────────────
+
+const APP_STATUS = {
+  PENDING:  { label: "Pendiente",  style: "bg-amber-100 text-amber-700" },
+  ACCEPTED: { label: "Aceptado",   style: "bg-green-100 text-green-700" },
+  REJECTED: { label: "Rechazado",  style: "bg-red-100 text-red-600" },
+}
+
+function ApplicationsTab({
+  campaignId,
+  applications,
+  loading,
+  filter,
+  onFilterChange,
+  onRefresh,
+}: {
+  campaignId: string
+  applications: Application[]
+  loading: boolean
+  filter: "ALL" | "PENDING" | "ACCEPTED" | "REJECTED"
+  onFilterChange: (f: "ALL" | "PENDING" | "ACCEPTED" | "REJECTED") => void
+  onRefresh: () => void
+}) {
+  const [expandedId, setExpandedId] = useState<string | null>(null)
+  const [confirmModal, setConfirmModal] = useState<{
+    type: "accept" | "reject"
+    application: Application
+  } | null>(null)
+
+  const filtered = filter === "ALL" ? applications : applications.filter((a) => a.status === filter)
+
+  const counts = {
+    ALL:      applications.length,
+    PENDING:  applications.filter((a) => a.status === "PENDING").length,
+    ACCEPTED: applications.filter((a) => a.status === "ACCEPTED").length,
+    REJECTED: applications.filter((a) => a.status === "REJECTED").length,
+  }
+
+  const handleDecision = async (
+    applicationId: string,
+    status: "ACCEPTED" | "REJECTED",
+    notes?: string
+  ) => {
+    const res = await fetch(`/api/campaigns/${campaignId}/applications/${applicationId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status, notes }),
+    })
+    if (res.ok) {
+      onRefresh()
+      setConfirmModal(null)
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <RefreshCw size={18} className="animate-spin text-gray-400" />
+      </div>
+    )
+  }
+
+  return (
+    <div>
+      {/* Filter tabs */}
+      <div className="flex items-center gap-1 mb-5">
+        {(["ALL", "PENDING", "ACCEPTED", "REJECTED"] as const).map((f) => (
+          <button
+            key={f}
+            onClick={() => onFilterChange(f)}
+            className={`px-3 py-1.5 text-[12px] font-medium rounded-lg transition-colors ${
+              filter === f
+                ? "bg-gray-900 text-white"
+                : "text-gray-500 hover:bg-gray-100"
+            }`}
+          >
+            {f === "ALL" ? "Todos" : f === "PENDING" ? "Pendientes" : f === "ACCEPTED" ? "Aceptados" : "Rechazados"}
+            <span className={`ml-1.5 text-[11px] ${filter === f ? "text-white/60" : "text-gray-400"}`}>
+              {counts[f]}
+            </span>
+          </button>
+        ))}
+        <div className="ml-auto">
+          <button
+            onClick={onRefresh}
+            className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+            title="Actualizar"
+          >
+            <RefreshCw size={13} />
+          </button>
+        </div>
+      </div>
+
+      {filtered.length === 0 ? (
+        <div className="bg-white rounded-xl border border-gray-100 p-10 text-center">
+          <Users size={28} className="mx-auto text-gray-300 mb-3" />
+          <p className="text-sm text-gray-500">
+            {filter === "ALL" ? "Todavía no hay aplicaciones." : `No hay aplicaciones ${filter === "PENDING" ? "pendientes" : filter === "ACCEPTED" ? "aceptadas" : "rechazadas"}.`}
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {filtered.map((app) => {
+            const isExpanded = expandedId === app.id
+            const cfg = APP_STATUS[app.status]
+            const initials = app.name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()
+
+            return (
+              <div key={app.id} className="bg-white rounded-xl border border-gray-100 overflow-hidden">
+                <div className="p-4 flex items-center gap-3">
+                  {/* Avatar */}
+                  <div className="w-9 h-9 rounded-full bg-brand-100 flex items-center justify-center text-brand-700 text-xs font-semibold flex-shrink-0">
+                    {initials}
+                  </div>
+
+                  {/* Info */}
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 mb-0.5">
+                      <span className="text-sm font-medium text-gray-900">{app.name}</span>
+                      <span className={`text-[11px] px-1.5 py-0.5 rounded-full font-medium ${cfg.style}`}>
+                        {cfg.label}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-3 text-[11px] text-gray-400 flex-wrap">
+                      <span>{app.email}</span>
+                      {app.city && <span>{app.city}</span>}
+                      {app.instagram && <span>@{app.instagram}</span>}
+                      {app.tiktok && <span>TT: @{app.tiktok}</span>}
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    {app.status === "PENDING" && (
+                      <>
+                        <button
+                          onClick={() => setConfirmModal({ type: "accept", application: app })}
+                          className="flex items-center gap-1 text-[12px] font-medium text-green-700 bg-green-50 hover:bg-green-100 px-2.5 py-1.5 rounded-lg transition-colors"
+                        >
+                          <CheckCircle2 size={13} />
+                          Aceptar
+                        </button>
+                        <button
+                          onClick={() => setConfirmModal({ type: "reject", application: app })}
+                          className="flex items-center gap-1 text-[12px] font-medium text-red-600 bg-red-50 hover:bg-red-100 px-2.5 py-1.5 rounded-lg transition-colors"
+                        >
+                          <XCircle size={13} />
+                          Rechazar
+                        </button>
+                      </>
+                    )}
+                    <button
+                      onClick={() => setExpandedId(isExpanded ? null : app.id)}
+                      className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg"
+                    >
+                      {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Expanded details */}
+                {isExpanded && (
+                  <div className="px-4 pb-4 pt-0 border-t border-gray-50">
+                    <div className="grid grid-cols-2 gap-x-8 gap-y-2 mt-3 text-[13px]">
+                      {app.phone && (
+                        <div>
+                          <span className="text-gray-400">Teléfono</span>
+                          <p className="text-gray-700 font-medium">{app.phone}</p>
+                        </div>
+                      )}
+                      {app.age && (
+                        <div>
+                          <span className="text-gray-400">Edad</span>
+                          <p className="text-gray-700 font-medium">{app.age} años</p>
+                        </div>
+                      )}
+                      {app.city && (
+                        <div>
+                          <span className="text-gray-400">Ciudad</span>
+                          <p className="text-gray-700 font-medium">{app.city}</p>
+                        </div>
+                      )}
+                      {app.instagram && (
+                        <div>
+                          <span className="text-gray-400">Instagram</span>
+                          <a
+                            href={`https://instagram.com/${app.instagram}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-brand-600 font-medium hover:underline flex items-center gap-1"
+                          >
+                            @{app.instagram}
+                            <ExternalLink size={10} />
+                          </a>
+                        </div>
+                      )}
+                      {app.tiktok && (
+                        <div>
+                          <span className="text-gray-400">TikTok</span>
+                          <a
+                            href={`https://tiktok.com/@${app.tiktok}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-brand-600 font-medium hover:underline flex items-center gap-1"
+                          >
+                            @{app.tiktok}
+                            <ExternalLink size={10} />
+                          </a>
+                        </div>
+                      )}
+                      <div>
+                        <span className="text-gray-400">Aplicó</span>
+                        <p className="text-gray-700 font-medium">{formatDate(app.createdAt)}</p>
+                      </div>
+                    </div>
+                    {app.notes && (
+                      <div className="mt-3 bg-gray-50 rounded-lg px-3 py-2 text-[12px] text-gray-600">
+                        <span className="font-medium text-gray-500">Notas: </span>{app.notes}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      {/* Confirm Modal */}
+      {confirmModal && (
+        <ConfirmApplicationModal
+          type={confirmModal.type}
+          application={confirmModal.application}
+          onClose={() => setConfirmModal(null)}
+          onConfirm={(notes) =>
+            handleDecision(
+              confirmModal.application.id,
+              confirmModal.type === "accept" ? "ACCEPTED" : "REJECTED",
+              notes
+            )
+          }
+        />
+      )}
+    </div>
+  )
+}
+
+function ConfirmApplicationModal({
+  type,
+  application,
+  onClose,
+  onConfirm,
+}: {
+  type: "accept" | "reject"
+  application: Application
+  onClose: () => void
+  onConfirm: (notes?: string) => void
+}) {
+  const [notes, setNotes] = useState("")
+  const [loading, setLoading] = useState(false)
+
+  const isAccept = type === "accept"
+
+  const handleConfirm = async () => {
+    setLoading(true)
+    await onConfirm(notes || undefined)
+    setLoading(false)
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm">
+        <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100">
+          <h2 className="text-base font-semibold text-gray-900">
+            {isAccept ? "Aceptar aplicación" : "Rechazar aplicación"}
+          </h2>
+          <button onClick={onClose} className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg">
+            <X size={16} />
+          </button>
+        </div>
+        <div className="p-6 space-y-4">
+          <p className="text-[13px] text-gray-600">
+            {isAccept
+              ? <>¿Aceptar a <strong>{application.name}</strong>? Se le enviará un email para unirse al programa.</>
+              : <>¿Rechazar a <strong>{application.name}</strong>? Se le enviará un email notificando la decisión.</>
+            }
+          </p>
+
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1.5">
+              Notas internas <span className="text-gray-400 font-normal">(opcional)</span>
+            </label>
+            <textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              rows={2}
+              placeholder={isAccept ? "Motivo de aceptación, observaciones..." : "Motivo del rechazo..."}
+              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400 resize-none"
+            />
+          </div>
+
+          <div className="flex gap-3">
+            <button
+              onClick={onClose}
+              className="flex-1 px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={handleConfirm}
+              disabled={loading}
+              className={`flex-1 px-4 py-2 text-sm font-medium text-white rounded-lg disabled:opacity-50 ${
+                isAccept ? "bg-green-600 hover:bg-green-700" : "bg-red-600 hover:bg-red-700"
+              }`}
+            >
+              {loading ? "..." : isAccept ? "Confirmar aceptación" : "Confirmar rechazo"}
             </button>
           </div>
         </div>
