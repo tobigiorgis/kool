@@ -1,165 +1,217 @@
-/**
- * Kool Tracker — Script de storefront para Tiendanube
- *
- * Este script se inyecta en todas las tiendas conectadas a Kool.
- * Detecta el parámetro ?ref=CODIGO en la URL y aplica
- * el cupón automáticamente en el checkout.
- *
- * El script es minúsculo (<2KB) y no bloquea el render.
- *
- * ARCHIVO: /public/scripts/kool-tracker.js
- * URL pública: https://app.kool.link/scripts/kool-tracker.js
- */
-
 ;(function () {
   "use strict"
 
   var STORAGE_KEY = "kool_ref"
-  var STORAGE_EXPIRY_KEY = "kool_ref_expiry"
-  var EXPIRY_DAYS = 30 // El código se recuerda 30 días (ventana de atribución)
+  var COOKIE_NAME = "kool_ref"
+  var EXPIRY_DAYS = 30
 
-  /**
-   * Lee el parámetro ?ref= de la URL actual
-   */
   function getRefFromUrl() {
     try {
       var params = new URLSearchParams(window.location.search)
-      return params.get("ref") || params.get("utm_campaign")
-    } catch (e) {
-      return null
-    }
+      return params.get("ref") || params.get("utm_campaign") || params.get("coupon")
+    } catch (e) { return null }
   }
 
-  /**
-   * Guarda el código en sessionStorage con expiración
-   */
+  // Guardar en cookie con dominio padre para que sobreviva al checkout
   function saveRef(code) {
     try {
-      var expiry = Date.now() + EXPIRY_DAYS * 24 * 60 * 60 * 1000
-      sessionStorage.setItem(STORAGE_KEY, code)
-      sessionStorage.setItem(STORAGE_EXPIRY_KEY, expiry.toString())
-    } catch (e) {}
-  }
+      var expiry = new Date()
+      expiry.setDate(expiry.getDate() + EXPIRY_DAYS)
 
-  /**
-   * Lee el código guardado (si no expiró)
-   */
-  function getSavedRef() {
-    try {
-      var expiry = parseInt(sessionStorage.getItem(STORAGE_EXPIRY_KEY) || "0")
-      if (Date.now() > expiry) {
-        sessionStorage.removeItem(STORAGE_KEY)
-        sessionStorage.removeItem(STORAGE_EXPIRY_KEY)
-        return null
-      }
-      return sessionStorage.getItem(STORAGE_KEY)
+      // Detectar dominio padre
+      var host = window.location.hostname
+      var parts = host.split(".")
+      var parentDomain = parts.length >= 2 ? "." + parts.slice(-2).join(".") : host
+
+      document.cookie = COOKIE_NAME + "=" + code +
+        "; expires=" + expiry.toUTCString() +
+        "; path=/; domain=" + parentDomain + "; SameSite=Lax"
+
+      // Backup en localStorage
+      localStorage.setItem(STORAGE_KEY, code)
+      localStorage.setItem(STORAGE_KEY + "_expiry", expiry.getTime().toString())
+
+      console.log("[Kool] Saved ref:", code, "domain:", parentDomain)
     } catch (e) {
-      return null
+      console.error("[Kool] Error saving ref:", e)
     }
   }
 
-  /**
-   * Aplica el cupón en el checkout de Tiendanube.
-   *
-   * Tiendanube tiene un input con id="coupon_code" o similar
-   * en la página de checkout. Lo detectamos y llenamos.
-   */
+  function getSavedRef() {
+    try {
+      // 1. Intentar cookie
+      var match = document.cookie.match(new RegExp("(^|;\\s*)" + COOKIE_NAME + "=([^;]+)"))
+      if (match) return match[2]
+
+      // 2. Fallback localStorage
+      var expiry = parseInt(localStorage.getItem(STORAGE_KEY + "_expiry") || "0")
+      if (Date.now() > expiry) {
+        localStorage.removeItem(STORAGE_KEY)
+        return null
+      }
+      return localStorage.getItem(STORAGE_KEY)
+    } catch (e) { return null }
+  }
+
+  // Modificar todos los links internos para incluir el cupón
+  function injectCouponInLinks(code) {
+    try {
+      var links = document.querySelectorAll("a[href]")
+      var host = window.location.hostname
+
+      for (var i = 0; i < links.length; i++) {
+        var link = links[i]
+        var href = link.getAttribute("href")
+        if (!href) continue
+
+        // Solo links internos (mismo dominio o relativos)
+        var isInternal = href.startsWith("/") ||
+          href.indexOf(host) !== -1 ||
+          href.indexOf("tiendanube.com") !== -1 ||
+          href.indexOf("mitiendanube.com") !== -1
+
+        if (!isInternal) continue
+        if (href.indexOf("coupon=") !== -1) continue
+
+        var separator = href.indexOf("?") !== -1 ? "&" : "?"
+        link.setAttribute("href", href + separator + "coupon=" + encodeURIComponent(code))
+      }
+    } catch (e) {
+      console.error("[Kool] Error injecting in links:", e)
+    }
+  }
+
+  // Interceptar formularios de "agregar al carrito"
+  function interceptAddToCartForms(code) {
+    try {
+      var forms = document.querySelectorAll('form[action*="cart"], form[action*="carrito"], form.js-form-cart')
+      for (var i = 0; i < forms.length; i++) {
+        var form = forms[i]
+
+        // Agregar campo oculto si no existe
+        if (form.querySelector('input[name="coupon"]')) continue
+
+        var input = document.createElement("input")
+        input.type = "hidden"
+        input.name = "coupon"
+        input.value = code
+        form.appendChild(input)
+      }
+    } catch (e) {
+      console.error("[Kool] Error intercepting forms:", e)
+    }
+  }
+
+  // Aplicar cupón directamente si encontramos el input (checkout)
   function applyCouponInCheckout(code) {
-    // Selector del input de cupón en Tiendanube
     var selectors = [
       'input[name="discount_coupon"]',
-      'input[id="discount-coupon"]',
+      'input[name="coupon"]',
+      'input[id*="coupon"]',
+      'input[id*="discount"]',
       'input[placeholder*="cupón"]',
       'input[placeholder*="cupon"]',
       'input[placeholder*="descuento"]',
       'input[placeholder*="código"]',
-      'input[placeholder*="codigo"]',
-      ".js-coupon-input",
+      '.js-coupon-input',
+      '#coupon_code',
     ]
 
-    var input = null
     for (var i = 0; i < selectors.length; i++) {
-      input = document.querySelector(selectors[i])
-      if (input) break
+      var input = document.querySelector(selectors[i])
+      if (!input) continue
+
+      console.log("[Kool] Found coupon input, applying:", code)
+
+      try {
+        var setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value").set
+        setter.call(input, code)
+      } catch(e) {
+        input.value = code
+      }
+
+      input.dispatchEvent(new Event("input", { bubbles: true }))
+      input.dispatchEvent(new Event("change", { bubbles: true }))
+
+      // Click submit
+      setTimeout(function() {
+        var btnSelectors = [
+          'button[data-coupon-submit]',
+          '.js-coupon-submit',
+          'form[action*="coupon"] button[type="submit"]',
+          'form[action*="discount"] button[type="submit"]',
+          '.coupon-form button',
+        ]
+        for (var j = 0; j < btnSelectors.length; j++) {
+          var btn = document.querySelector(btnSelectors[j])
+          if (btn) { btn.click(); break }
+        }
+      }, 400)
+
+      return true
     }
-
-    if (!input) return
-
-    // Llenar el input
-    var nativeInputSetter = Object.getOwnPropertyDescriptor(
-      window.HTMLInputElement.prototype,
-      "value"
-    ).set
-    nativeInputSetter.call(input, code)
-    input.dispatchEvent(new Event("input", { bubbles: true }))
-    input.dispatchEvent(new Event("change", { bubbles: true }))
-
-    // Buscar y hacer click en el botón de aplicar
-    var submitBtn = document.querySelector(
-      'button[data-coupon-submit], .js-coupon-submit, button[type="submit"][form*="coupon"]'
-    )
-    if (submitBtn) {
-      setTimeout(function () {
-        submitBtn.click()
-      }, 300)
-    }
+    return false
   }
 
-  /**
-   * Observa cambios en el DOM para detectar cuando
-   * el checkout aparece en la página (SPA behavior)
-   */
-  function watchForCheckout(code) {
-    var observer = new MutationObserver(function () {
-      applyCouponInCheckout(code)
-    })
-
-    observer.observe(document.body, {
-      childList: true,
-      subtree: true,
-    })
-
-    // También intentamos aplicar inmediatamente
-    applyCouponInCheckout(code)
-
-    // Timeout de seguridad: dejamos de observar después de 30s
-    setTimeout(function () {
-      observer.disconnect()
-    }, 30000)
-  }
-
-  /**
-   * Punto de entrada principal
-   */
   function init() {
-    // 1. Leer el ref de la URL actual
     var refFromUrl = getRefFromUrl()
     if (refFromUrl) {
+      console.log("[Kool] Ref from URL:", refFromUrl)
       saveRef(refFromUrl)
     }
 
-    // 2. Obtener el código (desde URL o guardado)
     var code = refFromUrl || getSavedRef()
-    if (!code) return
+    if (!code) {
+      console.log("[Kool] No active code")
+      return
+    }
 
-    // 3. Si estamos en el checkout, aplicar el cupón
+    console.log("[Kool] Active code:", code)
+
+    // Estrategia 1: inyectar en links
+    injectCouponInLinks(code)
+
+    // Estrategia 2: interceptar forms de carrito
+    interceptAddToCartForms(code)
+
+    // Estrategia 3: si estamos en checkout, aplicar directamente
     var isCheckout =
-      window.location.pathname.includes("/checkout") ||
-      window.location.pathname.includes("/carrito") ||
-      document.querySelector('[data-page="checkout"]') !== null
+      window.location.pathname.indexOf("/checkout") !== -1 ||
+      window.location.pathname.indexOf("/carrito") !== -1 ||
+      window.location.hostname.indexOf("checkout") !== -1
 
     if (isCheckout) {
-      // Esperar a que el DOM esté listo
-      if (document.readyState === "loading") {
-        document.addEventListener("DOMContentLoaded", function () {
-          watchForCheckout(code)
+      applyCouponInCheckout(code)
+
+      // Observar cambios del DOM
+      if (window.MutationObserver) {
+        var observer = new MutationObserver(function() {
+          if (applyCouponInCheckout(code)) {
+            observer.disconnect()
+          }
         })
-      } else {
-        watchForCheckout(code)
+        observer.observe(document.body, { childList: true, subtree: true })
+        setTimeout(function() { observer.disconnect() }, 15000)
       }
     }
   }
 
-  // Correr inmediatamente
-  init()
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", init)
+  } else {
+    init()
+  }
+
+  // Re-ejecutar si cambia la URL (SPA)
+  var lastUrl = window.location.href
+  setInterval(function() {
+    if (window.location.href !== lastUrl) {
+      lastUrl = window.location.href
+      var code = getSavedRef()
+      if (code) {
+        injectCouponInLinks(code)
+        interceptAddToCartForms(code)
+      }
+    }
+  }, 1500)
 })()

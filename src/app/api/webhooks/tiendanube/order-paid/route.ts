@@ -18,6 +18,14 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
 
+    console.log("[Webhook order/paid] Received:", JSON.stringify({
+      orderId: body.id,
+      storeId: body.store_id,
+      total: body.total,
+      coupon: body.promotional_discount?.code,
+      utm: body.utm_parameters,
+    }))
+
     // Tiendanube envía el store_id en el header o en el body
     const storeId =
       request.headers.get("x-store-id") ||
@@ -57,7 +65,7 @@ export async function POST(request: NextRequest) {
     const parsed = parseTiendanubeOrderWebhook(body)
 
     if (!parsed.creatorCode) {
-      // Orden sin código de creator — no hay comisión que registrar
+      console.log("[Webhook] Skipped: no creator code")
       return NextResponse.json({ ok: true, attributed: false })
     }
 
@@ -83,7 +91,7 @@ export async function POST(request: NextRequest) {
     })
 
     if (!creator) {
-      // Código no corresponde a ningún creator activo
+      console.log("[Webhook] Skipped: creator not found for code:", parsed.creatorCode)
       return NextResponse.json({ ok: true, attributed: false })
     }
 
@@ -128,6 +136,8 @@ export async function POST(request: NextRequest) {
         },
       })
     })
+
+    console.log("[Webhook] Attribution success:", creator.name, "commission:", parsed.orderAmount * (commissionPct / 100))
 
     return NextResponse.json({
       ok: true,

@@ -3,12 +3,12 @@
  * GET /api/auth/tiendanube
  *
  * Construye la URL de autorización y redirige al merchant a Tiendanube.
- * Más simple que /connect — no necesita JSON de por medio.
  */
 
 import { auth } from "@clerk/nextjs/server"
 import { redirect } from "next/navigation"
 import { prisma } from "@/lib/prisma"
+import { getTiendanubeAuthUrl } from "@/lib/tiendanube"
 
 export async function GET() {
   const { userId } = await auth()
@@ -19,17 +19,8 @@ export async function GET() {
     select: { workspaceId: true },
   })
 
-  const state = member?.workspaceId || "no-workspace"
+  if (!member) redirect("/onboarding")
 
-  const params = new URLSearchParams({
-    client_id: process.env.TIENDANUBE_CLIENT_ID!,
-    response_type: "code",
-    redirect_uri: process.env.TIENDANUBE_REDIRECT_URI!,
-    scope: "write_orders read_orders write_coupons read_products write_scripts",
-    state,
-  })
-
-  redirect(
-    `https://www.tiendanube.com/apps/${process.env.TIENDANUBE_CLIENT_ID}/authorize?${params}`
-  )
+  const url = getTiendanubeAuthUrl(member.workspaceId)
+  redirect(url)
 }

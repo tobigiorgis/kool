@@ -135,21 +135,22 @@ export interface CreateOrderPayload {
  * El merchant es redirigido a esta URL para autorizar la app.
  */
 export function getTiendanubeAuthUrl(state: string): string {
+  const clientId = process.env.TIENDANUBE_CLIENT_ID!
   const params = new URLSearchParams({
-    client_id: process.env.TIENDANUBE_CLIENT_ID!,
+    client_id: clientId,
     response_type: "code",
     scope: [
-      "write_orders",       // Crear órdenes de gifting
-      "read_orders",        // Leer órdenes para atribución
-      "write_coupons",      // Crear códigos de descuento
-      "read_products",      // Leer catálogo para gifting
-      "write_scripts",      // Inyectar script de tracking
+      "write_orders",
+      "read_orders",
+      "write_coupons",
+      "read_products",
+      "write_scripts",
     ].join(" "),
     redirect_uri: process.env.TIENDANUBE_REDIRECT_URI!,
     state,
   })
 
-  return `${TIENDANUBE_AUTH}/authorize?${params.toString()}`
+  return `${TIENDANUBE_AUTH}/${clientId}/authorize?${params.toString()}`
 }
 
 /**
@@ -362,6 +363,7 @@ export async function installTiendanubeScript(
   return tiendanubeRequest(storeId, accessToken, "POST", "/scripts", {
     src: scriptUrl,
     event: "onload",
+    where: "store",
   })
 }
 
