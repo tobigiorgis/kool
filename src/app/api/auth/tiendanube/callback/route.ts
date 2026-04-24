@@ -10,7 +10,6 @@ import {
   exchangeTiendanubeCode,
   getTiendanubeStore,
   registerTiendanubeWebhooks,
-  installTiendanubeScript,
 } from "@/lib/tiendanube"
 import { encrypt } from "@/lib/utils/crypto"
 
@@ -101,15 +100,6 @@ export async function GET(request: NextRequest) {
       console.log("[TN Setup] Webhooks registered:", JSON.stringify(webhookResults))
     } catch (err) {
       console.error("[TN Setup] Webhook registration failed:", err)
-    }
-
-    // 5. Instalar script de tracking
-    console.log("[TN Setup] Installing script...")
-    try {
-      const scriptResult = await installTiendanubeScript(storeId, tokenData.access_token)
-      console.log("[TN Setup] Script installed:", JSON.stringify(scriptResult))
-    } catch (err) {
-      console.error("[TN Setup] Script installation failed:", err)
     }
 
     console.log("[TN Setup] Done")

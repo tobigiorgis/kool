@@ -88,13 +88,13 @@ function IntegrationsTab({ connection, workspaceId }: { connection: TiendanubeCo
     if (!workspaceId) return
     setReinstalling(true)
     try {
-      const res = await fetch("/api/debug/reinstall-script", {
+      const res = await fetch("/api/debug/check-connection", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ workspaceId }),
       })
       const data = await res.json()
-      alert(data.ok ? "Script reinstalado correctamente" : "Error: " + data.error)
+      alert(data.ok ? "Webhooks verificados correctamente" : "Error: " + data.error)
     } finally {
       setReinstalling(false)
     }
@@ -178,7 +178,7 @@ function IntegrationsTab({ connection, workspaceId }: { connection: TiendanubeCo
               disabled={reinstalling}
               className="text-xs text-gray-500 underline mt-3 disabled:opacity-50"
             >
-              {reinstalling ? "Reinstalando..." : "Reinstalar script de tracking"}
+              {reinstalling ? "Verificando..." : "Verificar webhooks"}
             </button>
           </div>
         )}

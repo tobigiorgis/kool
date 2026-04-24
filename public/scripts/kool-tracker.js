@@ -1,6 +1,7 @@
 ;(function () {
   "use strict"
 
+  var KOOL_API_URL = "https://kool-beta.vercel.app"
   var STORAGE_KEY = "kool_ref"
   var COOKIE_NAME = "kool_ref"
   var EXPIRY_DAYS = 30
