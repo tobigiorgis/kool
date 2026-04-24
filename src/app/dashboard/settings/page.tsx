@@ -68,19 +68,36 @@ export default function SettingsPage() {
         ))}
       </div>
 
-      {activeTab === "integrations" && <IntegrationsTab connection={workspace?.tiendanubeConnection ?? null} />}
+      {activeTab === "integrations" && <IntegrationsTab connection={workspace?.tiendanubeConnection ?? null} workspaceId={workspace?.id ?? null} />}
       {activeTab === "workspace" && <WorkspaceTab workspace={workspace} />}
       {activeTab === "billing" && <BillingTab plan={workspace?.plan ?? "FREE"} />}
     </div>
   )
 }
 
-function IntegrationsTab({ connection }: { connection: TiendanubeConnection | null }) {
+function IntegrationsTab({ connection, workspaceId }: { connection: TiendanubeConnection | null; workspaceId: string | null }) {
   const [connecting, setConnecting] = useState(false)
+  const [reinstalling, setReinstalling] = useState(false)
 
   const handleConnect = () => {
     setConnecting(true)
     window.location.href = "/api/auth/tiendanube"
+  }
+
+  const handleReinstallScript = async () => {
+    if (!workspaceId) return
+    setReinstalling(true)
+    try {
+      const res = await fetch("/api/debug/reinstall-script", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ workspaceId }),
+      })
+      const data = await res.json()
+      alert(data.ok ? "Script reinstalado correctamente" : "Error: " + data.error)
+    } finally {
+      setReinstalling(false)
+    }
   }
 
   return (
@@ -140,20 +157,29 @@ function IntegrationsTab({ connection }: { connection: TiendanubeConnection | nu
         </div>
 
         {connection && (
-          <div className="mt-4 pt-4 border-t border-gray-100 grid grid-cols-3 gap-3">
-            {[
-              { label: "Webhooks", status: true },
-              { label: "Script de tracking", status: true },
-              { label: "Catálogo sync", status: false },
-            ].map(({ label, status }) => (
-              <div key={label} className="flex items-center gap-1.5">
-                {status
-                  ? <CheckCircle size={12} className="text-brand-500" />
-                  : <AlertCircle size={12} className="text-gray-300" />
-                }
-                <span className={`text-xs ${status ? "text-gray-700" : "text-gray-400"}`}>{label}</span>
-              </div>
-            ))}
+          <div className="mt-4 pt-4 border-t border-gray-100">
+            <div className="grid grid-cols-3 gap-3">
+              {[
+                { label: "Webhooks", status: true },
+                { label: "Script de tracking", status: true },
+                { label: "Catálogo sync", status: false },
+              ].map(({ label, status }) => (
+                <div key={label} className="flex items-center gap-1.5">
+                  {status
+                    ? <CheckCircle size={12} className="text-brand-500" />
+                    : <AlertCircle size={12} className="text-gray-300" />
+                  }
+                  <span className={`text-xs ${status ? "text-gray-700" : "text-gray-400"}`}>{label}</span>
+                </div>
+              ))}
+            </div>
+            <button
+              onClick={handleReinstallScript}
+              disabled={reinstalling}
+              className="text-xs text-gray-500 underline mt-3 disabled:opacity-50"
+            >
+              {reinstalling ? "Reinstalando..." : "Reinstalar script de tracking"}
+            </button>
           </div>
         )}
       </div>

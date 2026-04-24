@@ -360,6 +360,17 @@ export async function installTiendanubeScript(
 ) {
   const scriptUrl = `${process.env.NEXT_PUBLIC_APP_URL}/scripts/kool-tracker.js`
 
+  // Check for existing script to avoid duplicates
+  const existing = await tiendanubeRequest<any[]>(
+    storeId, accessToken, "GET", "/scripts"
+  ).catch(() => [])
+
+  const alreadyInstalled = Array.isArray(existing) && existing.some((s: any) => s.src === scriptUrl)
+  if (alreadyInstalled) {
+    console.log("[TN Script] Already installed, skipping")
+    return { already_installed: true }
+  }
+
   return tiendanubeRequest(storeId, accessToken, "POST", "/scripts", {
     src: scriptUrl,
     event: "onload",
