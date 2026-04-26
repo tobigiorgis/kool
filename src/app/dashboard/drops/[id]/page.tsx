@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from "react"
 import { useParams, useRouter } from "next/navigation"
 import Link from "next/link"
-import { ArrowLeft, Plus, Trash2, X } from "lucide-react"
+import { ArrowLeft, Plus, Trash2, X, Link2, Check, ChevronRight, Search } from "lucide-react"
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -17,6 +17,8 @@ interface DropProduct {
   price: number
   unitCost: number
   initialStock: number
+  tiendanubeProductId: string | null
+  tiendanubeVariantId: string | null
   sales: Sale[]
 }
 
@@ -89,6 +91,8 @@ export default function DropDetailPage() {
   const [drop, setDrop] = useState<Drop | null>(null)
   const [loading, setLoading] = useState(true)
   const [showExpenseModal, setShowExpenseModal] = useState(false)
+  const [connectingProduct, setConnectingProduct] = useState<DropProduct | null>(null)
+  const [workspaceId, setWorkspaceId] = useState<string | null>(null)
   const [updatingStatus, setUpdatingStatus] = useState(false)
 
   const load = useCallback(() => {
@@ -99,6 +103,12 @@ export default function DropDetailPage() {
   }, [dropId])
 
   useEffect(() => { load() }, [load])
+
+  useEffect(() => {
+    fetch("/api/workspace/me")
+      .then((r) => r.json())
+      .then((d) => setWorkspaceId(d.workspace?.id ?? null))
+  }, [])
 
   const updateStatus = async (status: string) => {
     setUpdatingStatus(true)
@@ -219,7 +229,7 @@ export default function DropDetailPage() {
             <table className="w-full">
               <thead>
                 <tr className="border-b border-gray-100">
-                  {["Producto", "Stock", "Vendido", "Ingresos", "Costo unitario", "Margen est."].map((h) => (
+                  {["Producto", "TN", "Stock", "Vendido", "Ingresos", "Costo unitario", "Margen est."].map((h) => (
                     <th key={h} className="text-left text-xs font-medium text-gray-400 px-4 py-3">{h}</th>
                   ))}
                 </tr>
@@ -246,6 +256,25 @@ export default function DropDetailPage() {
                             {p.sku && <p className="text-xs text-gray-400">{p.sku}</p>}
                           </div>
                         </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        {p.tiendanubeProductId ? (
+                          <button
+                            onClick={() => setConnectingProduct(p)}
+                            className="flex items-center gap-1 text-xs text-[#00903c] bg-[#e6faf0] px-2 py-1 rounded-full hover:bg-[#d0f5e3] transition-colors"
+                          >
+                            <Check size={10} />
+                            Conectado
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => setConnectingProduct(p)}
+                            className="flex items-center gap-1 text-xs text-gray-400 border border-dashed border-gray-200 px-2 py-1 rounded-full hover:border-gray-400 hover:text-gray-600 transition-colors"
+                          >
+                            <Link2 size={10} />
+                            Conectar
+                          </button>
+                        )}
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-600">{p.initialStock}</td>
                       <td className="px-4 py-3">
@@ -394,6 +423,17 @@ export default function DropDetailPage() {
           products={drop.products}
           onClose={() => setShowExpenseModal(false)}
           onSaved={() => { setShowExpenseModal(false); load() }}
+        />
+      )}
+
+      {/* Modal conectar con TN */}
+      {connectingProduct && workspaceId && (
+        <ConnectProductModal
+          dropId={dropId}
+          dropProduct={connectingProduct}
+          workspaceId={workspaceId}
+          onClose={() => setConnectingProduct(null)}
+          onSaved={() => { setConnectingProduct(null); load() }}
         />
       )}
     </div>
@@ -571,6 +611,272 @@ function ExpenseModal({
             </button>
           </div>
         </form>
+      </div>
+    </div>
+  )
+}
+
+// ─── ConnectProductModal ──────────────────────────────────────────────────────
+
+interface TiendanubeVariant {
+  id: number
+  price: string
+  sku: string | null
+  stock: number | null
+}
+
+interface TiendanubeProduct {
+  id: number
+  name: { es: string } | string
+  variants: TiendanubeVariant[]
+  images: { src: string }[]
+}
+
+function ConnectProductModal({
+  dropId,
+  dropProduct,
+  workspaceId,
+  onClose,
+  onSaved,
+}: {
+  dropId: string
+  dropProduct: DropProduct
+  workspaceId: string
+  onClose: () => void
+  onSaved: () => void
+}) {
+  const [tnProducts, setTnProducts] = useState<TiendanubeProduct[]>([])
+  const [loadingTn, setLoadingTn] = useState(true)
+  const [tnError, setTnError] = useState<string | null>(null)
+  const [search, setSearch] = useState("")
+  const [selectedProduct, setSelectedProduct] = useState<TiendanubeProduct | null>(null)
+  const [selectedVariant, setSelectedVariant] = useState<TiendanubeVariant | null>(null)
+  const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    fetch(`/api/tiendanube/products?workspaceId=${workspaceId}`)
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.error) setTnError(d.error)
+        else setTnProducts(d.products || [])
+      })
+      .catch(() => setTnError("Error al cargar productos"))
+      .finally(() => setLoadingTn(false))
+  }, [workspaceId])
+
+  const productName = (p: TiendanubeProduct) =>
+    typeof p.name === "object" ? p.name.es || Object.values(p.name)[0] : p.name
+
+  const filtered = tnProducts.filter((p) =>
+    productName(p).toLowerCase().includes(search.toLowerCase())
+  )
+
+  const handleConnect = async () => {
+    if (!selectedProduct) return
+    const variant = selectedVariant ?? (selectedProduct.variants.length === 1 ? selectedProduct.variants[0] : null)
+
+    setSaving(true)
+    await fetch(`/api/drops/${dropId}/products/${dropProduct.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        tiendanubeProductId: selectedProduct.id.toString(),
+        tiendanubeVariantId: variant ? variant.id.toString() : null,
+      }),
+    })
+    setSaving(false)
+    onSaved()
+  }
+
+  const handleDisconnect = async () => {
+    setSaving(true)
+    await fetch(`/api/drops/${dropId}/products/${dropProduct.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ tiendanubeProductId: null, tiendanubeVariantId: null }),
+    })
+    setSaving(false)
+    onSaved()
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[85vh] flex flex-col">
+        {/* Header */}
+        <div className="flex items-start justify-between p-5 border-b border-gray-100 flex-shrink-0">
+          <div>
+            <h3 className="text-sm font-semibold text-gray-900">Conectar con Tiendanube</h3>
+            <p className="text-xs text-gray-400 mt-0.5">
+              Producto Kool: <span className="text-gray-700">{dropProduct.name}</span>
+            </p>
+          </div>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors mt-0.5">
+            <X size={16} />
+          </button>
+        </div>
+
+        {/* Ya conectado — info */}
+        {dropProduct.tiendanubeProductId && (
+          <div className="mx-5 mt-4 flex items-center justify-between p-3 bg-[#e6faf0] rounded-lg border border-[#b3efd4]">
+            <div className="flex items-center gap-2">
+              <Check size={14} className="text-[#00903c]" />
+              <span className="text-xs text-[#00903c] font-medium">Conectado a producto #{dropProduct.tiendanubeProductId}</span>
+              {dropProduct.tiendanubeVariantId && (
+                <span className="text-xs text-[#00903c]">/ variante #{dropProduct.tiendanubeVariantId}</span>
+              )}
+            </div>
+            <button
+              onClick={handleDisconnect}
+              disabled={saving}
+              className="text-xs text-gray-400 hover:text-red-500 transition-colors"
+            >
+              Desconectar
+            </button>
+          </div>
+        )}
+
+        {/* Step 1 — elegir producto TN */}
+        {!selectedProduct ? (
+          <>
+            <div className="p-4 border-b border-gray-100 flex-shrink-0">
+              <div className="relative">
+                <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Buscar producto..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="w-full pl-8 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C46A]/30 focus:border-[#00C46A]"
+                  autoFocus
+                />
+              </div>
+            </div>
+
+            <div className="overflow-y-auto flex-1">
+              {loadingTn ? (
+                <div className="p-8 text-center">
+                  <div className="text-sm text-gray-400 animate-pulse">Cargando productos de Tiendanube...</div>
+                </div>
+              ) : tnError ? (
+                <div className="p-8 text-center">
+                  <p className="text-sm text-red-400">{tnError}</p>
+                  <p className="text-xs text-gray-400 mt-1">Verificá que tu tienda Tiendanube esté conectada en Configuración</p>
+                </div>
+              ) : filtered.length === 0 ? (
+                <div className="p-8 text-center text-sm text-gray-400">
+                  {search ? "No se encontraron productos" : "No hay productos en la tienda"}
+                </div>
+              ) : (
+                <ul className="divide-y divide-gray-50">
+                  {filtered.map((p) => (
+                    <li key={p.id}>
+                      <button
+                        onClick={() => {
+                          setSelectedProduct(p)
+                          // Si tiene una sola variante, preseleccionar
+                          if (p.variants.length === 1) setSelectedVariant(p.variants[0])
+                          else setSelectedVariant(null)
+                        }}
+                        className="w-full flex items-center gap-3 px-5 py-3 hover:bg-gray-50 transition-colors text-left"
+                      >
+                        {p.images[0] ? (
+                          <img src={p.images[0].src} alt={productName(p)} className="w-9 h-9 rounded object-cover flex-shrink-0" />
+                        ) : (
+                          <div className="w-9 h-9 rounded bg-gray-100 flex items-center justify-center flex-shrink-0">
+                            <span className="text-xs text-gray-400">{productName(p).charAt(0)}</span>
+                          </div>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm text-gray-900 truncate">{productName(p)}</p>
+                          <p className="text-xs text-gray-400">
+                            {p.variants.length} variante{p.variants.length !== 1 ? "s" : ""}
+                            {p.variants[0]?.price && ` · $${parseFloat(p.variants[0].price).toLocaleString("es-AR")}`}
+                          </p>
+                        </div>
+                        <ChevronRight size={14} className="text-gray-300 flex-shrink-0" />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </>
+        ) : (
+          /* Step 2 — elegir variante (si hay más de una) */
+          <>
+            <button
+              onClick={() => { setSelectedProduct(null); setSelectedVariant(null) }}
+              className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-600 transition-colors px-5 pt-4"
+            >
+              <ArrowLeft size={12} />
+              Volver
+            </button>
+
+            <div className="px-5 pt-3 pb-2 flex-shrink-0">
+              <div className="flex items-center gap-3">
+                {selectedProduct.images[0] && (
+                  <img src={selectedProduct.images[0].src} alt={productName(selectedProduct)} className="w-10 h-10 rounded object-cover" />
+                )}
+                <div>
+                  <p className="text-sm font-medium text-gray-900">{productName(selectedProduct)}</p>
+                  <p className="text-xs text-gray-400">Seleccioná una variante</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="overflow-y-auto flex-1 px-5 pb-4">
+              {selectedProduct.variants.length === 1 ? (
+                <div className="py-3 text-sm text-gray-500">
+                  Producto sin variantes — se conectará directamente.
+                </div>
+              ) : (
+                <ul className="space-y-2 mt-2">
+                  {selectedProduct.variants.map((v) => (
+                    <li key={v.id}>
+                      <button
+                        onClick={() => setSelectedVariant(v)}
+                        className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border text-left transition-colors ${
+                          selectedVariant?.id === v.id
+                            ? "border-[#00C46A] bg-[#e6faf0]"
+                            : "border-gray-100 hover:border-gray-200 hover:bg-gray-50"
+                        }`}
+                      >
+                        <div>
+                          <p className="text-sm text-gray-900">
+                            {v.sku ? `SKU: ${v.sku}` : `Variante #${v.id}`}
+                          </p>
+                          <p className="text-xs text-gray-400">
+                            ${parseFloat(v.price).toLocaleString("es-AR")}
+                            {v.stock !== null && ` · Stock: ${v.stock}`}
+                          </p>
+                        </div>
+                        {selectedVariant?.id === v.id && (
+                          <Check size={14} className="text-[#00903c]" />
+                        )}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+
+            <div className="p-5 border-t border-gray-100 flex gap-3 flex-shrink-0">
+              <button
+                onClick={handleConnect}
+                disabled={saving || (selectedProduct.variants.length > 1 && !selectedVariant)}
+                className="flex-1 bg-gray-900 text-white py-2.5 rounded-lg text-sm font-medium hover:bg-gray-800 disabled:opacity-50 transition-colors"
+              >
+                {saving ? "Conectando..." : "Conectar producto"}
+              </button>
+              <button
+                onClick={onClose}
+                className="px-4 text-sm text-gray-500 hover:text-gray-700 transition-colors"
+              >
+                Cancelar
+              </button>
+            </div>
+          </>
+        )}
       </div>
     </div>
   )
