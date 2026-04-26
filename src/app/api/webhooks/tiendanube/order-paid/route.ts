@@ -65,7 +65,43 @@ export async function POST(request: NextRequest) {
     const parsed = parseTiendanubeOrderWebhook(body)
 
     if (!parsed.creatorCode) {
-      console.log("[Webhook] Skipped: no creator code")
+      // Sin creator code: igual registrar ventas en DropProductSale (sin conversión)
+      const orderProducts: { product_id?: number; variant_id?: number; quantity: number; price: string }[] =
+        body.products || []
+
+      for (const op of orderProducts) {
+        const productIdStr = op.product_id?.toString()
+        const variantIdStr = op.variant_id?.toString()
+        if (!productIdStr && !variantIdStr) continue
+
+        const dropProduct = await prisma.dropProduct.findFirst({
+          where: {
+            drop: { workspaceId: connection.workspaceId, status: "ACTIVE" },
+            OR: [
+              productIdStr ? { tiendanubeProductId: productIdStr } : {},
+              variantIdStr ? { tiendanubeVariantId: variantIdStr } : {},
+            ],
+          },
+        })
+
+        if (!dropProduct) continue
+
+        const qty = op.quantity || 1
+        const unitPrice = parseFloat(op.price || "0")
+
+        await prisma.dropProductSale.create({
+          data: {
+            dropProductId: dropProduct.id,
+            conversionId: null,
+            quantity: qty,
+            unitPrice,
+            totalAmount: unitPrice * qty,
+            orderId: parsed.orderId,
+          },
+        })
+      }
+
+      console.log("[Webhook] No creator code — drop sales recorded if applicable")
       return NextResponse.json({ ok: true, attributed: false })
     }
 
@@ -107,7 +143,7 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    // Registrar la conversión y la comisión en una transacción
+    // Registrar la conversión, la comisión y las ventas de Drop en una transacción
     await prisma.$transaction(async (tx) => {
       const conversion = await tx.conversion.create({
         data: {
@@ -135,6 +171,43 @@ export async function POST(request: NextRequest) {
           status: "PENDING",
         },
       })
+
+      // Registrar ventas en DropProductSale si hay productos del Drop
+      const orderProducts: { product_id?: number; variant_id?: number; quantity: number; price: string }[] =
+        body.products || []
+
+      for (const op of orderProducts) {
+        const productIdStr = op.product_id?.toString()
+        const variantIdStr = op.variant_id?.toString()
+
+        if (!productIdStr && !variantIdStr) continue
+
+        const dropProduct = await tx.dropProduct.findFirst({
+          where: {
+            drop: { workspaceId: connection.workspaceId, status: "ACTIVE" },
+            OR: [
+              productIdStr ? { tiendanubeProductId: productIdStr } : {},
+              variantIdStr ? { tiendanubeVariantId: variantIdStr } : {},
+            ],
+          },
+        })
+
+        if (!dropProduct) continue
+
+        const qty = op.quantity || 1
+        const unitPrice = parseFloat(op.price || "0")
+
+        await tx.dropProductSale.create({
+          data: {
+            dropProductId: dropProduct.id,
+            conversionId: conversion.id,
+            quantity: qty,
+            unitPrice,
+            totalAmount: unitPrice * qty,
+            orderId: parsed.orderId,
+          },
+        })
+      }
     })
 
     console.log("[Webhook] Attribution success:", creator.name, "commission:", parsed.orderAmount * (commissionPct / 100))

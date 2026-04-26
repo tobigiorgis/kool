@@ -32,6 +32,7 @@ model Workspace {
   giftingOrders GiftingOrder[]
   briefings    Briefing[]
   tiendanubeConnection TiendanubeConnection?
+  drops        Drop[]
 
   @@map("workspaces")
 }
@@ -393,6 +394,7 @@ model Conversion {
   link        Link?     @relation(fields: [linkId], references: [id])
   creator     Creator?  @relation(fields: [creatorId], references: [id])
   commission  Commission?
+  dropSales   DropProductSale[]
 
   @@unique([orderId, platform])
   @@map("conversions")
@@ -575,4 +577,144 @@ enum ApplicationStatus {
   PENDING
   ACCEPTED
   REJECTED
+}
+
+// ─────────────────────────────────────────────
+// DROPS & RENTABILIDAD
+// ─────────────────────────────────────────────
+
+model Drop {
+  id          String     @id @default(cuid())
+  workspaceId String
+  name        String
+  slug        String     @unique
+  description String?
+  coverImage  String?
+
+  launchDate  DateTime
+  closeDate   DateTime?
+
+  status      DropStatus @default(DRAFT)
+
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  workspace   Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  products    DropProduct[]
+  expenses    Expense[]
+
+  @@index([workspaceId])
+  @@map("drops")
+}
+
+model DropProduct {
+  id          String  @id @default(cuid())
+  dropId      String
+
+  name        String
+  description String?
+  image       String?
+  sku         String?
+
+  price       Float
+  unitCost    Float
+  initialStock Int
+
+  tiendanubeProductId String?
+  tiendanubeVariantId String?
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  drop                Drop                @relation(fields: [dropId], references: [id], onDelete: Cascade)
+  expenseAssignments  ExpenseAssignment[]
+  sales               DropProductSale[]
+
+  @@index([dropId])
+  @@map("drop_products")
+}
+
+model Expense {
+  id       String          @id @default(cuid())
+  dropId   String
+
+  amount   Float
+  currency String          @default("ARS")
+  date     DateTime
+  category ExpenseCategory
+  notes    String?
+  scope    ExpenseScope    @default(DROP)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  drop        Drop                @relation(fields: [dropId], references: [id], onDelete: Cascade)
+  assignments ExpenseAssignment[]
+
+  @@index([dropId])
+  @@index([date])
+  @@map("expenses")
+}
+
+model ExpenseAssignment {
+  id            String @id @default(cuid())
+  expenseId     String
+  dropProductId String
+
+  expense     Expense     @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  dropProduct DropProduct @relation(fields: [dropProductId], references: [id], onDelete: Cascade)
+
+  @@unique([expenseId, dropProductId])
+  @@map("expense_assignments")
+}
+
+model DropProductSale {
+  id            String  @id @default(cuid())
+  dropProductId String
+  conversionId  String?
+
+  quantity    Int
+  unitPrice   Float
+  totalAmount Float
+
+  orderId  String?
+  soldAt   DateTime @default(now())
+
+  dropProduct DropProduct @relation(fields: [dropProductId], references: [id], onDelete: Cascade)
+  conversion  Conversion? @relation(fields: [conversionId], references: [id])
+
+  @@index([dropProductId])
+  @@index([orderId])
+  @@map("drop_product_sales")
+}
+
+enum DropStatus {
+  DRAFT
+  ACTIVE
+  CLOSED
+}
+
+enum ExpenseScope {
+  DROP
+  PRODUCTS
+}
+
+enum ExpenseCategory {
+  MATERIA_PRIMA
+  CONFECCION
+  BORDADOS
+  ESTAMPAS
+  TRANSPORTE
+  CORTE
+  MERCADERIA
+  INSUMOS
+  FINISH
+  AVIOS
+  MOLDERIA
+  PACKAGING
+  SUELAS
+  APLIQUES
+  DEVOLUCIONES
+  IMPORTACIONES
+  OTROS
 }
