@@ -33,8 +33,17 @@ export async function PATCH(
   const updated = await prisma.dropProduct.update({
     where: { id: productId },
     data: {
-      tiendanubeProductId: body.tiendanubeProductId ?? product.tiendanubeProductId,
-      tiendanubeVariantId: body.tiendanubeVariantId ?? product.tiendanubeVariantId,
+      // Etapas de producción
+      ...(body.productionStage !== undefined && { productionStage: body.productionStage }),
+      ...(body.importStage !== undefined && { importStage: body.importStage }),
+      // Datos del producto
+      ...(body.name !== undefined && { name: body.name }),
+      ...(body.price !== undefined && { price: Number(body.price) }),
+      ...(body.unitCost !== undefined && { unitCost: Number(body.unitCost) }),
+      ...(body.initialStock !== undefined && { initialStock: Number(body.initialStock) }),
+      // TN connection
+      ...(body.tiendanubeProductId !== undefined && { tiendanubeProductId: body.tiendanubeProductId }),
+      ...(body.tiendanubeVariantId !== undefined && { tiendanubeVariantId: body.tiendanubeVariantId }),
     },
   })
 

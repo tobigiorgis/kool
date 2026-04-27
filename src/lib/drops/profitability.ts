@@ -1,5 +1,48 @@
 import { prisma } from "@/lib/prisma"
 
+// ─── Avance de producción ─────────────────────────────────────────────────────
+
+const LOCAL_STAGE_PROGRESS: Record<string, number> = {
+  NOT_STARTED: 0,
+  FABRIC_PURCHASE: 20,
+  CUTTING: 40,
+  PRINT: 60,
+  SEWING: 80,
+  PACKAGING: 100,
+}
+
+const IMPORT_STAGE_PROGRESS: Record<string, number> = {
+  NOT_STARTED: 0,
+  INITIAL_PAYMENT: 20,
+  IN_PRODUCTION: 40,
+  IN_TRANSIT: 60,
+  RECEIVED: 80,
+  PACKAGING: 100,
+}
+
+export function getProductProgress(product: {
+  productionType: string
+  productionStage?: string | null
+  importStage?: string | null
+}): number {
+  if (product.productionType === "LOCAL") {
+    return LOCAL_STAGE_PROGRESS[product.productionStage || "NOT_STARTED"] ?? 0
+  }
+  return IMPORT_STAGE_PROGRESS[product.importStage || "NOT_STARTED"] ?? 0
+}
+
+export function calculateDropProductionProgress(
+  products: {
+    productionType: string
+    productionStage?: string | null
+    importStage?: string | null
+  }[]
+): number {
+  if (products.length === 0) return 0
+  const total = products.reduce((sum, p) => sum + getProductProgress(p), 0)
+  return Math.round(total / products.length)
+}
+
 export interface ProductProfitability {
   productId: string
   productName: string

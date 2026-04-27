@@ -12,6 +12,7 @@ interface ProductRow {
   price: string
   unitCost: string
   initialStock: string
+  productionType: "LOCAL" | "IMPORT"
 }
 
 const emptyProduct = (): ProductRow => ({
@@ -21,6 +22,7 @@ const emptyProduct = (): ProductRow => ({
   price: "",
   unitCost: "",
   initialStock: "",
+  productionType: "LOCAL",
 })
 
 export default function NewDropPage() {
@@ -67,6 +69,7 @@ export default function NewDropPage() {
           price: parseFloat(p.price) || 0,
           unitCost: parseFloat(p.unitCost) || 0,
           initialStock: parseInt(p.initialStock) || 0,
+          productionType: p.productionType,
         })),
       }),
     })
@@ -241,6 +244,27 @@ export default function NewDropPage() {
                     placeholder="0"
                     className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C46A]/30 focus:border-[#00C46A]"
                   />
+                </div>
+
+                <div className="col-span-2">
+                  <label className="block text-xs text-gray-500 mb-2">Tipo de producción</label>
+                  <div className="flex gap-4">
+                    {(["LOCAL", "IMPORT"] as const).map((type) => (
+                      <label key={type} className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="radio"
+                          name={`productionType-${index}`}
+                          value={type}
+                          checked={product.productionType === type}
+                          onChange={() => updateProduct(index, "productionType", type)}
+                          className="accent-[#00C46A]"
+                        />
+                        <span className="text-sm text-gray-700">
+                          {type === "LOCAL" ? "Producción local" : "Importación"}
+                        </span>
+                      </label>
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>

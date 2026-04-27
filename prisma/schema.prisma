@@ -594,7 +594,7 @@ model Drop {
   launchDate  DateTime
   closeDate   DateTime?
 
-  status      DropStatus @default(DRAFT)
+  status      DropStatus @default(PRE_LAUNCH)
 
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
@@ -619,6 +619,10 @@ model DropProduct {
   price       Float
   unitCost    Float
   initialStock Int
+
+  productionType  ProductionType @default(LOCAL)
+  productionStage LocalStage?
+  importStage     ImportStage?
 
   tiendanubeProductId String?
   tiendanubeVariantId String?
@@ -689,9 +693,32 @@ model DropProductSale {
 }
 
 enum DropStatus {
-  DRAFT
+  PRE_LAUNCH
   ACTIVE
   CLOSED
+}
+
+enum ProductionType {
+  LOCAL
+  IMPORT
+}
+
+enum LocalStage {
+  NOT_STARTED
+  FABRIC_PURCHASE
+  CUTTING
+  PRINT
+  SEWING
+  PACKAGING
+}
+
+enum ImportStage {
+  NOT_STARTED
+  INITIAL_PAYMENT
+  IN_PRODUCTION
+  IN_TRANSIT
+  RECEIVED
+  PACKAGING
 }
 
 enum ExpenseScope {

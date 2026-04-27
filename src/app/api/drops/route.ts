@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@clerk/nextjs/server"
 import { prisma } from "@/lib/prisma"
+import { calculateDropProductionProgress } from "@/lib/drops/profitability"
 
 async function getWorkspaceId(userId: string) {
   const member = await prisma.workspaceMember.findFirst({
@@ -21,7 +22,14 @@ export async function GET() {
     where: { workspaceId },
     include: {
       products: {
-        select: { id: true, sales: { select: { quantity: true, totalAmount: true } }, initialStock: true },
+        select: {
+          id: true,
+          initialStock: true,
+          productionType: true,
+          productionStage: true,
+          importStage: true,
+          sales: { select: { quantity: true, totalAmount: true } },
+        },
       },
       expenses: { select: { amount: true } },
     },
@@ -36,6 +44,7 @@ export async function GET() {
     const profit = totalRevenue - totalExpenses
     const margin = totalRevenue > 0 ? (profit / totalRevenue) * 100 : 0
     const stockSoldPct = totalStock > 0 ? (totalUnitsSold / totalStock) * 100 : 0
+    const productionProgress = calculateDropProductionProgress(drop.products)
 
     return {
       id: drop.id,
@@ -48,6 +57,7 @@ export async function GET() {
       status: drop.status,
       createdAt: drop.createdAt,
       productCount: drop.products.length,
+      productionProgress,
       totalRevenue,
       totalExpenses,
       profit,
@@ -92,18 +102,24 @@ export async function POST(request: NextRequest) {
       coverImage: coverImage || null,
       launchDate: new Date(launchDate),
       closeDate: closeDate ? new Date(closeDate) : null,
-      status: "DRAFT",
+      status: "PRE_LAUNCH",
       products: products?.length
         ? {
-            create: products.map((p: any) => ({
-              name: p.name,
-              description: p.description || null,
-              image: p.image || null,
-              sku: p.sku || null,
-              price: Number(p.price),
-              unitCost: Number(p.unitCost),
-              initialStock: Number(p.initialStock),
-            })),
+            create: products.map((p: any) => {
+              const isImport = p.productionType === "IMPORT"
+              return {
+                name: p.name,
+                description: p.description || null,
+                image: p.image || null,
+                sku: p.sku || null,
+                price: Number(p.price),
+                unitCost: Number(p.unitCost),
+                initialStock: Number(p.initialStock),
+                productionType: isImport ? "IMPORT" : "LOCAL",
+                productionStage: isImport ? null : "NOT_STARTED",
+                importStage: isImport ? "NOT_STARTED" : null,
+              }
+            }),
           }
         : undefined,
     },

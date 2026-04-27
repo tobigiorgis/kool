@@ -51,6 +51,8 @@ export async function POST(
 
   const body = await request.json()
 
+  const isImport = body.productionType === "IMPORT"
+
   const product = await prisma.dropProduct.create({
     data: {
       dropId: id,
@@ -61,6 +63,9 @@ export async function POST(
       price: Number(body.price),
       unitCost: Number(body.unitCost),
       initialStock: Number(body.initialStock),
+      productionType: isImport ? "IMPORT" : "LOCAL",
+      productionStage: isImport ? null : "NOT_STARTED",
+      importStage: isImport ? "NOT_STARTED" : null,
       tiendanubeProductId: body.tiendanubeProductId || null,
       tiendanubeVariantId: body.tiendanubeVariantId || null,
     },

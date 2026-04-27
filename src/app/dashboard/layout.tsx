@@ -8,6 +8,12 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const { userId } = await auth()
   if (!userId) redirect("/login")
 
+  // Auto-activar drops cuya fecha de lanzamiento ya pasó
+  fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/drops/check-status`, {
+    method: "POST",
+    cache: "no-store",
+  }).catch(() => {})
+
   return (
     <div className="flex h-screen bg-white">
       {/* Sidebar */}
