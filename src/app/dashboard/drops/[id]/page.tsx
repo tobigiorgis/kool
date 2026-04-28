@@ -93,6 +93,7 @@ export default function DropDetailPage() {
   const [showAddProductModal, setShowAddProductModal] = useState(false)
   const [editingStageProduct, setEditingStageProduct] = useState<DropProduct | null>(null)
   const [connectingProduct, setConnectingProduct] = useState<DropProduct | null>(null)
+  const [editingProduct, setEditingProduct] = useState<DropProduct | null>(null)
   const [workspaceId, setWorkspaceId] = useState<string | null>(null)
   const [updatingStatus, setUpdatingStatus] = useState(false)
 
@@ -294,7 +295,15 @@ export default function DropDetailPage() {
                             </div>
                           )}
                           <div>
-                            <p className="text-sm text-gray-900">{p.name}</p>
+                            <div className="flex items-center gap-1.5">
+                              <p className="text-sm text-gray-900">{p.name}</p>
+                              <button
+                                onClick={() => setEditingProduct(p)}
+                                className="text-gray-300 hover:text-gray-500 transition-colors"
+                              >
+                                <Pencil size={11} />
+                              </button>
+                            </div>
                             {p.sku && <p className="text-xs text-gray-400">{p.sku}</p>}
                           </div>
                         </div>
@@ -479,6 +488,14 @@ export default function DropDetailPage() {
           onSaved={() => { setEditingStageProduct(null); load() }}
         />
       )}
+      {editingProduct && (
+        <EditProductModal
+          dropId={dropId}
+          product={editingProduct}
+          onClose={() => setEditingProduct(null)}
+          onSaved={() => { setEditingProduct(null); load() }}
+        />
+      )}
       {connectingProduct && workspaceId && (
         <ConnectProductModal
           dropId={dropId}
@@ -583,6 +600,111 @@ function AddProductModal({ dropId, onClose, onSaved }: { dropId: string; onClose
             <button type="submit" disabled={saving || !name}
               className="flex-1 bg-gray-900 text-white py-2.5 rounded-lg text-sm font-medium hover:bg-gray-800 disabled:opacity-50 transition-colors">
               {saving ? "Guardando..." : "Agregar producto"}
+            </button>
+            <button type="button" onClick={onClose} className="px-4 text-sm text-gray-500 hover:text-gray-700 transition-colors">
+              Cancelar
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
+// ─── EditProductModal ─────────────────────────────────────────────────────────
+
+function EditProductModal({ dropId, product, onClose, onSaved }: {
+  dropId: string; product: DropProduct; onClose: () => void; onSaved: () => void
+}) {
+  const [name, setName] = useState(product.name)
+  const [sku, setSku] = useState(product.sku ?? "")
+  const [image, setImage] = useState(product.image ?? "")
+  const [price, setPrice] = useState(String(product.price))
+  const [unitCost, setUnitCost] = useState(String(product.unitCost))
+  const [initialStock, setInitialStock] = useState(String(product.initialStock))
+  const [productionType, setProductionType] = useState<"LOCAL" | "IMPORT">(product.productionType)
+  const [saving, setSaving] = useState(false)
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!name) return
+    setSaving(true)
+    await fetch(`/api/drops/${dropId}/products/${product.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name,
+        sku: sku || null,
+        image: image || null,
+        price: parseFloat(price) || 0,
+        unitCost: parseFloat(unitCost) || 0,
+        initialStock: parseInt(initialStock) || 0,
+        productionType,
+      }),
+    })
+    setSaving(false)
+    onSaved()
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md">
+        <div className="flex items-center justify-between p-5 border-b border-gray-100">
+          <div>
+            <h3 className="text-sm font-semibold text-gray-900">Editar producto</h3>
+            <p className="text-xs text-gray-400 mt-0.5">{product.name}</p>
+          </div>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors"><X size={16} /></button>
+        </div>
+        <form onSubmit={handleSubmit} className="p-5 space-y-3">
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1.5">Nombre *</label>
+            <input type="text" value={name} onChange={(e) => setName(e.target.value)} required
+              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C46A]/30 focus:border-[#00C46A]" />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1.5">SKU</label>
+              <input type="text" value={sku} onChange={(e) => setSku(e.target.value)} placeholder="Opcional"
+                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C46A]/30 focus:border-[#00C46A]" />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1.5">Imagen URL</label>
+              <input type="url" value={image} onChange={(e) => setImage(e.target.value)} placeholder="https://..."
+                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C46A]/30 focus:border-[#00C46A]" />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1.5">Precio de venta</label>
+              <input type="number" min="0" step="0.01" value={price} onChange={(e) => setPrice(e.target.value)}
+                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C46A]/30 focus:border-[#00C46A]" />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1.5">Costo unitario</label>
+              <input type="number" min="0" step="0.01" value={unitCost} onChange={(e) => setUnitCost(e.target.value)}
+                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C46A]/30 focus:border-[#00C46A]" />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1.5">Stock inicial</label>
+              <input type="number" min="0" value={initialStock} onChange={(e) => setInitialStock(e.target.value)}
+                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C46A]/30 focus:border-[#00C46A]" />
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-2">Tipo de producción</label>
+            <div className="flex gap-4">
+              {(["LOCAL", "IMPORT"] as const).map((type) => (
+                <label key={type} className="flex items-center gap-2 cursor-pointer">
+                  <input type="radio" name="editProdType" value={type} checked={productionType === type}
+                    onChange={() => setProductionType(type)} className="accent-[#00C46A]" />
+                  <span className="text-sm text-gray-700">{type === "LOCAL" ? "Producción local" : "Importación"}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+          <div className="flex gap-3 pt-2">
+            <button type="submit" disabled={saving || !name}
+              className="flex-1 bg-gray-900 text-white py-2.5 rounded-lg text-sm font-medium hover:bg-gray-800 disabled:opacity-50 transition-colors">
+              {saving ? "Guardando..." : "Guardar cambios"}
             </button>
             <button type="button" onClick={onClose} className="px-4 text-sm text-gray-500 hover:text-gray-700 transition-colors">
               Cancelar

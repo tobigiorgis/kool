@@ -38,9 +38,12 @@ export async function PATCH(
       ...(body.importStage !== undefined && { importStage: body.importStage }),
       // Datos del producto
       ...(body.name !== undefined && { name: body.name }),
+      ...(body.sku !== undefined && { sku: body.sku }),
+      ...(body.image !== undefined && { image: body.image }),
       ...(body.price !== undefined && { price: Number(body.price) }),
       ...(body.unitCost !== undefined && { unitCost: Number(body.unitCost) }),
       ...(body.initialStock !== undefined && { initialStock: Number(body.initialStock) }),
+      ...(body.productionType !== undefined && { productionType: body.productionType }),
       // TN connection
       ...(body.tiendanubeProductId !== undefined && { tiendanubeProductId: body.tiendanubeProductId }),
       ...(body.tiendanubeVariantId !== undefined && { tiendanubeVariantId: body.tiendanubeVariantId }),
