@@ -55,7 +55,7 @@ export async function POST(
 
   const body = await request.json()
   // productIds: string[] — solo si scope === "PRODUCTS"
-  const { amount, currency, date, category, notes, scope, productIds } = body
+  const { amount, currency, date, category, notes, scope, productIds, isDebt, creditor, dueDate } = body
 
   const expense = await prisma.expense.create({
     data: {
@@ -66,6 +66,9 @@ export async function POST(
       category,
       notes: notes || null,
       scope: scope || "DROP",
+      isDebt: isDebt || false,
+      creditor: isDebt && creditor ? creditor : null,
+      dueDate: isDebt && dueDate ? new Date(dueDate) : null,
       assignments:
         scope === "PRODUCTS" && productIds?.length
           ? {

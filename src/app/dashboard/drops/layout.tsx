@@ -6,15 +6,23 @@ import { usePathname } from "next/navigation"
 const TABS = [
   { href: "/dashboard/drops", label: "Drops" },
   { href: "/dashboard/drops/profitability", label: "Rentabilidad" },
+  { href: "/dashboard/drops/financials", label: "Financiero" },
 ]
 
 export default function DropsLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
 
-  const isActive = (href: string) =>
-    href === "/dashboard/drops"
-      ? pathname === "/dashboard/drops" || pathname.startsWith("/dashboard/drops/") && !pathname.startsWith("/dashboard/drops/profitability")
-      : pathname.startsWith(href)
+  const isActive = (href: string) => {
+    if (href === "/dashboard/drops") {
+      return (
+        pathname === "/dashboard/drops" ||
+        (pathname.startsWith("/dashboard/drops/") &&
+          !pathname.startsWith("/dashboard/drops/profitability") &&
+          !pathname.startsWith("/dashboard/drops/financials"))
+      )
+    }
+    return pathname.startsWith(href)
+  }
 
   return (
     <div className="flex flex-col h-full">

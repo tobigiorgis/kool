@@ -602,6 +602,8 @@ model Drop {
   workspace   Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   products    DropProduct[]
   expenses    Expense[]
+  debts       DropDebt[]
+  cash        DropCash?
 
   @@index([workspaceId])
   @@map("drops")
@@ -649,6 +651,11 @@ model Expense {
   notes    String?
   scope    ExpenseScope    @default(DROP)
 
+  isDebt   Boolean   @default(false)
+  paidAt   DateTime?
+  dueDate  DateTime?
+  creditor String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -658,6 +665,41 @@ model Expense {
   @@index([dropId])
   @@index([date])
   @@map("expenses")
+}
+
+model DropDebt {
+  id          String    @id @default(cuid())
+  dropId      String
+
+  description String
+  amount      Float
+  currency    String    @default("ARS")
+  creditor    String?
+  dueDate     DateTime?
+  paidAt      DateTime?
+  notes       String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  drop Drop @relation(fields: [dropId], references: [id], onDelete: Cascade)
+
+  @@index([dropId])
+  @@map("drop_debts")
+}
+
+model DropCash {
+  id        String   @id @default(cuid())
+  dropId    String   @unique
+
+  amount    Float    @default(0)
+  currency  String   @default("ARS")
+  notes     String?
+  updatedAt DateTime @updatedAt
+
+  drop Drop @relation(fields: [dropId], references: [id], onDelete: Cascade)
+
+  @@map("drop_cash")
 }
 
 model ExpenseAssignment {

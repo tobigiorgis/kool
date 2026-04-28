@@ -684,6 +684,9 @@ function ExpenseModal({ dropId, products, onClose, onSaved }: {
   const [notes, setNotes] = useState("")
   const [scope, setScope] = useState<"DROP" | "PRODUCTS">("DROP")
   const [selectedProducts, setSelectedProducts] = useState<string[]>([])
+  const [isDebt, setIsDebt] = useState(false)
+  const [creditor, setCreditor] = useState("")
+  const [dueDate, setDueDate] = useState("")
   const [saving, setSaving] = useState(false)
 
   const toggleProduct = (id: string) =>
@@ -703,6 +706,9 @@ function ExpenseModal({ dropId, products, onClose, onSaved }: {
         notes: notes || undefined,
         scope,
         productIds: scope === "PRODUCTS" ? selectedProducts : undefined,
+        isDebt,
+        creditor: isDebt && creditor ? creditor : undefined,
+        dueDate: isDebt && dueDate ? dueDate : undefined,
       }),
     })
     setSaving(false)
@@ -764,6 +770,29 @@ function ExpenseModal({ dropId, products, onClose, onSaved }: {
             <textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Descripción opcional" rows={2}
               className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C46A]/30 focus:border-[#00C46A] resize-none" />
           </div>
+          {/* Deuda pendiente */}
+          <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+            <div>
+              <p className="text-sm font-medium text-gray-900">Es una deuda pendiente</p>
+              <p className="text-xs text-gray-500">Podrás marcarla como pagada desde Financiero</p>
+            </div>
+            <input type="checkbox" checked={isDebt} onChange={(e) => setIsDebt(e.target.checked)}
+              className="w-4 h-4 accent-[#00C46A] rounded cursor-pointer" />
+          </div>
+          {isDebt && (
+            <>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1.5">Acreedor</label>
+                <input type="text" value={creditor} onChange={(e) => setCreditor(e.target.value)} placeholder="Ej: Taller San Martín"
+                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C46A]/30 focus:border-[#00C46A]" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1.5">Fecha límite de pago</label>
+                <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)}
+                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C46A]/30 focus:border-[#00C46A]" />
+              </div>
+            </>
+          )}
           <div className="flex gap-3 pt-1">
             <button type="submit" disabled={saving}
               className="flex-1 bg-gray-900 text-white py-2.5 rounded-lg text-sm font-medium hover:bg-gray-800 disabled:opacity-50 transition-colors">
