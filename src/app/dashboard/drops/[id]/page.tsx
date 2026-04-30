@@ -94,6 +94,7 @@ export default function DropDetailPage() {
   const [editingStageProduct, setEditingStageProduct] = useState<DropProduct | null>(null)
   const [connectingProduct, setConnectingProduct] = useState<DropProduct | null>(null)
   const [editingProduct, setEditingProduct] = useState<DropProduct | null>(null)
+  const [costDetailProduct, setCostDetailProduct] = useState<DropProduct | null>(null)
   const [workspaceId, setWorkspaceId] = useState<string | null>(null)
   const [updatingStatus, setUpdatingStatus] = useState(false)
 
@@ -165,26 +166,56 @@ export default function DropDetailPage() {
 
   // Costo unitario efectivo — calculado desde gastos si los hay, manual como fallback
   const totalProductsInDrop = drop.products.length
-  const effectiveCostMap = new Map<string, { cost: number; isCalculated: boolean }>()
+
+  interface CostLineItem {
+    expenseId: string
+    category: string
+    notes: string | null
+    totalAmount: number
+    allocatedAmount: number
+    type: "direct" | "shared" | "drop"
+    sharedWith?: number
+  }
+
+  interface EffectiveCostEntry {
+    cost: number
+    isCalculated: boolean
+    lines: CostLineItem[]
+    assignedTotal: number
+    sharedTotal: number
+    dropTotal: number
+    totalFromExpenses: number
+    initialStock: number
+    manualCost: number | null
+  }
+
+  const effectiveCostMap = new Map<string, EffectiveCostEntry>()
   for (const p of drop.products) {
     let assigned = 0, shared = 0, dropExp = 0
+    const lines: CostLineItem[] = []
     for (const expense of drop.expenses) {
       if (expense.scope === "DROP") {
-        dropExp += expense.amount / totalProductsInDrop
+        const allocated = expense.amount / totalProductsInDrop
+        dropExp += allocated
+        lines.push({ expenseId: expense.id, category: expense.category, notes: expense.notes, totalAmount: expense.amount, allocatedAmount: allocated, type: "drop" })
       } else {
         const isAssigned = expense.assignments.some((a) => a.dropProduct.id === p.id)
         if (!isAssigned) continue
         const count = expense.assignments.length
-        if (count === 1) assigned += expense.amount
-        else shared += expense.amount / count
+        if (count === 1) {
+          assigned += expense.amount
+          lines.push({ expenseId: expense.id, category: expense.category, notes: expense.notes, totalAmount: expense.amount, allocatedAmount: expense.amount, type: "direct" })
+        } else {
+          const allocated = expense.amount / count
+          shared += allocated
+          lines.push({ expenseId: expense.id, category: expense.category, notes: expense.notes, totalAmount: expense.amount, allocatedAmount: allocated, type: "shared", sharedWith: count })
+        }
       }
     }
     const totalFromExpenses = assigned + shared + dropExp
     const isCalculated = totalFromExpenses > 0
-    const cost = isCalculated
-      ? totalFromExpenses / p.initialStock
-      : (p.unitCost ?? 0)
-    effectiveCostMap.set(p.id, { cost, isCalculated })
+    const cost = isCalculated ? totalFromExpenses / p.initialStock : (p.unitCost ?? 0)
+    effectiveCostMap.set(p.id, { cost, isCalculated, lines, assignedTotal: assigned, sharedTotal: shared, dropTotal: dropExp, totalFromExpenses, initialStock: p.initialStock, manualCost: p.unitCost })
   }
 
   // Productos con métricas
@@ -379,10 +410,15 @@ export default function DropDetailPage() {
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-900">{fmt(p.revenue)}</td>
                       <td className="px-4 py-3">
-                        <div>
-                          <p className="text-sm text-gray-900">{fmt(p.effectiveCost)}</p>
+                        <button
+                          onClick={() => setCostDetailProduct(p)}
+                          className="text-left group"
+                        >
+                          <p className="text-sm text-gray-900 group-hover:text-[#00903c] transition-colors underline decoration-dashed decoration-gray-300 underline-offset-2">
+                            {fmt(p.effectiveCost)}
+                          </p>
                           <p className="text-xs text-gray-400">{p.costIsCalculated ? "calculado" : "manual"}</p>
-                        </div>
+                        </button>
                       </td>
                       <td className="px-4 py-3">
                         <span className={`text-sm font-medium ${estimatedMargin >= 30 ? "text-[#00903c]" : estimatedMargin >= 10 ? "text-amber-600" : "text-red-500"}`}>
@@ -517,6 +553,13 @@ export default function DropDetailPage() {
           product={editingStageProduct}
           onClose={() => setEditingStageProduct(null)}
           onSaved={() => { setEditingStageProduct(null); load() }}
+        />
+      )}
+      {costDetailProduct && (
+        <UnitCostDetailModal
+          product={costDetailProduct}
+          entry={effectiveCostMap.get(costDetailProduct.id)!}
+          onClose={() => setCostDetailProduct(null)}
         />
       )}
       {editingProduct && (
@@ -746,6 +789,136 @@ function EditProductModal({ dropId, product, onClose, onSaved }: {
             </button>
           </div>
         </form>
+      </div>
+    </div>
+  )
+}
+
+// ─── UnitCostDetailModal ──────────────────────────────────────────────────────
+
+const CATEGORY_LABEL_COST: Record<string, string> = {
+  MATERIA_PRIMA: "Materia prima", CONFECCION: "Confección", BORDADOS: "Bordados",
+  ESTAMPAS: "Estampas", TRANSPORTE: "Transporte", CORTE: "Corte",
+  MERCADERIA: "Mercadería", INSUMOS: "Insumos", FINISH: "Finish",
+  AVIOS: "Avíos", MOLDERIA: "Moldería", PACKAGING: "Packaging",
+  SUELAS: "Suelas", APLIQUES: "Apliques", DEVOLUCIONES: "Devoluciones",
+  IMPORTACIONES: "Importaciones", OTROS: "Otros",
+}
+
+interface CostEntry {
+  cost: number
+  isCalculated: boolean
+  lines: { expenseId: string; category: string; notes: string | null; totalAmount: number; allocatedAmount: number; type: "direct" | "shared" | "drop"; sharedWith?: number }[]
+  assignedTotal: number
+  sharedTotal: number
+  dropTotal: number
+  totalFromExpenses: number
+  initialStock: number
+  manualCost: number | null
+}
+
+function UnitCostDetailModal({ product, entry, onClose }: {
+  product: DropProduct
+  entry: CostEntry
+  onClose: () => void
+}) {
+  const TYPE_LABEL = { direct: "Directo", shared: "Compartido", drop: "Drop" }
+  const TYPE_COLOR = {
+    direct: "bg-blue-50 text-blue-700",
+    shared: "bg-amber-50 text-amber-700",
+    drop: "bg-purple-50 text-purple-700",
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md max-h-[85vh] flex flex-col">
+        <div className="flex items-start justify-between p-5 border-b border-gray-100 flex-shrink-0">
+          <div>
+            <h3 className="text-sm font-semibold text-gray-900">Costo unitario</h3>
+            <p className="text-xs text-gray-400 mt-0.5">{product.name}</p>
+          </div>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors"><X size={16} /></button>
+        </div>
+
+        <div className="overflow-y-auto flex-1 p-5 space-y-4">
+          {/* Resultado */}
+          <div className={`rounded-xl p-4 ${entry.isCalculated ? "bg-[#e6faf0] border border-[#b3efd4]" : "bg-gray-50 border border-gray-100"}`}>
+            <p className="text-xs text-gray-500 mb-1">{entry.isCalculated ? "Costo calculado desde gastos" : "Costo manual (no hay gastos registrados)"}</p>
+            <p className="text-2xl font-bold text-gray-900">{fmt(entry.cost)}</p>
+            <p className="text-xs text-gray-500 mt-0.5">por unidad · stock: {entry.initialStock} u.</p>
+          </div>
+
+          {entry.isCalculated ? (
+            <>
+              {/* Desglose por tipo */}
+              <div className="grid grid-cols-3 gap-2">
+                <div className="bg-blue-50 rounded-lg p-3 text-center">
+                  <p className="text-xs text-blue-500 mb-1">Directo</p>
+                  <p className="text-sm font-semibold text-blue-700">{fmt(entry.assignedTotal)}</p>
+                </div>
+                <div className="bg-amber-50 rounded-lg p-3 text-center">
+                  <p className="text-xs text-amber-500 mb-1">Compartido</p>
+                  <p className="text-sm font-semibold text-amber-700">{fmt(entry.sharedTotal)}</p>
+                </div>
+                <div className="bg-purple-50 rounded-lg p-3 text-center">
+                  <p className="text-xs text-purple-500 mb-1">Del Drop</p>
+                  <p className="text-sm font-semibold text-purple-700">{fmt(entry.dropTotal)}</p>
+                </div>
+              </div>
+
+              {/* Líneas de gastos */}
+              <div>
+                <p className="text-xs font-medium text-gray-500 mb-2">Gastos que contribuyen</p>
+                <div className="space-y-2">
+                  {entry.lines.map((line) => (
+                    <div key={line.expenseId} className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-sm text-gray-900">{CATEGORY_LABEL_COST[line.category] || line.category}</span>
+                          <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${TYPE_COLOR[line.type]}`}>
+                            {TYPE_LABEL[line.type]}
+                            {line.type === "shared" && line.sharedWith ? ` ÷${line.sharedWith}` : ""}
+                            {line.type === "drop" ? ` ÷${entry.initialStock > 0 ? "todos" : ""}` : ""}
+                          </span>
+                        </div>
+                        {line.notes && <p className="text-xs text-gray-400 mt-0.5 truncate">{line.notes}</p>}
+                      </div>
+                      <div className="text-right flex-shrink-0">
+                        <p className="text-sm font-medium text-gray-900">{fmt(line.allocatedAmount)}</p>
+                        {line.allocatedAmount !== line.totalAmount && (
+                          <p className="text-xs text-gray-400">de {fmt(line.totalAmount)}</p>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Fórmula */}
+              <div className="p-3 bg-gray-50 rounded-lg border border-dashed border-gray-200">
+                <p className="text-xs text-gray-400 mb-1">Fórmula</p>
+                <p className="text-xs text-gray-600 font-mono">
+                  {fmt(entry.totalFromExpenses)} ÷ {entry.initialStock} u. = <span className="font-semibold text-gray-900">{fmt(entry.cost)}</span>
+                </p>
+              </div>
+
+              {entry.manualCost != null && (
+                <p className="text-xs text-gray-400 text-center">
+                  Costo manual ingresado: {fmt(entry.manualCost)} (ignorado porque hay gastos)
+                </p>
+              )}
+            </>
+          ) : (
+            <div className="p-3 bg-gray-50 rounded-lg">
+              <p className="text-xs text-gray-500">
+                No hay gastos asignados a este producto. El costo mostrado es el valor manual{entry.manualCost == null ? " (no cargado)" : ""}.
+              </p>
+              <p className="text-xs text-gray-400 mt-1">
+                Cargá gastos al drop o asignados a este producto para calcular el costo automáticamente.
+              </p>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   )
