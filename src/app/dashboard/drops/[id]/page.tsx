@@ -23,7 +23,7 @@ interface DropProduct {
   sku: string | null
   image: string | null
   price: number
-  unitCost: number
+  unitCost: number | null
   initialStock: number
   productionType: "LOCAL" | "IMPORT"
   productionStage: string | null
@@ -167,7 +167,7 @@ export default function DropDetailPage() {
   const productsWithMetrics = drop.products.map((p) => {
     const unitsSold = p.sales.reduce((s, sale) => s + sale.quantity, 0)
     const revenue = p.sales.reduce((s, sale) => s + sale.totalAmount, 0)
-    const directCosts = p.unitCost * unitsSold
+    const directCosts = (p.unitCost ?? 0) * unitsSold
     const stockPct = p.initialStock > 0 ? (unitsSold / p.initialStock) * 100 : 0
     const productionPct = getProductProgress(p)
     return { ...p, unitsSold, revenue, directCosts, stockPct, productionPct }
@@ -268,7 +268,7 @@ export default function DropDetailPage() {
             <table className="w-full">
               <thead>
                 <tr className="border-b border-gray-100">
-                  {["Producto", "Producción", "TN", "Stock", "Vendido", "Ingresos", "Margen est."].map((h) => (
+                  {["Producto", "Producción", "TN", "Stock", "Vendido", "Ingresos", "Costo unit.", "Margen est."].map((h) => (
                     <th key={h} className="text-left text-xs font-medium text-gray-400 px-4 py-3 whitespace-nowrap">{h}</th>
                   ))}
                 </tr>
@@ -277,7 +277,7 @@ export default function DropDetailPage() {
                 {productsWithMetrics.map((p) => {
                   const estimatedMargin = p.revenue > 0
                     ? ((p.revenue - p.directCosts) / p.revenue) * 100
-                    : p.price > 0 ? ((p.price - p.unitCost) / p.price) * 100 : 0
+                    : p.price > 0 && p.unitCost ? ((p.price - p.unitCost) / p.price) * 100 : 0
                   const barColor = stageProgressColor(p.productionPct)
                   const stageLabels = p.productionType === "LOCAL" ? LOCAL_STAGE_LABELS : IMPORT_STAGE_LABELS
                   const stageKey = p.productionType === "LOCAL" ? p.productionStage : p.importStage
@@ -354,6 +354,16 @@ export default function DropDetailPage() {
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-900">{fmt(p.revenue)}</td>
                       <td className="px-4 py-3">
+                        {p.unitCost != null ? (
+                          <div>
+                            <p className="text-sm text-gray-900">{fmt(p.unitCost)}</p>
+                            <p className="text-xs text-gray-400">manual</p>
+                          </div>
+                        ) : (
+                          <p className="text-xs text-gray-400 italic">desde gastos</p>
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
                         <span className={`text-sm font-medium ${estimatedMargin >= 30 ? "text-[#00903c]" : estimatedMargin >= 10 ? "text-amber-600" : "text-red-500"}`}>
                           {pct(estimatedMargin)}
                         </span>
@@ -363,7 +373,7 @@ export default function DropDetailPage() {
                 })}
                 {productsWithMetrics.length === 0 && (
                   <tr>
-                    <td colSpan={7} className="px-4 py-10 text-center text-sm text-gray-400">
+                    <td colSpan={8} className="px-4 py-10 text-center text-sm text-gray-400">
                       No hay productos — <button onClick={() => setShowAddProductModal(true)} className="text-gray-600 underline">agregar uno</button>
                     </td>
                   </tr>
@@ -534,7 +544,7 @@ function AddProductModal({ dropId, onClose, onSaved }: { dropId: string; onClose
         sku: sku || undefined,
         image: image || undefined,
         price: parseFloat(price) || 0,
-        unitCost: parseFloat(unitCost) || 0,
+        unitCost: unitCost ? parseFloat(unitCost) : null,
         initialStock: parseInt(initialStock) || 0,
         productionType,
       }),
@@ -574,8 +584,10 @@ function AddProductModal({ dropId, onClose, onSaved }: { dropId: string; onClose
                 className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C46A]/30 focus:border-[#00C46A]" />
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1.5">Costo unitario</label>
-              <input type="number" min="0" step="0.01" value={unitCost} onChange={(e) => setUnitCost(e.target.value)} placeholder="0"
+              <label className="block text-xs font-medium text-gray-600 mb-1.5">
+                Costo unitario <span className="text-gray-400 font-normal">(opcional)</span>
+              </label>
+              <input type="number" min="0" step="0.01" value={unitCost} onChange={(e) => setUnitCost(e.target.value)} placeholder="Se calcula desde los gastos"
                 className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C46A]/30 focus:border-[#00C46A]" />
             </div>
             <div>
@@ -620,7 +632,7 @@ function EditProductModal({ dropId, product, onClose, onSaved }: {
   const [sku, setSku] = useState(product.sku ?? "")
   const [image, setImage] = useState(product.image ?? "")
   const [price, setPrice] = useState(String(product.price))
-  const [unitCost, setUnitCost] = useState(String(product.unitCost))
+  const [unitCost, setUnitCost] = useState(product.unitCost != null ? String(product.unitCost) : "")
   const [initialStock, setInitialStock] = useState(String(product.initialStock))
   const [productionType, setProductionType] = useState<"LOCAL" | "IMPORT">(product.productionType)
   const [saving, setSaving] = useState(false)
@@ -637,7 +649,7 @@ function EditProductModal({ dropId, product, onClose, onSaved }: {
         sku: sku || null,
         image: image || null,
         price: parseFloat(price) || 0,
-        unitCost: parseFloat(unitCost) || 0,
+        unitCost: unitCost ? parseFloat(unitCost) : null,
         initialStock: parseInt(initialStock) || 0,
         productionType,
       }),
@@ -679,8 +691,10 @@ function EditProductModal({ dropId, product, onClose, onSaved }: {
                 className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C46A]/30 focus:border-[#00C46A]" />
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1.5">Costo unitario</label>
-              <input type="number" min="0" step="0.01" value={unitCost} onChange={(e) => setUnitCost(e.target.value)}
+              <label className="block text-xs font-medium text-gray-600 mb-1.5">
+                Costo unitario <span className="text-gray-400 font-normal">(opcional)</span>
+              </label>
+              <input type="number" min="0" step="0.01" value={unitCost} onChange={(e) => setUnitCost(e.target.value)} placeholder="Se calcula desde los gastos"
                 className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C46A]/30 focus:border-[#00C46A]" />
             </div>
             <div>

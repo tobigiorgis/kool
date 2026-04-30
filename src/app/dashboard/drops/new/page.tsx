@@ -67,7 +67,7 @@ export default function NewDropPage() {
           sku: p.sku || undefined,
           image: p.image || undefined,
           price: parseFloat(p.price) || 0,
-          unitCost: parseFloat(p.unitCost) || 0,
+          unitCost: p.unitCost ? parseFloat(p.unitCost) : null,
           initialStock: parseInt(p.initialStock) || 0,
           productionType: p.productionType,
         })),
@@ -222,16 +222,19 @@ export default function NewDropPage() {
                 </div>
 
                 <div>
-                  <label className="block text-xs text-gray-500 mb-1">Costo unitario</label>
+                  <label className="block text-xs text-gray-500 mb-1">
+                    Costo unitario <span className="text-gray-400 font-normal">(opcional)</span>
+                  </label>
                   <input
                     type="number"
                     min="0"
                     step="0.01"
                     value={product.unitCost}
                     onChange={(e) => updateProduct(index, "unitCost", e.target.value)}
-                    placeholder="0"
+                    placeholder="Se calcula desde los gastos"
                     className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C46A]/30 focus:border-[#00C46A]"
                   />
+                  <p className="text-xs text-gray-400 mt-1">Si cargás gastos, se calcula automáticamente.</p>
                 </div>
 
                 <div>

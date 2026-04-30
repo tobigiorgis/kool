@@ -36,14 +36,39 @@ export async function getDropFinancials(dropId: string) {
 
   const currentCash = cash?.amount ?? 0
 
+  // Compute effective unit cost per product (from expenses if available, else manual fallback)
+  const totalProductsInDrop = drop.products.length
+  const effectiveUnitCosts = new Map<string, number>()
+  for (const product of drop.products) {
+    let assigned = 0, shared = 0, dropExp = 0
+    for (const expense of drop.expenses) {
+      if (expense.scope === "DROP") {
+        dropExp += expense.amount / totalProductsInDrop
+      } else {
+        const isAssigned = expense.assignments.some((a) => a.dropProductId === product.id)
+        if (!isAssigned) continue
+        const count = expense.assignments.length
+        if (count === 1) assigned += expense.amount
+        else shared += expense.amount / count
+      }
+    }
+    const totalFromExpenses = assigned + shared + dropExp
+    const effectiveCost = totalFromExpenses > 0
+      ? totalFromExpenses / product.initialStock
+      : (product.unitCost ?? 0)
+    effectiveUnitCosts.set(product.id, effectiveCost)
+  }
+
   const maxRevenue = drop.products.reduce((sum, p) => sum + p.price * p.initialStock, 0)
-  const totalDirectCosts = drop.products.reduce((sum, p) => sum + p.unitCost * p.initialStock, 0)
+  const totalDirectCosts = drop.products.reduce(
+    (sum, p) => sum + (effectiveUnitCosts.get(p.id) ?? 0) * p.initialStock, 0
+  )
 
   const avgPrice = totalStock > 0
     ? drop.products.reduce((s, p) => s + p.price * p.initialStock, 0) / totalStock
     : 0
   const avgCost = totalStock > 0
-    ? drop.products.reduce((s, p) => s + p.unitCost * p.initialStock, 0) / totalStock
+    ? drop.products.reduce((s, p) => s + (effectiveUnitCosts.get(p.id) ?? 0) * p.initialStock, 0) / totalStock
     : 0
   const avgMarginPerUnit = avgPrice - avgCost
   const breakEvenUnits = avgMarginPerUnit > 0
@@ -60,7 +85,7 @@ export async function getDropFinancials(dropId: string) {
       return sum + p.price * Math.round(p.initialStock * pct)
     }, 0)
     const projectedDirectCosts = drop.products.reduce((sum, p) => {
-      return sum + p.unitCost * Math.round(p.initialStock * pct)
+      return sum + (effectiveUnitCosts.get(p.id) ?? 0) * Math.round(p.initialStock * pct)
     }, 0)
     const projectedProfit = projectedRevenue - projectedDirectCosts - totalExpenses
     const projectedMargin = projectedRevenue > 0 ? (projectedProfit / projectedRevenue) * 100 : 0
@@ -127,7 +152,7 @@ export async function getDropFinancials(dropId: string) {
       id: p.id,
       name: p.name,
       price: p.price,
-      unitCost: p.unitCost,
+      unitCost: effectiveUnitCosts.get(p.id) ?? 0,
       initialStock: p.initialStock,
     })),
   }

@@ -49,10 +49,13 @@ export interface ProductProfitability {
   unitsSold: number
   revenue: number
   unitCost: number
+  unitCostIsCalculated: boolean
+  unitCostManual: number | null
   directCosts: number
   assignedExpenses: number
   sharedExpenses: number
   dropExpenses: number
+  totalAssignedExpenses: number
   totalCosts: number
   profit: number
   margin: number
@@ -70,7 +73,9 @@ export async function calculateProductProfitability(
       drop: {
         include: {
           products: { select: { id: true } },
-          expenses: { include: { assignments: true } },
+          expenses: {
+            include: { assignments: true },
+          },
         },
       },
       sales: true,
@@ -81,13 +86,12 @@ export async function calculateProductProfitability(
 
   const unitsSold = product.sales.reduce((sum, s) => sum + s.quantity, 0)
   const revenue = product.sales.reduce((sum, s) => sum + s.totalAmount, 0)
-  const directCosts = product.unitCost * unitsSold
+
+  const totalProductsInDrop = product.drop.products.length
 
   let assignedExpenses = 0
   let sharedExpenses = 0
   let dropExpenses = 0
-
-  const totalProductsInDrop = product.drop.products.length
 
   for (const expense of product.drop.expenses) {
     if (expense.scope === "DROP") {
@@ -107,8 +111,16 @@ export async function calculateProductProfitability(
     }
   }
 
-  const totalCosts = directCosts + assignedExpenses + sharedExpenses + dropExpenses
-  const profit = revenue - totalCosts
+  const totalAssignedExpenses = assignedExpenses + sharedExpenses + dropExpenses
+
+  const hasExpenses = totalAssignedExpenses > 0
+  const calculatedUnitCost = hasExpenses
+    ? totalAssignedExpenses / product.initialStock
+    : (product.unitCost ?? 0)
+
+  const totalCosts = calculatedUnitCost * product.initialStock
+  const directCosts = calculatedUnitCost * unitsSold
+  const profit = revenue - directCosts
   const margin = revenue > 0 ? (profit / revenue) * 100 : 0
 
   return {
@@ -116,11 +128,14 @@ export async function calculateProductProfitability(
     productName: product.name,
     unitsSold,
     revenue,
-    unitCost: product.unitCost,
+    unitCost: calculatedUnitCost,
+    unitCostIsCalculated: hasExpenses,
+    unitCostManual: product.unitCost,
     directCosts,
     assignedExpenses,
     sharedExpenses,
     dropExpenses,
+    totalAssignedExpenses,
     totalCosts,
     profit,
     margin,

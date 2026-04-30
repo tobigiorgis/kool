@@ -619,7 +619,7 @@ model DropProduct {
   sku         String?
 
   price       Float
-  unitCost    Float
+  unitCost    Float?
   initialStock Int
 
   productionType  ProductionType @default(LOCAL)
