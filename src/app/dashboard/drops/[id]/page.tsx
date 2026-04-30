@@ -163,14 +163,39 @@ export default function DropDetailPage() {
     return acc
   }, {})
 
+  // Costo unitario efectivo — calculado desde gastos si los hay, manual como fallback
+  const totalProductsInDrop = drop.products.length
+  const effectiveCostMap = new Map<string, { cost: number; isCalculated: boolean }>()
+  for (const p of drop.products) {
+    let assigned = 0, shared = 0, dropExp = 0
+    for (const expense of drop.expenses) {
+      if (expense.scope === "DROP") {
+        dropExp += expense.amount / totalProductsInDrop
+      } else {
+        const isAssigned = expense.assignments.some((a) => a.dropProduct.id === p.id)
+        if (!isAssigned) continue
+        const count = expense.assignments.length
+        if (count === 1) assigned += expense.amount
+        else shared += expense.amount / count
+      }
+    }
+    const totalFromExpenses = assigned + shared + dropExp
+    const isCalculated = totalFromExpenses > 0
+    const cost = isCalculated
+      ? totalFromExpenses / p.initialStock
+      : (p.unitCost ?? 0)
+    effectiveCostMap.set(p.id, { cost, isCalculated })
+  }
+
   // Productos con métricas
   const productsWithMetrics = drop.products.map((p) => {
     const unitsSold = p.sales.reduce((s, sale) => s + sale.quantity, 0)
     const revenue = p.sales.reduce((s, sale) => s + sale.totalAmount, 0)
-    const directCosts = (p.unitCost ?? 0) * unitsSold
+    const { cost: effectiveCost, isCalculated: costIsCalculated } = effectiveCostMap.get(p.id)!
+    const directCosts = effectiveCost * unitsSold
     const stockPct = p.initialStock > 0 ? (unitsSold / p.initialStock) * 100 : 0
     const productionPct = getProductProgress(p)
-    return { ...p, unitsSold, revenue, directCosts, stockPct, productionPct }
+    return { ...p, unitsSold, revenue, directCosts, effectiveCost, costIsCalculated, stockPct, productionPct }
   })
 
   const progressBarColor = stageProgressColor(productionProgress)
@@ -277,7 +302,7 @@ export default function DropDetailPage() {
                 {productsWithMetrics.map((p) => {
                   const estimatedMargin = p.revenue > 0
                     ? ((p.revenue - p.directCosts) / p.revenue) * 100
-                    : p.price > 0 && p.unitCost ? ((p.price - p.unitCost) / p.price) * 100 : 0
+                    : p.price > 0 && p.effectiveCost ? ((p.price - p.effectiveCost) / p.price) * 100 : 0
                   const barColor = stageProgressColor(p.productionPct)
                   const stageLabels = p.productionType === "LOCAL" ? LOCAL_STAGE_LABELS : IMPORT_STAGE_LABELS
                   const stageKey = p.productionType === "LOCAL" ? p.productionStage : p.importStage
@@ -354,14 +379,10 @@ export default function DropDetailPage() {
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-900">{fmt(p.revenue)}</td>
                       <td className="px-4 py-3">
-                        {p.unitCost != null ? (
-                          <div>
-                            <p className="text-sm text-gray-900">{fmt(p.unitCost)}</p>
-                            <p className="text-xs text-gray-400">manual</p>
-                          </div>
-                        ) : (
-                          <p className="text-xs text-gray-400 italic">desde gastos</p>
-                        )}
+                        <div>
+                          <p className="text-sm text-gray-900">{fmt(p.effectiveCost)}</p>
+                          <p className="text-xs text-gray-400">{p.costIsCalculated ? "calculado" : "manual"}</p>
+                        </div>
                       </td>
                       <td className="px-4 py-3">
                         <span className={`text-sm font-medium ${estimatedMargin >= 30 ? "text-[#00903c]" : estimatedMargin >= 10 ? "text-amber-600" : "text-red-500"}`}>
