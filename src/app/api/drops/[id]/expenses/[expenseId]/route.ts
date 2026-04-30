@@ -27,11 +27,47 @@ export async function PATCH(
   })
   if (!expense) return NextResponse.json({ error: "Not found" }, { status: 404 })
 
-  const { paid } = await request.json()
+  const body = await request.json()
+
+  // Toggle paid (from financials debt list)
+  if ("paid" in body) {
+    const updated = await prisma.expense.update({
+      where: { id: expenseId },
+      data: { paidAt: body.paid ? new Date() : null },
+    })
+    return NextResponse.json({ ok: true, expense: updated })
+  }
+
+  // Full edit
+  const { amount, date, category, notes, scope, productIds, isDebt, creditor, dueDate } = body
+
+  // Rebuild assignments if scope/productIds changed
+  if (scope !== undefined) {
+    await prisma.expenseAssignment.deleteMany({ where: { expenseId } })
+  }
 
   const updated = await prisma.expense.update({
     where: { id: expenseId },
-    data: { paidAt: paid ? new Date() : null },
+    data: {
+      ...(amount !== undefined && { amount: Number(amount) }),
+      ...(date !== undefined && { date: new Date(date) }),
+      ...(category !== undefined && { category }),
+      ...(notes !== undefined && { notes: notes || null }),
+      ...(scope !== undefined && { scope }),
+      ...(isDebt !== undefined && { isDebt }),
+      ...(isDebt !== undefined && { creditor: isDebt && creditor ? creditor : null }),
+      ...(isDebt !== undefined && { dueDate: isDebt && dueDate ? new Date(dueDate) : null }),
+      ...(scope === "PRODUCTS" && productIds?.length && {
+        assignments: {
+          create: productIds.map((pid: string) => ({ dropProductId: pid })),
+        },
+      }),
+    },
+    include: {
+      assignments: {
+        include: { dropProduct: { select: { id: true, name: true } } },
+      },
+    },
   })
 
   return NextResponse.json({ ok: true, expense: updated })

@@ -44,6 +44,10 @@ interface Expense {
   category: string
   notes: string | null
   scope: "DROP" | "PRODUCTS"
+  isDebt: boolean
+  creditor: string | null
+  dueDate: string | null
+  paidAt: string | null
   assignments: Assignment[]
 }
 
@@ -90,6 +94,7 @@ export default function DropDetailPage() {
   const [drop, setDrop] = useState<Drop | null>(null)
   const [loading, setLoading] = useState(true)
   const [showExpenseModal, setShowExpenseModal] = useState(false)
+  const [editingExpense, setEditingExpense] = useState<Expense | null>(null)
   const [showAddProductModal, setShowAddProductModal] = useState(false)
   const [editingStageProduct, setEditingStageProduct] = useState<DropProduct | null>(null)
   const [connectingProduct, setConnectingProduct] = useState<DropProduct | null>(null)
@@ -484,9 +489,14 @@ export default function DropDetailPage() {
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-400">{expense.notes || "—"}</td>
                     <td className="px-4 py-3">
-                      <button onClick={() => deleteExpense(expense.id)} className="text-gray-300 hover:text-red-400 transition-colors">
-                        <Trash2 size={13} />
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <button onClick={() => setEditingExpense(expense)} className="text-gray-300 hover:text-gray-500 transition-colors">
+                          <Pencil size={12} />
+                        </button>
+                        <button onClick={() => deleteExpense(expense.id)} className="text-gray-300 hover:text-red-400 transition-colors">
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -538,6 +548,15 @@ export default function DropDetailPage() {
           products={drop.products}
           onClose={() => setShowExpenseModal(false)}
           onSaved={() => { setShowExpenseModal(false); load() }}
+        />
+      )}
+      {editingExpense && (
+        <ExpenseModal
+          dropId={dropId}
+          products={drop.products}
+          expense={editingExpense}
+          onClose={() => setEditingExpense(null)}
+          onSaved={() => { setEditingExpense(null); load() }}
         />
       )}
       {showAddProductModal && (
@@ -1005,18 +1024,21 @@ function EditStageModal({
 
 // ─── ExpenseModal ─────────────────────────────────────────────────────────────
 
-function ExpenseModal({ dropId, products, onClose, onSaved }: {
-  dropId: string; products: DropProduct[]; onClose: () => void; onSaved: () => void
+function ExpenseModal({ dropId, products, expense, onClose, onSaved }: {
+  dropId: string; products: DropProduct[]; expense?: Expense; onClose: () => void; onSaved: () => void
 }) {
-  const [amount, setAmount] = useState("")
-  const [date, setDate] = useState(new Date().toISOString().split("T")[0])
-  const [category, setCategory] = useState("OTROS")
-  const [notes, setNotes] = useState("")
-  const [scope, setScope] = useState<"DROP" | "PRODUCTS">("DROP")
-  const [selectedProducts, setSelectedProducts] = useState<string[]>([])
-  const [isDebt, setIsDebt] = useState(false)
-  const [creditor, setCreditor] = useState("")
-  const [dueDate, setDueDate] = useState("")
+  const isEdit = !!expense
+  const [amount, setAmount] = useState(expense ? String(expense.amount) : "")
+  const [date, setDate] = useState(expense ? expense.date.split("T")[0] : new Date().toISOString().split("T")[0])
+  const [category, setCategory] = useState(expense?.category ?? "OTROS")
+  const [notes, setNotes] = useState(expense?.notes ?? "")
+  const [scope, setScope] = useState<"DROP" | "PRODUCTS">(expense?.scope ?? "DROP")
+  const [selectedProducts, setSelectedProducts] = useState<string[]>(
+    expense?.scope === "PRODUCTS" ? expense.assignments.map((a) => a.dropProduct.id) : []
+  )
+  const [isDebt, setIsDebt] = useState(expense?.isDebt ?? false)
+  const [creditor, setCreditor] = useState(expense?.creditor ?? "")
+  const [dueDate, setDueDate] = useState(expense?.dueDate ? expense.dueDate.split("T")[0] : "")
   const [saving, setSaving] = useState(false)
 
   const toggleProduct = (id: string) =>
@@ -1026,21 +1048,32 @@ function ExpenseModal({ dropId, products, onClose, onSaved }: {
     e.preventDefault()
     if (!amount || !date) return
     setSaving(true)
-    await fetch(`/api/drops/${dropId}/expenses`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        amount: parseFloat(amount),
-        date,
-        category,
-        notes: notes || undefined,
-        scope,
-        productIds: scope === "PRODUCTS" ? selectedProducts : undefined,
-        isDebt,
-        creditor: isDebt && creditor ? creditor : undefined,
-        dueDate: isDebt && dueDate ? dueDate : undefined,
-      }),
-    })
+
+    const body = {
+      amount: parseFloat(amount),
+      date,
+      category,
+      notes: notes || undefined,
+      scope,
+      productIds: scope === "PRODUCTS" ? selectedProducts : undefined,
+      isDebt,
+      creditor: isDebt && creditor ? creditor : undefined,
+      dueDate: isDebt && dueDate ? dueDate : undefined,
+    }
+
+    if (isEdit) {
+      await fetch(`/api/drops/${dropId}/expenses/${expense.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      })
+    } else {
+      await fetch(`/api/drops/${dropId}/expenses`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      })
+    }
     setSaving(false)
     onSaved()
   }
@@ -1049,7 +1082,7 @@ function ExpenseModal({ dropId, products, onClose, onSaved }: {
     <div className="fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-md">
         <div className="flex items-center justify-between p-5 border-b border-gray-100">
-          <h3 className="text-sm font-semibold text-gray-900">Agregar gasto</h3>
+          <h3 className="text-sm font-semibold text-gray-900">{isEdit ? "Editar gasto" : "Agregar gasto"}</h3>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors"><X size={16} /></button>
         </div>
         <form onSubmit={handleSubmit} className="p-5 space-y-4">
@@ -1126,7 +1159,7 @@ function ExpenseModal({ dropId, products, onClose, onSaved }: {
           <div className="flex gap-3 pt-1">
             <button type="submit" disabled={saving}
               className="flex-1 bg-gray-900 text-white py-2.5 rounded-lg text-sm font-medium hover:bg-gray-800 disabled:opacity-50 transition-colors">
-              {saving ? "Guardando..." : "Guardar gasto"}
+              {saving ? "Guardando..." : isEdit ? "Guardar cambios" : "Guardar gasto"}
             </button>
             <button type="button" onClick={onClose} className="px-4 py-2.5 text-sm text-gray-500 hover:text-gray-700 transition-colors">
               Cancelar
