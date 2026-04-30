@@ -60,23 +60,16 @@ export async function getDropFinancials(dropId: string) {
   }
 
   const maxRevenue = drop.products.reduce((sum, p) => sum + p.price * p.initialStock, 0)
-  const totalDirectCosts = drop.products.reduce(
-    (sum, p) => sum + (effectiveUnitCosts.get(p.id) ?? 0) * p.initialStock, 0
-  )
 
-  const avgPrice = totalStock > 0
-    ? drop.products.reduce((s, p) => s + p.price * p.initialStock, 0) / totalStock
-    : 0
-  const avgCost = totalStock > 0
-    ? drop.products.reduce((s, p) => s + (effectiveUnitCosts.get(p.id) ?? 0) * p.initialStock, 0) / totalStock
-    : 0
-  const avgMarginPerUnit = avgPrice - avgCost
-  const breakEvenUnits = avgMarginPerUnit > 0
-    ? Math.ceil(totalExpenses / avgMarginPerUnit)
+  // Break-even: cuántos ingresos necesitás para cubrir los gastos fijos
+  // breakEvenRevenue = gastos totales (los gastos son el "costo" fijo del drop)
+  const breakEvenRevenue = totalExpenses > 0 ? totalExpenses : null
+  const breakEvenPct = maxRevenue > 0 && breakEvenRevenue
+    ? (breakEvenRevenue / maxRevenue) * 100
     : null
-  const breakEvenRevenue = breakEvenUnits ? breakEvenUnits * avgPrice : null
-  const breakEvenPct = totalStock > 0 && breakEvenUnits
-    ? (breakEvenUnits / totalStock) * 100
+  const avgPrice = totalStock > 0 ? maxRevenue / totalStock : 0
+  const breakEvenUnits = avgPrice > 0 && breakEvenRevenue
+    ? Math.ceil(breakEvenRevenue / avgPrice)
     : null
 
   const forecasts = [0.25, 0.5, 0.75, 1].map((pct) => {
@@ -84,12 +77,10 @@ export async function getDropFinancials(dropId: string) {
     const projectedRevenue = drop.products.reduce((sum, p) => {
       return sum + p.price * Math.round(p.initialStock * pct)
     }, 0)
-    const projectedDirectCosts = drop.products.reduce((sum, p) => {
-      return sum + (effectiveUnitCosts.get(p.id) ?? 0) * Math.round(p.initialStock * pct)
-    }, 0)
-    const projectedProfit = projectedRevenue - projectedDirectCosts - totalExpenses
+    // Gastos son fijos — ya se incurrieron independientemente de cuánto se vende
+    const projectedProfit = projectedRevenue - totalExpenses
     const projectedMargin = projectedRevenue > 0 ? (projectedProfit / projectedRevenue) * 100 : 0
-    return { salesPct: pct, projectedUnits, projectedRevenue, projectedDirectCosts, projectedProfit, projectedMargin }
+    return { salesPct: pct, projectedUnits, projectedRevenue, projectedProfit, projectedMargin }
   })
 
   const expensesByCategory = drop.expenses.reduce((acc, e) => {
@@ -142,7 +133,6 @@ export async function getDropFinancials(dropId: string) {
     allDebts,
     currentCash,
     maxRevenue,
-    totalDirectCosts,
     breakEvenUnits,
     breakEvenRevenue,
     breakEvenPct,

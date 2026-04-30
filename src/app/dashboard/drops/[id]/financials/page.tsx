@@ -26,6 +26,7 @@ interface Forecast {
   projectedRevenue: number
   projectedProfit: number
   projectedMargin: number
+  // projectedDirectCosts removed — expenses are fixed costs
 }
 
 interface DropFinancials {
@@ -203,15 +204,15 @@ export default function DropFinancialsPage() {
   }
 
   // Real-time forecast from slider
+  // Gastos son fijos — ganancia = ingresos proyectados - gastos totales
   const forecast = useMemo(() => {
     if (!data) return null
     const pct = forecastSlider / 100
     const projectedRevenue = data.products.reduce((sum, p) => sum + p.price * Math.round(p.initialStock * pct), 0)
-    const projectedDirectCosts = data.products.reduce((sum, p) => sum + p.unitCost * Math.round(p.initialStock * pct), 0)
-    const projectedProfit = projectedRevenue - projectedDirectCosts - data.totalExpenses
+    const projectedProfit = projectedRevenue - data.totalExpenses
     const projectedMargin = projectedRevenue > 0 ? (projectedProfit / projectedRevenue) * 100 : 0
     const projectedUnits = Math.round(data.totalStock * pct)
-    return { projectedRevenue, projectedDirectCosts, projectedProfit, projectedMargin, projectedUnits }
+    return { projectedRevenue, projectedProfit, projectedMargin, projectedUnits }
   }, [data, forecastSlider])
 
   if (loading) {
@@ -413,13 +414,10 @@ export default function DropFinancialsPage() {
                   Margen {forecast.projectedMargin.toFixed(1)}%
                 </p>
               </div>
-              <div className="bg-gray-50 rounded-lg p-3">
-                <p className="text-xs text-gray-400 mb-0.5">Costos directos</p>
-                <p className="text-base font-semibold text-gray-900">{fmt(forecast.projectedDirectCosts)}</p>
-              </div>
-              <div className="bg-gray-50 rounded-lg p-3">
-                <p className="text-xs text-gray-400 mb-0.5">Gastos del drop</p>
+              <div className="bg-gray-50 rounded-lg p-3 col-span-2">
+                <p className="text-xs text-gray-400 mb-0.5">Gastos registrados (fijos)</p>
                 <p className="text-base font-semibold text-gray-900">{fmt(data.totalExpenses)}</p>
+                <p className="text-xs text-gray-400">No cambian según las unidades vendidas</p>
               </div>
             </div>
           )}
@@ -452,7 +450,7 @@ export default function DropFinancialsPage() {
           {data.breakEvenUnits === null ? (
             <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-100 rounded-lg">
               <AlertCircle size={14} className="text-amber-500 flex-shrink-0 mt-0.5" />
-              <p className="text-xs text-amber-700">No se puede calcular — el margen por unidad es 0. Verificá que los productos tengan precio y costo cargados.</p>
+              <p className="text-xs text-amber-700">No se puede calcular — cargá gastos al drop y asegurate de que los productos tengan precio.</p>
             </div>
           ) : (
             <>
