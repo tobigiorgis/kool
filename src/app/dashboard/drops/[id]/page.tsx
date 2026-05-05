@@ -102,6 +102,7 @@ export default function DropDetailPage() {
   const [costDetailProduct, setCostDetailProduct] = useState<DropProduct | null>(null)
   const [workspaceId, setWorkspaceId] = useState<string | null>(null)
   const [updatingStatus, setUpdatingStatus] = useState(false)
+  const [showAllExpenses, setShowAllExpenses] = useState(false)
 
   const load = useCallback(() => {
     fetch(`/api/drops/${dropId}`)
@@ -329,7 +330,7 @@ export default function DropDetailPage() {
             <table className="w-full">
               <thead>
                 <tr className="border-b border-gray-100">
-                  {["Producto", "Producción", "TN", "Stock", "Vendido", "Ingresos", "Costo unit.", "Margen est."].map((h) => (
+                  {["Producto", "Producción", "TN", "Stock", "Precio", "Vendido", "Ingresos", "Costo unit.", "Margen est."].map((h) => (
                     <th key={h} className="text-left text-xs font-medium text-gray-400 px-4 py-3 whitespace-nowrap">{h}</th>
                   ))}
                 </tr>
@@ -404,6 +405,7 @@ export default function DropDetailPage() {
                       </td>
 
                       <td className="px-4 py-3 text-sm text-gray-600">{p.initialStock}</td>
+                      <td className="px-4 py-3 text-sm font-medium text-gray-900">{fmt(p.price)}</td>
                       <td className="px-4 py-3">
                         <div>
                           <span className="text-sm text-gray-900">{p.unitsSold}</span>
@@ -435,7 +437,7 @@ export default function DropDetailPage() {
                 })}
                 {productsWithMetrics.length === 0 && (
                   <tr>
-                    <td colSpan={8} className="px-4 py-10 text-center text-sm text-gray-400">
+                    <td colSpan={9} className="px-4 py-10 text-center text-sm text-gray-400">
                       No hay productos — <button onClick={() => setShowAddProductModal(true)} className="text-gray-600 underline">agregar uno</button>
                     </td>
                   </tr>
@@ -473,7 +475,7 @@ export default function DropDetailPage() {
                 </tr>
               </thead>
               <tbody>
-                {drop.expenses.map((expense) => (
+                {(showAllExpenses ? drop.expenses : drop.expenses.slice(-10).reverse()).map((expense) => (
                   <tr key={expense.id} className="border-b border-gray-50 last:border-0">
                     <td className="px-4 py-3 text-sm text-gray-600">
                       {new Date(expense.date).toLocaleDateString("es-AR", { day: "numeric", month: "short" })}
@@ -508,6 +510,19 @@ export default function DropDetailPage() {
               </tbody>
             </table>
           </div>
+          {drop.expenses.length > 10 && (
+            <div className="px-4 py-3 border-t border-gray-50 flex items-center justify-between">
+              <span className="text-xs text-gray-400">
+                {showAllExpenses ? `${drop.expenses.length} gastos` : `Mostrando los últimos 10 de ${drop.expenses.length}`}
+              </span>
+              <button
+                onClick={() => setShowAllExpenses(!showAllExpenses)}
+                className="text-xs text-gray-600 hover:text-gray-900 font-medium transition-colors"
+              >
+                {showAllExpenses ? "Ver menos" : `Ver todos (${drop.expenses.length})`}
+              </button>
+            </div>
+          )}
         </div>
       </div>
 

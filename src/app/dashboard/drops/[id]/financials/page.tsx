@@ -82,6 +82,7 @@ function DebtModal({
   onSaved: () => void
 }) {
   const isEdit = !!debt
+  const isExpenseDebt = debt?.sourceType === "expense"
   const [description, setDescription] = useState(debt?.description ?? "")
   const [amount, setAmount] = useState(debt ? String(debt.amount) : "")
   const [creditor, setCreditor] = useState(debt?.creditor ?? "")
@@ -92,30 +93,43 @@ function DebtModal({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!description || !amount) return
+    if (!isExpenseDebt && (!description || !amount)) return
     setSaving(true)
 
-    const body = {
-      description,
-      amount: parseFloat(amount),
-      creditor: creditor || undefined,
-      dueDate: dueDate || undefined,
-      notes: notes || undefined,
-      priority,
-    }
-
-    if (isEdit) {
-      await fetch(`/api/drops/${dropId}/debts/${debt.sourceId}`, {
+    if (isEdit && isExpenseDebt) {
+      // For expense-type debts, only update debt-related expense fields
+      await fetch(`/api/drops/${dropId}/expenses/${debt.sourceId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
+        body: JSON.stringify({
+          isDebt: true,
+          creditor: creditor || null,
+          dueDate: dueDate || null,
+          notes: notes || null,
+        }),
       })
     } else {
-      await fetch(`/api/drops/${dropId}/debts`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      })
+      const body = {
+        description,
+        amount: parseFloat(amount),
+        creditor: creditor || undefined,
+        dueDate: dueDate || undefined,
+        notes: notes || undefined,
+        priority,
+      }
+      if (isEdit) {
+        await fetch(`/api/drops/${dropId}/debts/${debt.sourceId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        })
+      } else {
+        await fetch(`/api/drops/${dropId}/debts`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        })
+      }
     }
     setSaving(false)
     onSaved()
@@ -129,42 +143,53 @@ function DebtModal({
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors"><X size={16} /></button>
         </div>
         <form onSubmit={handleSubmit} className="p-5 space-y-3 overflow-y-auto">
-          <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1.5">Descripción *</label>
-            <input type="text" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Ej: Saldo pendiente taller" required
-              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C46A]/30 focus:border-[#00C46A]" />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
+          {isExpenseDebt && (
+            <p className="text-xs text-gray-400 bg-gray-50 p-2.5 rounded-lg">
+              Este gasto está marcado como deuda. Podés editar acreedor, fecha límite y notas.
+            </p>
+          )}
+          {!isExpenseDebt && (
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1.5">Monto *</label>
-              <input type="number" min="0" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0" required
+              <label className="block text-xs font-medium text-gray-600 mb-1.5">Descripción *</label>
+              <input type="text" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Ej: Saldo pendiente taller" required
                 className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C46A]/30 focus:border-[#00C46A]" />
             </div>
+          )}
+          <div className={`grid gap-3 ${!isExpenseDebt ? "grid-cols-2" : "grid-cols-1"}`}>
+            {!isExpenseDebt && (
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1.5">Monto *</label>
+                <input type="number" min="0" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0" required
+                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C46A]/30 focus:border-[#00C46A]" />
+              </div>
+            )}
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1.5">Fecha límite</label>
               <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)}
                 className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C46A]/30 focus:border-[#00C46A]" />
             </div>
           </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1.5">Prioridad</label>
-            <div className="flex gap-2">
-              {([1, 2, 3] as const).map((p) => (
-                <button
-                  key={p}
-                  type="button"
-                  onClick={() => setPriority(p)}
-                  className={`flex-1 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
-                    priority === p
-                      ? p === 1 ? "bg-red-100 border-red-300 text-red-700" : p === 2 ? "bg-amber-100 border-amber-300 text-amber-700" : "bg-gray-100 border-gray-300 text-gray-600"
-                      : "border-gray-200 text-gray-400 hover:bg-gray-50"
-                  }`}
-                >
-                  {PRIORITY_LABEL[p]}
-                </button>
-              ))}
+          {!isExpenseDebt && (
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1.5">Prioridad</label>
+              <div className="flex gap-2">
+                {([1, 2, 3] as const).map((p) => (
+                  <button
+                    key={p}
+                    type="button"
+                    onClick={() => setPriority(p)}
+                    className={`flex-1 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
+                      priority === p
+                        ? p === 1 ? "bg-red-100 border-red-300 text-red-700" : p === 2 ? "bg-amber-100 border-amber-300 text-amber-700" : "bg-gray-100 border-gray-300 text-gray-600"
+                        : "border-gray-200 text-gray-400 hover:bg-gray-50"
+                    }`}
+                  >
+                    {PRIORITY_LABEL[p]}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
           <div>
             <label className="block text-xs font-medium text-gray-600 mb-1.5">Acreedor</label>
             <input type="text" value={creditor} onChange={(e) => setCreditor(e.target.value)} placeholder="Ej: Taller San Martín"
@@ -408,15 +433,13 @@ export default function DropFinancialsPage() {
                     </div>
                   </div>
                   <div className="flex items-center gap-1 flex-shrink-0">
-                    {debt.sourceType === "debt" && (
-                      <button
-                        onClick={() => setDebtModal({ open: true, debt })}
-                        className="text-gray-300 hover:text-gray-500 transition-colors p-0.5"
-                        title="Editar"
-                      >
-                        <Pencil size={11} />
-                      </button>
-                    )}
+                    <button
+                      onClick={() => setDebtModal({ open: true, debt })}
+                      className="text-gray-300 hover:text-gray-500 transition-colors p-0.5"
+                      title="Editar"
+                    >
+                      <Pencil size={11} />
+                    </button>
                     {debt.sourceType === "expense" && !debt.paidAt && (
                       <button
                         onClick={() => handleCancelExpenseDebt(debt)}
@@ -487,27 +510,43 @@ export default function DropFinancialsPage() {
             </div>
           </div>
 
-          {forecast && (
-            <div className="grid grid-cols-2 gap-3">
-              <div className="bg-gray-50 rounded-lg p-3">
-                <p className="text-xs text-gray-400 mb-0.5">Ingresos proyectados</p>
-                <p className="text-base font-semibold text-gray-900">{fmt(forecast.projectedRevenue)}</p>
-                <p className="text-xs text-gray-400">{forecast.projectedUnits} u. vendidas</p>
+          {forecast && (() => {
+            const resultado = forecast.projectedProfit - data.totalPendingDebt
+            const resultadoColor = resultado >= 0 ? "text-[#00903c]" : "text-red-500"
+            return (
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-gray-50 rounded-lg p-3">
+                  <p className="text-xs text-gray-400 mb-0.5">Ingresos proyectados</p>
+                  <p className="text-base font-semibold text-gray-900">{fmt(forecast.projectedRevenue)}</p>
+                  <p className="text-xs text-gray-400">{forecast.projectedUnits} u. vendidas</p>
+                </div>
+                <div className={`rounded-lg p-3 ${forecast.projectedProfit >= 0 ? "bg-[#e6faf0]" : "bg-red-50"}`}>
+                  <p className="text-xs text-gray-400 mb-0.5">Ganancia neta</p>
+                  <p className={`text-base font-semibold ${profitColor}`}>{fmt(forecast.projectedProfit)}</p>
+                  <p className={`text-xs ${forecast.projectedProfit >= 0 ? "text-[#00903c]" : "text-red-400"}`}>
+                    Margen {forecast.projectedMargin.toFixed(1)}%
+                  </p>
+                </div>
+                <div className="bg-gray-50 rounded-lg p-3">
+                  <p className="text-xs text-gray-400 mb-0.5">Gastos fijos</p>
+                  <p className="text-base font-semibold text-gray-900">{fmt(data.totalExpenses)}</p>
+                </div>
+                <div className={`bg-gray-50 rounded-lg p-3 ${data.totalPendingDebt > 0 ? "border border-amber-100" : ""}`}>
+                  <p className="text-xs text-gray-400 mb-0.5">Deuda pendiente</p>
+                  <p className={`text-base font-semibold ${data.totalPendingDebt > 0 ? "text-amber-600" : "text-gray-400"}`}>
+                    {data.totalPendingDebt > 0 ? `− ${fmt(data.totalPendingDebt)}` : "—"}
+                  </p>
+                </div>
+                <div className={`rounded-lg p-3 col-span-2 border ${resultado >= 0 ? "bg-[#e6faf0] border-[#b3f0d4]" : "bg-red-50 border-red-100"}`}>
+                  <p className="text-xs text-gray-500 mb-0.5">Resultado final (ganancia − deuda)</p>
+                  <p className={`text-lg font-bold ${resultadoColor}`}>{fmt(resultado)}</p>
+                  <p className="text-xs text-gray-400 mt-0.5">
+                    {resultado >= 0 ? "Cubrís gastos y deudas con este pronóstico" : "No alcanza para cubrir gastos y deudas"}
+                  </p>
+                </div>
               </div>
-              <div className={`rounded-lg p-3 ${forecast.projectedProfit >= 0 ? "bg-[#e6faf0]" : "bg-red-50"}`}>
-                <p className="text-xs text-gray-400 mb-0.5">Ganancia neta</p>
-                <p className={`text-base font-semibold ${profitColor}`}>{fmt(forecast.projectedProfit)}</p>
-                <p className={`text-xs ${forecast.projectedProfit >= 0 ? "text-[#00903c]" : "text-red-400"}`}>
-                  Margen {forecast.projectedMargin.toFixed(1)}%
-                </p>
-              </div>
-              <div className="bg-gray-50 rounded-lg p-3 col-span-2">
-                <p className="text-xs text-gray-400 mb-0.5">Gastos registrados (fijos)</p>
-                <p className="text-base font-semibold text-gray-900">{fmt(data.totalExpenses)}</p>
-                <p className="text-xs text-gray-400">No cambian según las unidades vendidas</p>
-              </div>
-            </div>
-          )}
+            )
+          })()}
 
           <div className="mt-4">
             <div className="flex items-center justify-between mb-1">
