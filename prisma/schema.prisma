@@ -678,6 +678,7 @@ model DropDebt {
   dueDate     DateTime?
   paidAt      DateTime?
   notes       String?
+  priority    Int       @default(2) // 1=Alta, 2=Media, 3=Baja
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

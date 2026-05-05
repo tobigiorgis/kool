@@ -94,13 +94,14 @@ export async function getDropFinancials(dropId: string) {
       id: `expense-${e.id}`,
       sourceId: e.id,
       sourceType: "expense" as const,
-      description: `${e.category} (gasto)`,
+      description: e.notes ? `${e.notes}` : `${e.category} (gasto)`,
       amount: e.amount,
       currency: e.currency,
       creditor: e.creditor,
       dueDate: e.dueDate,
       paidAt: e.paidAt,
       notes: e.notes,
+      priority: 2 as number, // expenses don't have priority, default to Media
     })),
     ...drop.debts.map((d) => ({
       id: `debt-${d.id}`,
@@ -113,10 +114,16 @@ export async function getDropFinancials(dropId: string) {
       dueDate: d.dueDate,
       paidAt: d.paidAt,
       notes: d.notes,
+      priority: d.priority,
     })),
   ].sort((a, b) => {
+    // paid ones always go to the bottom
     if (!a.paidAt && b.paidAt) return -1
     if (a.paidAt && !b.paidAt) return 1
+    // sort pending by priority first (1=Alta first), then by dueDate
+    if (!a.paidAt && !b.paidAt) {
+      if (a.priority !== b.priority) return a.priority - b.priority
+    }
     if (!a.dueDate && !b.dueDate) return 0
     if (!a.dueDate) return 1
     if (!b.dueDate) return -1

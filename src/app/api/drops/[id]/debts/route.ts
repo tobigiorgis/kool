@@ -35,6 +35,7 @@ export async function POST(
       creditor: body.creditor || null,
       dueDate: body.dueDate ? new Date(body.dueDate) : null,
       notes: body.notes || null,
+      priority: body.priority !== undefined ? Number(body.priority) : 2,
     },
   })
 

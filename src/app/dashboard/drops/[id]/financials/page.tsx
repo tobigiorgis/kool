@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useMemo } from "react"
 import { useParams } from "next/navigation"
-import { ArrowLeft, Plus, Trash2, Check, AlertCircle, X } from "lucide-react"
+import { ArrowLeft, Plus, Trash2, Check, AlertCircle, X, Pencil } from "lucide-react"
 import Link from "next/link"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -18,6 +18,7 @@ interface DebtItem {
   dueDate: string | null
   paidAt: string | null
   notes: string | null
+  priority: number
 }
 
 interface Forecast {
@@ -26,7 +27,6 @@ interface Forecast {
   projectedRevenue: number
   projectedProfit: number
   projectedMargin: number
-  // projectedDirectCosts removed — expenses are fixed costs
 }
 
 interface DropFinancials {
@@ -61,43 +61,74 @@ function isOverdue(dueDate: string | null) {
   return new Date(dueDate) < new Date()
 }
 
-// ─── AddDebtModal ─────────────────────────────────────────────────────────────
+const PRIORITY_LABEL: Record<number, string> = { 1: "Alta", 2: "Media", 3: "Baja" }
+const PRIORITY_COLOR: Record<number, string> = {
+  1: "bg-red-100 text-red-700",
+  2: "bg-amber-100 text-amber-700",
+  3: "bg-gray-100 text-gray-500",
+}
 
-function AddDebtModal({ dropId, onClose, onSaved }: { dropId: string; onClose: () => void; onSaved: () => void }) {
-  const [description, setDescription] = useState("")
-  const [amount, setAmount] = useState("")
-  const [creditor, setCreditor] = useState("")
-  const [dueDate, setDueDate] = useState("")
-  const [notes, setNotes] = useState("")
+// ─── DebtModal (add + edit) ───────────────────────────────────────────────────
+
+function DebtModal({
+  dropId,
+  debt,
+  onClose,
+  onSaved,
+}: {
+  dropId: string
+  debt?: DebtItem
+  onClose: () => void
+  onSaved: () => void
+}) {
+  const isEdit = !!debt
+  const [description, setDescription] = useState(debt?.description ?? "")
+  const [amount, setAmount] = useState(debt ? String(debt.amount) : "")
+  const [creditor, setCreditor] = useState(debt?.creditor ?? "")
+  const [dueDate, setDueDate] = useState(debt?.dueDate ? debt.dueDate.split("T")[0] : "")
+  const [notes, setNotes] = useState(debt?.notes ?? "")
+  const [priority, setPriority] = useState(debt?.priority ?? 2)
   const [saving, setSaving] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!description || !amount) return
     setSaving(true)
-    await fetch(`/api/drops/${dropId}/debts`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        description,
-        amount: parseFloat(amount),
-        creditor: creditor || undefined,
-        dueDate: dueDate || undefined,
-        notes: notes || undefined,
-      }),
-    })
+
+    const body = {
+      description,
+      amount: parseFloat(amount),
+      creditor: creditor || undefined,
+      dueDate: dueDate || undefined,
+      notes: notes || undefined,
+      priority,
+    }
+
+    if (isEdit) {
+      await fetch(`/api/drops/${dropId}/debts/${debt.sourceId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      })
+    } else {
+      await fetch(`/api/drops/${dropId}/debts`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      })
+    }
     setSaving(false)
     onSaved()
   }
 
   return (
     <div className="fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md">
-        <div className="flex items-center justify-between p-5 border-b border-gray-100">
-          <h3 className="text-sm font-semibold text-gray-900">Agregar deuda</h3>
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md max-h-[90vh] flex flex-col">
+        <div className="flex items-center justify-between p-5 border-b border-gray-100 flex-shrink-0">
+          <h3 className="text-sm font-semibold text-gray-900">{isEdit ? "Editar deuda" : "Agregar deuda"}</h3>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors"><X size={16} /></button>
         </div>
-        <form onSubmit={handleSubmit} className="p-5 space-y-3">
+        <form onSubmit={handleSubmit} className="p-5 space-y-3 overflow-y-auto">
           <div>
             <label className="block text-xs font-medium text-gray-600 mb-1.5">Descripción *</label>
             <input type="text" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Ej: Saldo pendiente taller" required
@@ -116,6 +147,25 @@ function AddDebtModal({ dropId, onClose, onSaved }: { dropId: string; onClose: (
             </div>
           </div>
           <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1.5">Prioridad</label>
+            <div className="flex gap-2">
+              {([1, 2, 3] as const).map((p) => (
+                <button
+                  key={p}
+                  type="button"
+                  onClick={() => setPriority(p)}
+                  className={`flex-1 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
+                    priority === p
+                      ? p === 1 ? "bg-red-100 border-red-300 text-red-700" : p === 2 ? "bg-amber-100 border-amber-300 text-amber-700" : "bg-gray-100 border-gray-300 text-gray-600"
+                      : "border-gray-200 text-gray-400 hover:bg-gray-50"
+                  }`}
+                >
+                  {PRIORITY_LABEL[p]}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div>
             <label className="block text-xs font-medium text-gray-600 mb-1.5">Acreedor</label>
             <input type="text" value={creditor} onChange={(e) => setCreditor(e.target.value)} placeholder="Ej: Taller San Martín"
               className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C46A]/30 focus:border-[#00C46A]" />
@@ -128,7 +178,7 @@ function AddDebtModal({ dropId, onClose, onSaved }: { dropId: string; onClose: (
           <div className="flex gap-3 pt-1">
             <button type="submit" disabled={saving || !description || !amount}
               className="flex-1 bg-gray-900 text-white py-2.5 rounded-lg text-sm font-medium hover:bg-gray-800 disabled:opacity-50 transition-colors">
-              {saving ? "Guardando..." : "Agregar deuda"}
+              {saving ? "Guardando..." : isEdit ? "Guardar cambios" : "Agregar deuda"}
             </button>
             <button type="button" onClick={onClose} className="px-4 text-sm text-gray-500 hover:text-gray-700 transition-colors">
               Cancelar
@@ -151,8 +201,9 @@ export default function DropFinancialsPage() {
   const [cashInput, setCashInput] = useState("")
   const [savingCash, setSavingCash] = useState(false)
   const [forecastSlider, setForecastSlider] = useState(50)
-  const [showAddDebt, setShowAddDebt] = useState(false)
+  const [debtModal, setDebtModal] = useState<{ open: boolean; debt?: DebtItem }>({ open: false })
   const [togglingDebt, setTogglingDebt] = useState<string | null>(null)
+  const [cancellingDebt, setCancellingDebt] = useState<string | null>(null)
 
   const load = () => {
     fetch(`/api/drops/${dropId}/financials`)
@@ -197,14 +248,24 @@ export default function DropFinancialsPage() {
     load()
   }
 
+  // Cancel expense-debt: removes isDebt flag from the expense (keeps it as a regular expense)
+  const handleCancelExpenseDebt = async (debt: DebtItem) => {
+    setCancellingDebt(debt.id)
+    await fetch(`/api/drops/${dropId}/expenses/${debt.sourceId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ isDebt: false, creditor: null, dueDate: null }),
+    })
+    setCancellingDebt(null)
+    load()
+  }
+
   const handleDeleteDebt = async (debt: DebtItem) => {
     if (debt.sourceType !== "debt") return
     await fetch(`/api/drops/${dropId}/debts/${debt.sourceId}`, { method: "DELETE" })
     load()
   }
 
-  // Real-time forecast from slider
-  // Gastos son fijos — ganancia = ingresos proyectados - gastos totales
   const forecast = useMemo(() => {
     if (!data) return null
     const pct = forecastSlider / 100
@@ -303,7 +364,7 @@ export default function DropFinancialsPage() {
           <div className="flex items-center justify-between mb-1">
             <h2 className="text-sm font-semibold text-gray-900">Deudas</h2>
             <button
-              onClick={() => setShowAddDebt(true)}
+              onClick={() => setDebtModal({ open: true })}
               className="flex items-center gap-1 text-xs text-gray-500 border border-gray-200 px-2.5 py-1.5 rounded-lg hover:bg-gray-50 transition-colors"
             >
               <Plus size={12} />
@@ -314,7 +375,7 @@ export default function DropFinancialsPage() {
             {pendingDebts.length === 0 ? "Sin deudas pendientes" : `${pendingDebts.length} pendiente${pendingDebts.length !== 1 ? "s" : ""} · ${fmt(data.totalPendingDebt)}`}
           </p>
 
-          <div className="space-y-2 max-h-[280px] overflow-y-auto pr-0.5">
+          <div className="space-y-2 max-h-[320px] overflow-y-auto pr-0.5">
             {data.allDebts.length === 0 && (
               <p className="text-xs text-gray-400 py-4 text-center">No hay deudas registradas</p>
             )}
@@ -330,7 +391,12 @@ export default function DropFinancialsPage() {
                     }`}
                   />
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm text-gray-900 truncate">{debt.description}</p>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <p className="text-sm text-gray-900 truncate">{debt.description}</p>
+                      <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${PRIORITY_COLOR[debt.priority] ?? PRIORITY_COLOR[2]}`}>
+                        {PRIORITY_LABEL[debt.priority] ?? "Media"}
+                      </span>
+                    </div>
                     <div className="flex items-center gap-2 flex-wrap mt-0.5">
                       <span className={`text-xs font-medium ${overdue ? "text-red-600" : "text-gray-700"}`}>{fmt(debt.amount)}</span>
                       {debt.creditor && <span className="text-xs text-gray-400">{debt.creditor}</span>}
@@ -341,11 +407,32 @@ export default function DropFinancialsPage() {
                       )}
                     </div>
                   </div>
-                  {debt.sourceType === "debt" && (
-                    <button onClick={() => handleDeleteDebt(debt)} className="text-gray-200 hover:text-red-400 transition-colors flex-shrink-0">
-                      <Trash2 size={12} />
-                    </button>
-                  )}
+                  <div className="flex items-center gap-1 flex-shrink-0">
+                    {debt.sourceType === "debt" && (
+                      <button
+                        onClick={() => setDebtModal({ open: true, debt })}
+                        className="text-gray-300 hover:text-gray-500 transition-colors p-0.5"
+                        title="Editar"
+                      >
+                        <Pencil size={11} />
+                      </button>
+                    )}
+                    {debt.sourceType === "expense" && !debt.paidAt && (
+                      <button
+                        onClick={() => handleCancelExpenseDebt(debt)}
+                        disabled={cancellingDebt === debt.id}
+                        className="text-gray-300 hover:text-amber-400 transition-colors p-0.5 disabled:opacity-50"
+                        title="Quitar deuda (mantiene como gasto)"
+                      >
+                        <X size={11} />
+                      </button>
+                    )}
+                    {debt.sourceType === "debt" && (
+                      <button onClick={() => handleDeleteDebt(debt)} className="text-gray-200 hover:text-red-400 transition-colors p-0.5">
+                        <Trash2 size={11} />
+                      </button>
+                    )}
+                  </div>
                 </div>
               )
             })}
@@ -422,7 +509,6 @@ export default function DropFinancialsPage() {
             </div>
           )}
 
-          {/* Progress vs actual */}
           <div className="mt-4">
             <div className="flex items-center justify-between mb-1">
               <span className="text-xs text-gray-400">Ventas actuales</span>
@@ -475,7 +561,6 @@ export default function DropFinancialsPage() {
                 </div>
               </div>
 
-              {/* Barra de progreso hacia break-even */}
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-xs text-gray-500">Progreso hacia el equilibrio</span>
@@ -495,7 +580,6 @@ export default function DropFinancialsPage() {
                 </div>
               </div>
 
-              {/* Gastos detallados */}
               {Object.keys(data.expensesByCategory).length > 0 && (
                 <div className="mt-4 pt-4 border-t border-gray-100">
                   <p className="text-xs font-medium text-gray-500 mb-2">Gastos por categoría</p>
@@ -516,11 +600,12 @@ export default function DropFinancialsPage() {
         </div>
       </div>
 
-      {showAddDebt && (
-        <AddDebtModal
+      {debtModal.open && (
+        <DebtModal
           dropId={dropId}
-          onClose={() => setShowAddDebt(false)}
-          onSaved={() => { setShowAddDebt(false); load() }}
+          debt={debtModal.debt}
+          onClose={() => setDebtModal({ open: false })}
+          onSaved={() => { setDebtModal({ open: false }); load() }}
         />
       )}
     </div>
