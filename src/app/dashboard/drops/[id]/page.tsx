@@ -103,6 +103,8 @@ export default function DropDetailPage() {
   const [workspaceId, setWorkspaceId] = useState<string | null>(null)
   const [updatingStatus, setUpdatingStatus] = useState(false)
   const [showAllExpenses, setShowAllExpenses] = useState(false)
+  const [filterCategory, setFilterCategory] = useState<string>("ALL")
+  const [filterProduct, setFilterProduct] = useState<string>("ALL")
 
   const load = useCallback(() => {
     fetch(`/api/drops/${dropId}`)
@@ -449,82 +451,144 @@ export default function DropDetailPage() {
       </div>
 
       {/* Gastos */}
-      <div className="mb-8">
-        <div className="flex items-center justify-between mb-3">
-          <div>
-            <h2 className="text-sm font-semibold text-gray-900">Gastos</h2>
-            <p className="text-xs text-gray-400 mt-0.5">Total: {fmt(totalExpenses)}</p>
-          </div>
-          <button
-            onClick={() => setShowExpenseModal(true)}
-            className="flex items-center gap-1.5 text-sm text-gray-600 border border-gray-200 px-3 py-1.5 rounded-lg hover:bg-gray-50 transition-colors"
-          >
-            <Plus size={13} />
-            Agregar gasto
-          </button>
-        </div>
+      {(() => {
+        // Filtrado
+        const filteredExpenses = drop.expenses.filter((e) => {
+          if (filterCategory !== "ALL" && e.category !== filterCategory) return false
+          if (filterProduct !== "ALL") {
+            if (filterProduct === "DROP") {
+              if (e.scope !== "DROP") return false
+            } else {
+              if (!e.assignments.some((a) => a.dropProduct.id === filterProduct)) return false
+            }
+          }
+          return true
+        })
+        const filteredTotal = filteredExpenses.reduce((s, e) => s + e.amount, 0)
+        const hasFilters = filterCategory !== "ALL" || filterProduct !== "ALL"
+        const visibleExpenses = showAllExpenses ? filteredExpenses : filteredExpenses.slice(-10).reverse()
+        // Categories present in this drop's expenses
+        const usedCategories = [...new Set(drop.expenses.map((e) => e.category))]
 
-        <div className="bg-white border border-gray-100 rounded-xl overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-gray-100">
-                  {["Fecha", "Categoría", "Monto", "Asignación", "Notas", ""].map((h) => (
-                    <th key={h} className="text-left text-xs font-medium text-gray-400 px-4 py-3">{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {(showAllExpenses ? drop.expenses : drop.expenses.slice(-10).reverse()).map((expense) => (
-                  <tr key={expense.id} className="border-b border-gray-50 last:border-0">
-                    <td className="px-4 py-3 text-sm text-gray-600">
-                      {new Date(expense.date).toLocaleDateString("es-AR", { day: "numeric", month: "short" })}
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">
-                        {CATEGORY_LABEL[expense.category] || expense.category}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-sm font-medium text-gray-900">{fmt(expense.amount)}</td>
-                    <td className="px-4 py-3 text-sm text-gray-500">
-                      {expense.scope === "DROP" ? "Todo el Drop" : expense.assignments.map((a) => a.dropProduct.name).join(", ")}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-400">{expense.notes || "—"}</td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        <button onClick={() => setEditingExpense(expense)} className="text-gray-300 hover:text-gray-500 transition-colors">
-                          <Pencil size={12} />
-                        </button>
-                        <button onClick={() => deleteExpense(expense.id)} className="text-gray-300 hover:text-red-400 transition-colors">
-                          <Trash2 size={13} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-                {drop.expenses.length === 0 && (
-                  <tr>
-                    <td colSpan={6} className="px-4 py-8 text-center text-sm text-gray-400">No hay gastos registrados</td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-          {drop.expenses.length > 10 && (
-            <div className="px-4 py-3 border-t border-gray-50 flex items-center justify-between">
-              <span className="text-xs text-gray-400">
-                {showAllExpenses ? `${drop.expenses.length} gastos` : `Mostrando los últimos 10 de ${drop.expenses.length}`}
-              </span>
+        return (
+          <div className="mb-8">
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <h2 className="text-sm font-semibold text-gray-900">Gastos</h2>
+                <p className="text-xs text-gray-400 mt-0.5">
+                  {hasFilters
+                    ? <>{fmt(filteredTotal)} <span className="text-gray-300">· filtrado de {fmt(totalExpenses)}</span></>
+                    : <>Total: {fmt(totalExpenses)}</>
+                  }
+                </p>
+              </div>
               <button
-                onClick={() => setShowAllExpenses(!showAllExpenses)}
-                className="text-xs text-gray-600 hover:text-gray-900 font-medium transition-colors"
+                onClick={() => setShowExpenseModal(true)}
+                className="flex items-center gap-1.5 text-sm text-gray-600 border border-gray-200 px-3 py-1.5 rounded-lg hover:bg-gray-50 transition-colors"
               >
-                {showAllExpenses ? "Ver menos" : `Ver todos (${drop.expenses.length})`}
+                <Plus size={13} />
+                Agregar gasto
               </button>
             </div>
-          )}
-        </div>
-      </div>
+
+            {/* Filtros */}
+            <div className="flex items-center gap-2 mb-3 flex-wrap">
+              <select
+                value={filterCategory}
+                onChange={(e) => { setFilterCategory(e.target.value); setShowAllExpenses(false) }}
+                className="text-xs border border-gray-200 rounded-lg px-2.5 py-1.5 bg-white text-gray-600 focus:outline-none focus:ring-2 focus:ring-[#00C46A]/30 focus:border-[#00C46A]"
+              >
+                <option value="ALL">Todas las categorías</option>
+                {usedCategories.map((c) => (
+                  <option key={c} value={c}>{CATEGORY_LABEL[c] || c}</option>
+                ))}
+              </select>
+              <select
+                value={filterProduct}
+                onChange={(e) => { setFilterProduct(e.target.value); setShowAllExpenses(false) }}
+                className="text-xs border border-gray-200 rounded-lg px-2.5 py-1.5 bg-white text-gray-600 focus:outline-none focus:ring-2 focus:ring-[#00C46A]/30 focus:border-[#00C46A]"
+              >
+                <option value="ALL">Todos los productos</option>
+                <option value="DROP">Todo el Drop</option>
+                {drop.products.map((p) => (
+                  <option key={p.id} value={p.id}>{p.name}</option>
+                ))}
+              </select>
+              {hasFilters && (
+                <button
+                  onClick={() => { setFilterCategory("ALL"); setFilterProduct("ALL"); setShowAllExpenses(false) }}
+                  className="text-xs text-gray-400 hover:text-gray-600 transition-colors px-2 py-1.5"
+                >
+                  Limpiar filtros
+                </button>
+              )}
+            </div>
+
+            <div className="bg-white border border-gray-100 rounded-xl overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-gray-100">
+                      {["Fecha", "Categoría", "Monto", "Asignación", "Notas", ""].map((h) => (
+                        <th key={h} className="text-left text-xs font-medium text-gray-400 px-4 py-3">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {visibleExpenses.map((expense) => (
+                      <tr key={expense.id} className="border-b border-gray-50 last:border-0">
+                        <td className="px-4 py-3 text-sm text-gray-600">
+                          {new Date(expense.date).toLocaleDateString("es-AR", { day: "numeric", month: "short" })}
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">
+                            {CATEGORY_LABEL[expense.category] || expense.category}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-sm font-medium text-gray-900">{fmt(expense.amount)}</td>
+                        <td className="px-4 py-3 text-sm text-gray-500">
+                          {expense.scope === "DROP" ? "Todo el Drop" : expense.assignments.map((a) => a.dropProduct.name).join(", ")}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-400">{expense.notes || "—"}</td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-2">
+                            <button onClick={() => setEditingExpense(expense)} className="text-gray-300 hover:text-gray-500 transition-colors">
+                              <Pencil size={12} />
+                            </button>
+                            <button onClick={() => deleteExpense(expense.id)} className="text-gray-300 hover:text-red-400 transition-colors">
+                              <Trash2 size={13} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                    {filteredExpenses.length === 0 && (
+                      <tr>
+                        <td colSpan={6} className="px-4 py-8 text-center text-sm text-gray-400">
+                          {drop.expenses.length === 0 ? "No hay gastos registrados" : "Sin resultados para este filtro"}
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+              {filteredExpenses.length > 10 && (
+                <div className="px-4 py-3 border-t border-gray-50 flex items-center justify-between">
+                  <span className="text-xs text-gray-400">
+                    {showAllExpenses ? `${filteredExpenses.length} gastos` : `Mostrando los últimos 10 de ${filteredExpenses.length}`}
+                  </span>
+                  <button
+                    onClick={() => setShowAllExpenses(!showAllExpenses)}
+                    className="text-xs text-gray-600 hover:text-gray-900 font-medium transition-colors"
+                  >
+                    {showAllExpenses ? "Ver menos" : `Ver todos (${filteredExpenses.length})`}
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        )
+      })()}
 
       {/* Insights */}
       {productsWithMetrics.length > 0 && (
