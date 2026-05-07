@@ -289,10 +289,10 @@ function CreateGiftingModal({
     if (products.length === 0) loadProducts()
   }
 
-  // Creators that will receive the gifting
+  // Creators that will receive the gifting (no address filter — address is optional)
   const targetCreators: Creator[] =
     mode === "campaigns" && selectedCampaign
-      ? selectedCampaign.creators.map((cc) => cc.creator).filter((c) => c.city)
+      ? selectedCampaign.creators.map((cc) => cc.creator)
       : selectedCreators
 
   const addVariant = (product: TiendanubeProduct, variant: TiendanubeVariant) => {
@@ -476,7 +476,7 @@ function CreateGiftingModal({
                   <div className="space-y-2">
                     {campaigns.map((c) => {
                       const creatorCount = c.creators?.length ?? 0
-                      const withAddress = c.creators?.filter((cc) => cc.creator.city).length ?? 0
+                      const withoutAddress = c.creators?.filter((cc) => !cc.creator.city).length ?? 0
                       return (
                         <button
                           key={c.id}
@@ -489,8 +489,8 @@ function CreateGiftingModal({
                             <p className="text-sm font-medium text-gray-900">{c.name}</p>
                             <p className="text-xs text-gray-400 mt-0.5">
                               {creatorCount} creator{creatorCount !== 1 ? "s" : ""}
-                              {withAddress < creatorCount && (
-                                <span className="text-amber-500 ml-1">· {creatorCount - withAddress} sin dirección</span>
+                              {withoutAddress > 0 && (
+                                <span className="text-amber-500 ml-1">· {withoutAddress} sin dirección</span>
                               )}
                             </p>
                           </div>
@@ -510,7 +510,7 @@ function CreateGiftingModal({
               <p className="text-[12px] text-gray-400">
                 {mode === "creators"
                   ? selectedCreators.length > 0 ? `${selectedCreators.length} seleccionado${selectedCreators.length !== 1 ? "s" : ""}` : ""
-                  : selectedCampaign ? `${targetCreators.length} creator${targetCreators.length !== 1 ? "s" : ""} con dirección` : ""}
+                  : selectedCampaign ? `${targetCreators.length} creator${targetCreators.length !== 1 ? "s" : ""}` : ""}
               </p>
               <button
                 onClick={goToProducts}
@@ -650,12 +650,23 @@ function CreateGiftingModal({
                 {targetCreators.length === 1 ? (
                   <>
                     <p className="text-sm font-medium text-gray-900">{targetCreators[0].name}</p>
-                    <p className="text-xs text-gray-400">{targetCreators[0].address}, {targetCreators[0].city}</p>
+                    <p className="text-xs text-gray-400">
+                      {targetCreators[0].city
+                        ? `${targetCreators[0].address ?? ""} ${targetCreators[0].city}`.trim()
+                        : <span className="text-amber-500">Sin dirección cargada</span>
+                      }
+                    </p>
                   </>
                 ) : (
                   <div className="space-y-1">
                     {targetCreators.map((c) => (
-                      <p key={c.id} className="text-sm text-gray-700">{c.name} <span className="text-gray-400 text-xs">— {c.city}</span></p>
+                      <p key={c.id} className="text-sm text-gray-700">
+                        {c.name}{" "}
+                        {c.city
+                          ? <span className="text-gray-400 text-xs">— {c.city}</span>
+                          : <span className="text-amber-500 text-xs">— Sin dirección</span>
+                        }
+                      </p>
                     ))}
                   </div>
                 )}
