@@ -50,13 +50,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Creator not found" }, { status: 404 })
     }
 
-    if (!creator.address || !creator.city) {
-      return NextResponse.json(
-        { error: "El creator no tiene dirección de envío cargada" },
-        { status: 422 }
-      )
-    }
-
     // Obtener la conexión con Tiendanube
     const connection = await prisma.tiendanubeConnection.findUnique({
       where: { workspaceId: data.workspaceId },
@@ -73,12 +66,23 @@ export async function POST(request: NextRequest) {
       (sum, p) => sum + p.value * p.quantity, 0
     )
 
-    // Crear la orden en Tiendanube
     const nameParts = creator.name.trim().split(" ")
     const firstName = nameParts[0]
     const lastName = nameParts.slice(1).join(" ") || nameParts[0]
+    const hasAddress = !!(creator.address && creator.city)
 
+    // Crear la orden en Tiendanube (con dirección o sin ella)
     const accessToken = decrypt(connection.accessToken)
+    const addressPayload = {
+      first_name: firstName,
+      last_name: lastName,
+      address: creator.address || "",
+      city: creator.city || "",
+      province: creator.province || "",
+      zipcode: creator.zipCode || "",
+      country: creator.country || "AR",
+      phone: creator.phone || "",
+    }
     const tnOrder = await createTiendanubeGiftingOrder(
       connection.storeId,
       accessToken,
@@ -88,28 +92,10 @@ export async function POST(request: NextRequest) {
         products: data.products.map((p) => ({
           variant_id: p.variantId,
           quantity: p.quantity,
-          price: 0, // Gifting = precio $0
+          price: 0,
         })),
-        shipping_address: {
-          first_name: firstName,
-          last_name: lastName,
-          address: creator.address!,
-          city: creator.city!,
-          province: creator.province || "",
-          zipcode: creator.zipCode || "",
-          country: creator.country || "AR",
-          phone: creator.phone || "",
-        },
-        billing_address: {
-          first_name: firstName,
-          last_name: lastName,
-          address: creator.address!,
-          city: creator.city!,
-          province: creator.province || "",
-          zipcode: creator.zipCode || "",
-          country: creator.country || "AR",
-          phone: creator.phone || "",
-        },
+        shipping_address: addressPayload,
+        billing_address: addressPayload,
         note: data.notes,
         send_email: false,
       }
@@ -125,7 +111,7 @@ export async function POST(request: NextRequest) {
         tiendanubeStoreId: connection.storeId,
         products: data.products,
         totalValue,
-        status: "PROCESSING",
+        status: hasAddress ? "PROCESSING" : "PENDING",
         notes: data.notes,
       },
     })
