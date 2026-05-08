@@ -66,40 +66,45 @@ export async function POST(request: NextRequest) {
       (sum, p) => sum + p.value * p.quantity, 0
     )
 
+    const hasAddress = !!(creator.address && creator.city)
     const nameParts = creator.name.trim().split(" ")
     const firstName = nameParts[0]
     const lastName = nameParts.slice(1).join(" ") || nameParts[0]
-    const hasAddress = !!(creator.address && creator.city)
 
-    // Crear la orden en Tiendanube (con dirección o sin ella)
-    const accessToken = decrypt(connection.accessToken)
-    const addressPayload = {
-      first_name: firstName,
-      last_name: lastName,
-      address: creator.address || "",
-      city: creator.city || "",
-      province: creator.province || "",
-      zipcode: creator.zipCode || "",
-      country: creator.country || "AR",
-      phone: creator.phone || "",
-    }
-    const tnOrder = await createTiendanubeGiftingOrder(
-      connection.storeId,
-      accessToken,
-      {
-        contact_email: creator.email,
-        contact_name: creator.name,
-        products: data.products.map((p) => ({
-          variant_id: p.variantId,
-          quantity: p.quantity,
-          price: 0,
-        })),
-        shipping_address: addressPayload,
-        billing_address: addressPayload,
-        note: data.notes,
-        send_email: false,
+    let tiendanubeOrderId: string | undefined
+
+    if (hasAddress) {
+      // Crear la orden en Tiendanube solo si hay dirección
+      const accessToken = decrypt(connection.accessToken)
+      const addressPayload = {
+        first_name: firstName,
+        last_name: lastName,
+        address: creator.address!,
+        city: creator.city!,
+        province: creator.province || "",
+        zipcode: creator.zipCode || "",
+        country: creator.country || "AR",
+        phone: creator.phone || "",
       }
-    )
+      const tnOrder = await createTiendanubeGiftingOrder(
+        connection.storeId,
+        accessToken,
+        {
+          contact_email: creator.email,
+          contact_name: creator.name,
+          products: data.products.map((p) => ({
+            variant_id: p.variantId,
+            quantity: p.quantity,
+            price: 0,
+          })),
+          shipping_address: addressPayload,
+          billing_address: addressPayload,
+          note: data.notes,
+          send_email: false,
+        }
+      )
+      tiendanubeOrderId = (tnOrder as any).id?.toString()
+    }
 
     // Guardar el gifting en Kool
     const giftingOrder = await prisma.giftingOrder.create({
@@ -107,7 +112,7 @@ export async function POST(request: NextRequest) {
         workspaceId: data.workspaceId,
         creatorId: data.creatorId,
         campaignId: data.campaignId,
-        tiendanubeOrderId: (tnOrder as any).id?.toString(),
+        tiendanubeOrderId: tiendanubeOrderId ?? null,
         tiendanubeStoreId: connection.storeId,
         products: data.products,
         totalValue,
@@ -119,7 +124,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       ok: true,
       giftingOrder,
-      tiendanubeOrderId: (tnOrder as any).id,
+      tiendanubeOrderId,
     })
   } catch (error) {
     if (error instanceof z.ZodError) {

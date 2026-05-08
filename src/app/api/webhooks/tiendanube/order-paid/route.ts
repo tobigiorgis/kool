@@ -76,7 +76,7 @@ export async function POST(request: NextRequest) {
 
         const dropProduct = await prisma.dropProduct.findFirst({
           where: {
-            drop: { workspaceId: connection.workspaceId, status: "ACTIVE" },
+            drop: { workspaceId: connection.workspaceId },
             OR: [
               productIdStr ? { tiendanubeProductId: productIdStr } : {},
               variantIdStr ? { tiendanubeVariantId: variantIdStr } : {},
@@ -184,7 +184,7 @@ export async function POST(request: NextRequest) {
 
         const dropProduct = await tx.dropProduct.findFirst({
           where: {
-            drop: { workspaceId: connection.workspaceId, status: "ACTIVE" },
+            drop: { workspaceId: connection.workspaceId },
             OR: [
               productIdStr ? { tiendanubeProductId: productIdStr } : {},
               variantIdStr ? { tiendanubeVariantId: variantIdStr } : {},

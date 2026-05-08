@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from "react"
 import { useParams } from "next/navigation"
 import Link from "next/link"
-import { ArrowLeft, Plus, Trash2, X, Link2, Check, ChevronRight, Search, Pencil } from "lucide-react"
+import { ArrowLeft, Plus, Trash2, X, Link2, Check, ChevronRight, Search, Pencil, RefreshCw } from "lucide-react"
 import {
   LOCAL_STAGE_LABELS,
   IMPORT_STAGE_LABELS,
@@ -105,6 +105,8 @@ export default function DropDetailPage() {
   const [showAllExpenses, setShowAllExpenses] = useState(false)
   const [filterCategory, setFilterCategory] = useState<string>("ALL")
   const [filterProduct, setFilterProduct] = useState<string>("ALL")
+  const [syncing, setSyncing] = useState(false)
+  const [syncResult, setSyncResult] = useState<{ salesCreated: number; ordersChecked: number } | null>(null)
 
   const load = useCallback(() => {
     fetch(`/api/drops/${dropId}`)
@@ -127,6 +129,26 @@ export default function DropDetailPage() {
     })
     setDrop((d) => d ? { ...d, status: status as Drop["status"] } : d)
     setUpdatingStatus(false)
+  }
+
+  const syncSales = async () => {
+    if (!workspaceId) return
+    setSyncing(true)
+    setSyncResult(null)
+    try {
+      const res = await fetch("/api/tiendanube/sync-sales", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ workspaceId }),
+      })
+      const data = await res.json()
+      if (data.ok) {
+        setSyncResult({ salesCreated: data.salesCreated, ordersChecked: data.ordersChecked })
+        if (data.salesCreated > 0) load()
+      }
+    } finally {
+      setSyncing(false)
+    }
   }
 
   const deleteExpense = async (expenseId: string) => {
@@ -260,6 +282,27 @@ export default function DropDetailPage() {
                 <option value="ACTIVE">Activo</option>
                 <option value="CLOSED">Cerrado</option>
               </select>
+              {workspaceId && (
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={syncSales}
+                    disabled={syncing}
+                    title="Sincronizar ventas desde Tiendanube"
+                    className="flex items-center gap-1.5 text-xs text-gray-500 border border-gray-200 px-2.5 py-1 rounded-lg hover:bg-gray-50 disabled:opacity-50 transition-colors"
+                  >
+                    <RefreshCw size={11} className={syncing ? "animate-spin" : ""} />
+                    {syncing ? "Sincronizando..." : "Sync TN"}
+                  </button>
+                  {syncResult && (
+                    <span className="text-xs text-gray-400">
+                      {syncResult.salesCreated > 0
+                        ? <span className="text-[#00903c] font-medium">+{syncResult.salesCreated} ventas registradas</span>
+                        : <span>Sin ventas nuevas ({syncResult.ordersChecked} órdenes revisadas)</span>
+                      }
+                    </span>
+                  )}
+                </div>
+              )}
             </div>
             <p className="text-sm text-gray-400 mt-0.5">
               Lanzamiento: {new Date(drop.launchDate).toLocaleDateString("es-AR", { day: "numeric", month: "long", year: "numeric" })}
@@ -1262,9 +1305,7 @@ function ConnectProductModal({ dropId, dropProduct, workspaceId, onClose, onSave
   const [loadingTn, setLoadingTn] = useState(true)
   const [tnError, setTnError] = useState<string | null>(null)
   const [search, setSearch] = useState("")
-  const [selectedProduct, setSelectedProduct] = useState<TiendanubeProduct | null>(null)
-  const [selectedVariant, setSelectedVariant] = useState<TiendanubeVariant | null>(null)
-  const [saving, setSaving] = useState(false)
+  const [connecting, setConnecting] = useState<number | null>(null)
 
   useEffect(() => {
     fetch(`/api/tiendanube/products?workspaceId=${workspaceId}`)
@@ -1279,30 +1320,28 @@ function ConnectProductModal({ dropId, dropProduct, workspaceId, onClose, onSave
 
   const filtered = tnProducts.filter((p) => productName(p).toLowerCase().includes(search.toLowerCase()))
 
-  const handleConnect = async () => {
-    if (!selectedProduct) return
-    const variant = selectedVariant ?? (selectedProduct.variants.length === 1 ? selectedProduct.variants[0] : null)
-    setSaving(true)
+  const handleConnect = async (p: TiendanubeProduct) => {
+    setConnecting(p.id)
     await fetch(`/api/drops/${dropId}/products/${dropProduct.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        tiendanubeProductId: selectedProduct.id.toString(),
-        tiendanubeVariantId: variant ? variant.id.toString() : null,
+        tiendanubeProductId: p.id.toString(),
+        tiendanubeVariantId: null, // conexión a nivel producto, captura todos los talles
       }),
     })
-    setSaving(false)
+    setConnecting(null)
     onSaved()
   }
 
   const handleDisconnect = async () => {
-    setSaving(true)
+    setConnecting(-1)
     await fetch(`/api/drops/${dropId}/products/${dropProduct.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ tiendanubeProductId: null, tiendanubeVariantId: null }),
     })
-    setSaving(false)
+    setConnecting(null)
     onSaved()
   }
 
@@ -1321,105 +1360,82 @@ function ConnectProductModal({ dropId, dropProduct, workspaceId, onClose, onSave
           <div className="mx-5 mt-4 flex items-center justify-between p-3 bg-[#e6faf0] rounded-lg border border-[#b3efd4]">
             <div className="flex items-center gap-2">
               <Check size={14} className="text-[#00903c]" />
-              <span className="text-xs text-[#00903c] font-medium">Conectado a producto #{dropProduct.tiendanubeProductId}</span>
+              <span className="text-xs text-[#00903c] font-medium">Conectado · todos los talles registran ventas</span>
             </div>
-            <button onClick={handleDisconnect} disabled={saving} className="text-xs text-gray-400 hover:text-red-500 transition-colors">
+            <button onClick={handleDisconnect} disabled={connecting !== null} className="text-xs text-gray-400 hover:text-red-500 transition-colors">
               Desconectar
             </button>
           </div>
         )}
 
-        {!selectedProduct ? (
-          <>
-            <div className="p-4 border-b border-gray-100 flex-shrink-0">
-              <div className="relative">
-                <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                <input type="text" placeholder="Buscar producto..." value={search} onChange={(e) => setSearch(e.target.value)} autoFocus
-                  className="w-full pl-8 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C46A]/30 focus:border-[#00C46A]" />
-              </div>
+        <div className="p-4 border-b border-gray-100 flex-shrink-0">
+          <div className="relative">
+            <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <input type="text" placeholder="Buscar producto de Tiendanube..." value={search} onChange={(e) => setSearch(e.target.value)} autoFocus
+              className="w-full pl-8 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C46A]/30 focus:border-[#00C46A]" />
+          </div>
+        </div>
+
+        <div className="overflow-y-auto flex-1">
+          {loadingTn ? (
+            <div className="p-8 text-center text-sm text-gray-400 animate-pulse">Cargando productos de Tiendanube...</div>
+          ) : tnError ? (
+            <div className="p-8 text-center">
+              <p className="text-sm text-red-400">{tnError}</p>
+              <p className="text-xs text-gray-400 mt-1">Verificá que tu tienda esté conectada en Configuración</p>
             </div>
-            <div className="overflow-y-auto flex-1">
-              {loadingTn ? (
-                <div className="p-8 text-center text-sm text-gray-400 animate-pulse">Cargando productos de Tiendanube...</div>
-              ) : tnError ? (
-                <div className="p-8 text-center">
-                  <p className="text-sm text-red-400">{tnError}</p>
-                  <p className="text-xs text-gray-400 mt-1">Verificá que tu tienda esté conectada en Configuración</p>
-                </div>
-              ) : filtered.length === 0 ? (
-                <div className="p-8 text-center text-sm text-gray-400">{search ? "No se encontraron productos" : "No hay productos en la tienda"}</div>
-              ) : (
-                <ul className="divide-y divide-gray-50">
-                  {filtered.map((p) => (
-                    <li key={p.id}>
-                      <button onClick={() => { setSelectedProduct(p); setSelectedVariant(p.variants.length === 1 ? p.variants[0] : null) }}
-                        className="w-full flex items-center gap-3 px-5 py-3 hover:bg-gray-50 transition-colors text-left">
-                        {p.images[0] ? (
-                          <img src={p.images[0].src} alt={productName(p)} className="w-9 h-9 rounded object-cover flex-shrink-0" />
-                        ) : (
-                          <div className="w-9 h-9 rounded bg-gray-100 flex items-center justify-center flex-shrink-0">
-                            <span className="text-xs text-gray-400">{productName(p).charAt(0)}</span>
-                          </div>
-                        )}
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm text-gray-900 truncate">{productName(p)}</p>
-                          <p className="text-xs text-gray-400">
-                            {p.variants.length} variante{p.variants.length !== 1 ? "s" : ""}
-                            {p.variants[0]?.price && ` · $${parseFloat(p.variants[0].price).toLocaleString("es-AR")}`}
-                          </p>
+          ) : filtered.length === 0 ? (
+            <div className="p-8 text-center text-sm text-gray-400">{search ? "No se encontraron productos" : "No hay productos en la tienda"}</div>
+          ) : (
+            <ul className="divide-y divide-gray-50">
+              {filtered.map((p) => {
+                const isConnected = dropProduct.tiendanubeProductId === p.id.toString()
+                const isConnecting = connecting === p.id
+                const prices = p.variants.map((v) => parseFloat(v.price)).filter(Boolean)
+                const minPrice = prices.length ? Math.min(...prices) : null
+                const totalStock = p.variants.reduce((s, v) => s + (v.stock ?? 0), 0)
+                return (
+                  <li key={p.id}>
+                    <button
+                      onClick={() => handleConnect(p)}
+                      disabled={connecting !== null}
+                      className={`w-full flex items-center gap-3 px-5 py-3 hover:bg-gray-50 transition-colors text-left disabled:opacity-60 ${isConnected ? "bg-[#f0fdf6]" : ""}`}
+                    >
+                      {p.images[0] ? (
+                        <img src={p.images[0].src} alt={productName(p)} className="w-9 h-9 rounded object-cover flex-shrink-0" />
+                      ) : (
+                        <div className="w-9 h-9 rounded bg-gray-100 flex items-center justify-center flex-shrink-0">
+                          <span className="text-xs text-gray-400">{productName(p).charAt(0)}</span>
                         </div>
-                        <ChevronRight size={14} className="text-gray-300 flex-shrink-0" />
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          </>
-        ) : (
-          <>
-            <button onClick={() => { setSelectedProduct(null); setSelectedVariant(null) }}
-              className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-600 transition-colors px-5 pt-4">
-              <ArrowLeft size={12} />Volver
-            </button>
-            <div className="px-5 pt-3 pb-2 flex-shrink-0">
-              <div className="flex items-center gap-3">
-                {selectedProduct.images[0] && <img src={selectedProduct.images[0].src} alt={productName(selectedProduct)} className="w-10 h-10 rounded object-cover" />}
-                <div>
-                  <p className="text-sm font-medium text-gray-900">{productName(selectedProduct)}</p>
-                  <p className="text-xs text-gray-400">{selectedProduct.variants.length > 1 ? "Seleccioná una variante" : "Producto sin variantes"}</p>
-                </div>
-              </div>
-            </div>
-            <div className="overflow-y-auto flex-1 px-5 pb-4">
-              {selectedProduct.variants.length > 1 && (
-                <ul className="space-y-2 mt-2">
-                  {selectedProduct.variants.map((v) => (
-                    <li key={v.id}>
-                      <button onClick={() => setSelectedVariant(v)}
-                        className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border text-left transition-colors ${
-                          selectedVariant?.id === v.id ? "border-[#00C46A] bg-[#e6faf0]" : "border-gray-100 hover:border-gray-200 hover:bg-gray-50"
-                        }`}>
-                        <div>
-                          <p className="text-sm text-gray-900">{v.sku ? `SKU: ${v.sku}` : `Variante #${v.id}`}</p>
-                          <p className="text-xs text-gray-400">${parseFloat(v.price).toLocaleString("es-AR")}{v.stock !== null && ` · Stock: ${v.stock}`}</p>
-                        </div>
-                        {selectedVariant?.id === v.id && <Check size={14} className="text-[#00903c]" />}
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-            <div className="p-5 border-t border-gray-100 flex gap-3 flex-shrink-0">
-              <button onClick={handleConnect} disabled={saving || (selectedProduct.variants.length > 1 && !selectedVariant)}
-                className="flex-1 bg-gray-900 text-white py-2.5 rounded-lg text-sm font-medium hover:bg-gray-800 disabled:opacity-50 transition-colors">
-                {saving ? "Conectando..." : "Conectar producto"}
-              </button>
-              <button onClick={onClose} className="px-4 text-sm text-gray-500 hover:text-gray-700 transition-colors">Cancelar</button>
-            </div>
-          </>
-        )}
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm text-gray-900 truncate">{productName(p)}</p>
+                        <p className="text-xs text-gray-400">
+                          {p.variants.length} talle{p.variants.length !== 1 ? "s" : ""}
+                          {minPrice != null && ` · $${minPrice.toLocaleString("es-AR")}`}
+                          {totalStock > 0 && ` · ${totalStock} en stock`}
+                        </p>
+                      </div>
+                      {isConnected ? (
+                        <Check size={14} className="text-[#00903c] flex-shrink-0" />
+                      ) : isConnecting ? (
+                        <span className="text-xs text-gray-400">Conectando...</span>
+                      ) : (
+                        <span className="text-xs text-gray-400 border border-gray-200 px-2 py-0.5 rounded-md hover:border-gray-400 transition-colors">
+                          Conectar
+                        </span>
+                      )}
+                    </button>
+                  </li>
+                )
+              })}
+            </ul>
+          )}
+        </div>
+
+        <div className="px-5 py-3 border-t border-gray-50 flex-shrink-0">
+          <p className="text-xs text-gray-400">Al conectar, se registran ventas de cualquier talle del producto seleccionado</p>
+        </div>
       </div>
     </div>
   )

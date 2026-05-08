@@ -313,6 +313,32 @@ export async function createTiendanubeGiftingOrder(
 }
 
 // ─────────────────────────────────────────────
+// ÓRDENES
+// ─────────────────────────────────────────────
+
+export async function getTiendanubeOrders(
+  storeId: string,
+  accessToken: string,
+  params: { per_page?: number; page?: number; payment_status?: string } = {}
+): Promise<TiendanubeOrder[]> {
+  const qs = new URLSearchParams({
+    per_page: String(params.per_page ?? 50),
+    page: String(params.page ?? 1),
+    ...(params.payment_status ? { payment_status: params.payment_status } : {}),
+  })
+  return tiendanubeRequest<TiendanubeOrder[]>(
+    storeId, accessToken, "GET", `/orders?${qs}`
+  )
+}
+
+export async function getTiendanubeWebhooks(
+  storeId: string,
+  accessToken: string
+): Promise<{ id: number; event: string; url: string }[]> {
+  return tiendanubeRequest(storeId, accessToken, "GET", "/webhooks")
+}
+
+// ─────────────────────────────────────────────
 // WEBHOOKS — REGISTRO
 // ─────────────────────────────────────────────
 
