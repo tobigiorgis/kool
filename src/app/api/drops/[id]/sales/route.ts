@@ -9,12 +9,12 @@ import { prisma } from "@/lib/prisma"
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const { userId } = await auth()
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-  const dropId = params.id
+  const { id: dropId } = await params
 
   // Verificar que el drop pertenece a un workspace del usuario
   const drop = await prisma.drop.findUnique({
