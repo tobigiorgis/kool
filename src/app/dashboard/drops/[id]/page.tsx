@@ -131,11 +131,14 @@ export default function DropDetailPage() {
     setUpdatingStatus(false)
   }
 
-  const syncSales = async () => {
+  const syncSales = async (clearFirst = false) => {
     if (!workspaceId) return
     setSyncing(true)
     setSyncResult(null)
     try {
+      if (clearFirst) {
+        await fetch(`/api/drops/${dropId}/sales`, { method: "DELETE" })
+      }
       const res = await fetch("/api/tiendanube/sync-sales", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -144,7 +147,7 @@ export default function DropDetailPage() {
       const data = await res.json()
       if (data.ok) {
         setSyncResult({ salesCreated: data.salesCreated, ordersChecked: data.ordersChecked })
-        if (data.salesCreated > 0) load()
+        load()
       }
     } finally {
       setSyncing(false)
@@ -285,13 +288,26 @@ export default function DropDetailPage() {
               {workspaceId && (
                 <div className="flex items-center gap-2">
                   <button
-                    onClick={syncSales}
+                    onClick={() => syncSales(false)}
                     disabled={syncing}
                     title="Sincronizar ventas desde Tiendanube"
                     className="flex items-center gap-1.5 text-xs text-gray-500 border border-gray-200 px-2.5 py-1 rounded-lg hover:bg-gray-50 disabled:opacity-50 transition-colors"
                   >
                     <RefreshCw size={11} className={syncing ? "animate-spin" : ""} />
                     {syncing ? "Sincronizando..." : "Sync TN"}
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (confirm("Esto borra todas las ventas registradas de este drop y re-sincroniza desde Tiendanube. ¿Continuar?")) {
+                        syncSales(true)
+                      }
+                    }}
+                    disabled={syncing}
+                    title="Limpiar ventas y re-sincronizar desde cero"
+                    className="flex items-center gap-1.5 text-xs text-red-400 border border-red-200 px-2.5 py-1 rounded-lg hover:bg-red-50 disabled:opacity-50 transition-colors"
+                  >
+                    <RefreshCw size={11} />
+                    Limpiar y re-sync
                   </button>
                   {syncResult && (
                     <span className="text-xs text-gray-400">
