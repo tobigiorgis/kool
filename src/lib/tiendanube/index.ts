@@ -48,6 +48,8 @@ export interface TiendanubeOrder {
   payment_status: string
   total: string
   currency: string
+  created_at: string  // ISO 8601
+  paid_at?: string    // ISO 8601, disponible cuando payment_status = "paid"
   customer: {
     name: string
     email: string
@@ -384,6 +386,7 @@ export function parseTiendanubeOrderWebhook(order: TiendanubeOrder): {
   storeId?: string
   orderAmount: number
   currency: string
+  orderDate: Date        // Fecha en que se pagó (o creó si paid_at no está)
   creatorCode: string | null  // El código del creator si usó cupón
   utmCampaign: string | null  // UTM campaign si viene en la URL
 } {
@@ -400,6 +403,7 @@ export function parseTiendanubeOrderWebhook(order: TiendanubeOrder): {
     orderId: order.id.toString(),
     orderAmount: parseFloat(order.total),
     currency: order.currency,
+    orderDate: new Date(order.paid_at || order.created_at),
     creatorCode,
     utmCampaign: order.utm_parameters?.campaign || null,
   }

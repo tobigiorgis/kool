@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
         { tiendanubeVariantId: { not: null } },
       ],
     },
-    include: { drop: { select: { id: true, status: true } } },
+    include: { drop: { select: { id: true, status: true, launchDate: true } } },
   })
 
   let created = 0
@@ -51,6 +51,7 @@ export async function POST(request: NextRequest) {
   for (const order of orders) {
     const orderId = order.id.toString()
     const orderProducts = (order as any).products ?? []
+    const orderDate = new Date(order.paid_at || order.created_at)
 
     for (const op of orderProducts) {
       const productIdStr = op.product_id?.toString()
@@ -64,6 +65,9 @@ export async function POST(request: NextRequest) {
       )
 
       if (!dropProduct) continue
+
+      // Solo contar ventas desde la fecha de lanzamiento del drop
+      if (orderDate < dropProduct.drop.launchDate) { skipped++; continue }
 
       // Verificar que ya no existe esta venta para este orderId + dropProduct
       const existing = await prisma.dropProductSale.findFirst({

@@ -82,9 +82,13 @@ export async function POST(request: NextRequest) {
               variantIdStr ? { tiendanubeVariantId: variantIdStr } : {},
             ],
           },
+          include: { drop: { select: { launchDate: true } } },
         })
 
         if (!dropProduct) continue
+
+        // Solo contar ventas desde la fecha de lanzamiento
+        if (parsed.orderDate < dropProduct.drop.launchDate) continue
 
         const qty = op.quantity || 1
         const unitPrice = parseFloat(op.price || "0")
@@ -190,9 +194,13 @@ export async function POST(request: NextRequest) {
               variantIdStr ? { tiendanubeVariantId: variantIdStr } : {},
             ],
           },
+          include: { drop: { select: { launchDate: true } } },
         })
 
         if (!dropProduct) continue
+
+        // Solo contar ventas desde la fecha de lanzamiento
+        if (parsed.orderDate < dropProduct.drop.launchDate) continue
 
         const qty = op.quantity || 1
         const unitPrice = parseFloat(op.price || "0")
