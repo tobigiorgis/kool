@@ -32,6 +32,7 @@ export async function GET() {
         },
       },
       expenses: { select: { amount: true } },
+      sale: { select: { name: true, startDate: true, endDate: true, status: true, generalDiscountPct: true } },
     },
     orderBy: { launchDate: "desc" },
   })
@@ -63,6 +64,7 @@ export async function GET() {
       profit,
       margin,
       stockSoldPct,
+      sale: drop.sale ?? null,
     }
   })
 

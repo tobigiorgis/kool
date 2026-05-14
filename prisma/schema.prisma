@@ -604,6 +604,7 @@ model Drop {
   expenses    Expense[]
   debts       DropDebt[]
   cash        DropCash?
+  sale        DropSale?
 
   @@index([workspaceId])
   @@map("drops")
@@ -635,6 +636,7 @@ model DropProduct {
   drop                Drop                @relation(fields: [dropId], references: [id], onDelete: Cascade)
   expenseAssignments  ExpenseAssignment[]
   sales               DropProductSale[]
+  saleDiscount        DropSaleProduct?
 
   @@index([dropId])
   @@map("drop_products")
@@ -727,12 +729,62 @@ model DropProductSale {
   orderId  String?
   soldAt   DateTime @default(now())
 
+  duringSale      Boolean @default(false)
+  saleDiscountPct Float?
+
   dropProduct DropProduct @relation(fields: [dropProductId], references: [id], onDelete: Cascade)
   conversion  Conversion? @relation(fields: [conversionId], references: [id])
 
   @@index([dropProductId])
   @@index([orderId])
   @@map("drop_product_sales")
+}
+
+model DropSale {
+  id     String @id @default(cuid())
+  dropId String @unique
+
+  name      String
+  startDate DateTime
+  endDate   DateTime
+
+  generalDiscountPct Float?
+
+  status SaleStatus @default(SCHEDULED)
+  notes  String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  drop             Drop              @relation(fields: [dropId], references: [id], onDelete: Cascade)
+  productDiscounts DropSaleProduct[]
+
+  @@map("drop_sales")
+}
+
+model DropSaleProduct {
+  id            String @id @default(cuid())
+  saleId        String
+  dropProductId String @unique
+
+  discountPct   Float
+  originalPrice Float
+  salePrice     Float
+
+  createdAt DateTime @default(now())
+
+  sale        DropSale    @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  dropProduct DropProduct @relation(fields: [dropProductId], references: [id], onDelete: Cascade)
+
+  @@unique([saleId, dropProductId])
+  @@map("drop_sale_products")
+}
+
+enum SaleStatus {
+  SCHEDULED
+  ACTIVE
+  ENDED
+  CANCELLED
 }
 
 enum DropStatus {

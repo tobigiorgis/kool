@@ -5,6 +5,14 @@ import Link from "next/link"
 import { Plus, Rocket } from "lucide-react"
 import { DROP_STATUS_LABELS, DROP_STATUS_COLORS, stageProgressColor } from "@/lib/drops/stages"
 
+interface DropSaleInfo {
+  name: string
+  startDate: string
+  endDate: string
+  status: string
+  generalDiscountPct: number | null
+}
+
 interface DropCard {
   id: string
   name: string
@@ -17,6 +25,7 @@ interface DropCard {
   profit: number
   stockSoldPct: number
   productionProgress: number
+  sale: DropSaleInfo | null
 }
 
 function fmt(n: number) {
@@ -108,6 +117,19 @@ function DropCard({ drop }: { drop: DropCard }) {
             <span className={`text-[11px] px-2 py-0.5 rounded-full font-medium flex-shrink-0 ${DROP_STATUS_COLORS[drop.status]}`}>
               {DROP_STATUS_LABELS[drop.status]}
             </span>
+            {(() => {
+              if (!drop.sale) return null
+              const now = new Date()
+              const start = new Date(drop.sale.startDate)
+              const end = new Date(drop.sale.endDate)
+              const isActive = drop.sale.status !== "CANCELLED" && now >= start && now <= end
+              if (!isActive) return null
+              return (
+                <span className="text-[11px] px-2 py-0.5 rounded-full font-medium flex-shrink-0 bg-red-100 text-red-700">
+                  🔥 Sale activo
+                </span>
+              )
+            })()}
           </div>
           <p className="text-xs text-gray-400 mt-0.5">
             {new Date(drop.launchDate).toLocaleDateString("es-AR", { day: "numeric", month: "short", year: "numeric" })}

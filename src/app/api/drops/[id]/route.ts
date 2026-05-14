@@ -35,6 +35,7 @@ export async function GET(
         include: { assignments: { include: { dropProduct: { select: { id: true, name: true } } } } },
         orderBy: { date: "desc" },
       },
+      sale: true,
     },
   })
 

@@ -13,6 +13,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { parseTiendanubeOrderWebhook } from "@/lib/tiendanube"
+import { getSaleRealStatus } from "@/lib/drops/sales"
 
 export async function POST(request: NextRequest) {
   try {
@@ -82,7 +83,10 @@ export async function POST(request: NextRequest) {
               variantIdStr ? { tiendanubeVariantId: variantIdStr } : {},
             ],
           },
-          include: { drop: { select: { launchDate: true } } },
+          include: {
+            drop: { select: { launchDate: true, sale: true } },
+            saleDiscount: true,
+          },
         })
 
         if (!dropProduct) continue
@@ -93,6 +97,13 @@ export async function POST(request: NextRequest) {
         const qty = op.quantity || 1
         const unitPrice = parseFloat(op.price || "0")
 
+        // Detectar si hay sale activo
+        const dropSale = dropProduct.drop.sale
+        const duringSale = !!dropSale && getSaleRealStatus(dropSale) === "ACTIVE"
+        const saleDiscountPct = duringSale
+          ? (dropProduct.saleDiscount?.discountPct ?? dropSale?.generalDiscountPct ?? null)
+          : null
+
         await prisma.dropProductSale.create({
           data: {
             dropProductId: dropProduct.id,
@@ -101,6 +112,8 @@ export async function POST(request: NextRequest) {
             unitPrice,
             totalAmount: unitPrice * qty,
             orderId: parsed.orderId,
+            duringSale,
+            saleDiscountPct,
           },
         })
       }
@@ -194,7 +207,10 @@ export async function POST(request: NextRequest) {
               variantIdStr ? { tiendanubeVariantId: variantIdStr } : {},
             ],
           },
-          include: { drop: { select: { launchDate: true } } },
+          include: {
+            drop: { select: { launchDate: true, sale: true } },
+            saleDiscount: true,
+          },
         })
 
         if (!dropProduct) continue
@@ -205,6 +221,13 @@ export async function POST(request: NextRequest) {
         const qty = op.quantity || 1
         const unitPrice = parseFloat(op.price || "0")
 
+        // Detectar si hay sale activo
+        const dropSaleTx = dropProduct.drop.sale
+        const duringSaleTx = !!dropSaleTx && getSaleRealStatus(dropSaleTx) === "ACTIVE"
+        const saleDiscountPctTx = duringSaleTx
+          ? (dropProduct.saleDiscount?.discountPct ?? dropSaleTx?.generalDiscountPct ?? null)
+          : null
+
         await tx.dropProductSale.create({
           data: {
             dropProductId: dropProduct.id,
@@ -213,6 +236,8 @@ export async function POST(request: NextRequest) {
             unitPrice,
             totalAmount: unitPrice * qty,
             orderId: parsed.orderId,
+            duringSale: duringSaleTx,
+            saleDiscountPct: saleDiscountPctTx,
           },
         })
       }

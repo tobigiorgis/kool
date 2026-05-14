@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from "react"
 import { useParams } from "next/navigation"
 import Link from "next/link"
-import { ArrowLeft, Plus, Trash2, X, Link2, Check, ChevronRight, Search, Pencil, RefreshCw } from "lucide-react"
+import { ArrowLeft, Plus, Trash2, X, Link2, Check, ChevronRight, Search, Pencil, RefreshCw, Tag } from "lucide-react"
 import {
   LOCAL_STAGE_LABELS,
   IMPORT_STAGE_LABELS,
@@ -352,6 +352,67 @@ export default function DropDetailPage() {
           <p className="text-xs text-gray-400 mt-0.5">{drop.products.length} productos</p>
         </div>
       </div>
+
+      {/* Sale CTA o badge */}
+      {(() => {
+        const sale = (drop as any).sale
+        if (!sale) {
+          return (
+            <Link
+              href={`/dashboard/drops/${dropId}/sale`}
+              className="flex items-center justify-between bg-white border border-dashed border-gray-200 rounded-xl p-4 mb-6 hover:border-brand-300 hover:bg-brand-50/30 transition-colors group"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 bg-gray-100 group-hover:bg-brand-100 rounded-lg flex items-center justify-center transition-colors">
+                  <Tag size={15} className="text-gray-400 group-hover:text-brand-500 transition-colors" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-gray-700">Crear sale para este Drop</p>
+                  <p className="text-xs text-gray-400">Aplicá descuentos y trackeá su impacto en ventas</p>
+                </div>
+              </div>
+              <ChevronRight size={15} className="text-gray-300 group-hover:text-brand-400 transition-colors" />
+            </Link>
+          )
+        }
+        const now = new Date()
+        const start = new Date(sale.startDate)
+        const end = new Date(sale.endDate)
+        const realStatus = sale.status === "CANCELLED" ? "CANCELLED"
+          : now < start ? "SCHEDULED"
+          : now > end ? "ENDED"
+          : "ACTIVE"
+        const statusMap: Record<string, { label: string; className: string }> = {
+          SCHEDULED: { label: "Programado", className: "bg-blue-100 text-blue-700" },
+          ACTIVE:    { label: "🔥 Sale activo", className: "bg-red-100 text-red-700" },
+          ENDED:     { label: "Finalizado", className: "bg-gray-100 text-gray-600" },
+          CANCELLED: { label: "Cancelado", className: "bg-gray-100 text-gray-400" },
+        }
+        const cfg = statusMap[realStatus]
+        return (
+          <Link
+            href={`/dashboard/drops/${dropId}/sale`}
+            className="flex items-center justify-between bg-white border border-gray-100 rounded-xl p-4 mb-6 hover:border-gray-200 transition-colors"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 bg-brand-50 rounded-lg flex items-center justify-center">
+                <Tag size={15} className="text-brand-500" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <p className="text-sm font-medium text-gray-900">{sale.name}</p>
+                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${cfg.className}`}>{cfg.label}</span>
+                </div>
+                <p className="text-xs text-gray-400">
+                  {new Date(sale.startDate).toLocaleDateString("es-AR")} — {new Date(sale.endDate).toLocaleDateString("es-AR")}
+                  {sale.generalDiscountPct ? ` · ${sale.generalDiscountPct}% de descuento` : ""}
+                </p>
+              </div>
+            </div>
+            <ChevronRight size={15} className="text-gray-300" />
+          </Link>
+        )
+      })()}
 
       {/* Avance de producción — barra grande + desglose */}
       <div className="bg-white border border-gray-100 rounded-xl p-5 mb-6">
