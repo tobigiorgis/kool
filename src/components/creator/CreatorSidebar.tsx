@@ -11,6 +11,8 @@ import {
   Activity,
   ChevronDown,
   HelpCircle,
+  FileText,
+  Settings,
 } from "lucide-react"
 
 interface Program {
@@ -32,6 +34,7 @@ const navItems = [
   { label: "Ganancias", href: "/earnings", icon: DollarSign },
   { label: "Analytics", href: "/analytics", icon: BarChart2 },
   { label: "Eventos", href: "/events", icon: Activity },
+  { label: "Briefings", href: "/briefings", icon: FileText },
 ]
 
 export default function CreatorSidebar({ programs }: CreatorSidebarProps) {
@@ -166,21 +169,31 @@ export default function CreatorSidebar({ programs }: CreatorSidebarProps) {
         )}
       </nav>
 
-      {/* Help & Support */}
-      {currentProgram && (
-        <div className="px-3 py-4 border-t border-gray-100">
-          <div className="flex items-center gap-2 px-3 py-1.5 mb-1">
-            <HelpCircle size={13} className="text-gray-400" />
-            <span className="text-xs font-medium text-gray-500">Soporte</span>
-          </div>
-          <Link
-            href="/creator"
-            className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors"
-          >
-            Mis programas
-          </Link>
-        </div>
-      )}
+      {/* Footer: perfil + soporte */}
+      <div className="px-3 py-4 border-t border-gray-100 space-y-0.5">
+        <Link
+          href="/creator/settings"
+          className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors ${
+            pathname === "/creator/settings"
+              ? "bg-gray-50 text-gray-900 font-medium"
+              : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+          }`}
+        >
+          <Settings size={15} className="text-gray-400" />
+          Mi perfil
+        </Link>
+        <Link
+          href="/creator"
+          className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors ${
+            pathname === "/creator"
+              ? "bg-gray-50 text-gray-900 font-medium"
+              : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+          }`}
+        >
+          <HelpCircle size={15} className="text-gray-400" />
+          Mis programas
+        </Link>
+      </div>
     </aside>
   )
 }
