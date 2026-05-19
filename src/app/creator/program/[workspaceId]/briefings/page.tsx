@@ -121,7 +121,7 @@ export default async function ProgramBriefingsPage({
                         {assets.map((a, i) => (
                           <a
                             key={i}
-                            href={a.url}
+                            href={`/api/files?url=${encodeURIComponent(a.url)}`}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:border-gray-300 hover:bg-gray-50 transition-colors"

@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
     if (!token) return NextResponse.json({ error: "BRIEF_READ_WRITE_TOKEN no configurado" }, { status: 500 })
 
     const filename = `briefings/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`
-    const blob = await put(filename, file, { access: "public", token })
+    const blob = await put(filename, file, { access: "private", token })
 
     return NextResponse.json({ url: blob.url, name: file.name, type: file.type, size: file.size })
   } catch (err) {

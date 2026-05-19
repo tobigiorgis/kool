@@ -137,7 +137,7 @@ export default function BriefingPage() {
                           {assets.map((a, i) => (
                             <a
                               key={i}
-                              href={a.url}
+                              href={`/api/files?url=${encodeURIComponent(a.url)}`}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="flex items-center gap-1.5 text-xs text-blue-600 bg-blue-50 hover:bg-blue-100 px-2.5 py-1 rounded-lg transition-colors"
@@ -384,7 +384,7 @@ function BriefingModal({
                     <div className="flex items-center gap-2 min-w-0">
                       <Paperclip size={13} className="text-gray-400 shrink-0" />
                       <a
-                        href={a.url}
+                        href={`/api/files?url=${encodeURIComponent(a.url)}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-xs text-blue-600 hover:underline truncate"
