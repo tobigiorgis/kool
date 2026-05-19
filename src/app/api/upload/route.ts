@@ -30,7 +30,10 @@ export async function POST(request: NextRequest) {
   }
 
   const filename = `briefings/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`
-  const blob = await put(filename, file, { access: "public" })
+  const blob = await put(filename, file, {
+    access: "public",
+    token: process.env.BRIEF_READ_WRITE_TOKEN,
+  })
 
   return NextResponse.json({ url: blob.url, name: file.name, type: file.type, size: file.size })
 }
