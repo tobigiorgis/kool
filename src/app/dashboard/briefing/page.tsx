@@ -238,14 +238,16 @@ function BriefingModal({
       const fd = new FormData()
       fd.append("file", file)
       const res = await fetch("/api/upload", { method: "POST", body: fd })
-      const data = await res.json()
+      const text = await res.text()
+      let data: Record<string, string>
+      try { data = JSON.parse(text) } catch { setError("Respuesta inválida: " + text.slice(0, 200)); return }
       if (!res.ok) {
         setError(data.error ?? "Error al subir el archivo")
         return
       }
       setAssets((prev) => [...prev, { name: data.name, url: data.url, type: data.type }])
-    } catch {
-      setError("Error de conexión al subir el archivo")
+    } catch (err) {
+      setError("Error de conexión al subir el archivo: " + String(err))
     } finally {
       setUploading(false)
       if (fileInputRef.current) fileInputRef.current.value = ""
