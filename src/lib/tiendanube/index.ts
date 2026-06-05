@@ -201,7 +201,7 @@ async function tiendanubeRequest<T>(
   const response = await fetch(url, {
     method,
     headers: {
-      "Authentication": `bearer ${accessToken}`,
+      "Authorization": `Bearer ${accessToken}`,
       "Content-Type": "application/json",
       "User-Agent": "Kool (hola@kool.link)",
     },
