@@ -6,7 +6,7 @@ import {
   ArrowLeft, MousePointerClick, ShoppingCart, DollarSign, TrendingUp,
   Users, Link2, X, RefreshCw, UserPlus, Trash2, RefreshCcw, Package,
   FileText, Plus, Paperclip, ExternalLink, Upload, CheckCircle2,
-  XCircle, ChevronDown, ChevronUp, Copy, Check, Instagram,
+  XCircle, ChevronDown, ChevronUp, Copy, Check, Instagram, Search, Gift, Minus,
 } from "lucide-react"
 import { formatNumber, formatCurrency, formatDate, generateDiscountCode } from "@/lib/utils"
 
@@ -108,6 +108,38 @@ interface AvailableCreator {
   commissionPct: number
 }
 
+interface SearchCreator {
+  id: string
+  name: string
+  email: string
+  instagram: string | null
+  commissionPct: number
+  alreadyInCampaign: boolean
+}
+
+interface TiendanubeVariant {
+  id: number
+  price: string
+  sku: string | null
+  stock: number | null
+}
+
+interface TiendanubeProduct {
+  id: number
+  name: { es: string } | string
+  variants: TiendanubeVariant[]
+  images: { src: string }[]
+}
+
+interface SelectedProduct {
+  variantId: number
+  productId: number
+  name: string
+  variantName: string
+  price: number
+  quantity: number
+}
+
 const STATUS_CONFIG: Record<string, { label: string; style: string }> = {
   PRE_LAUNCH: { label: "Pre-launch", style: "bg-amber-100 text-amber-700" },
   RUNNING: { label: "Activa", style: "bg-green-100 text-green-700" },
@@ -149,14 +181,18 @@ export default function CampaignDetailPage() {
 
   useEffect(() => { loadData() }, [loadData])
 
-  useEffect(() => {
-    if (tab !== "gifting" || giftingOrders.length > 0) return
+  const loadGifting = useCallback(() => {
     setGiftingLoading(true)
     fetch(`/api/gifting?campaignId=${id}`)
       .then((r) => r.json())
       .then((d) => setGiftingOrders(d.giftingOrders ?? []))
       .finally(() => setGiftingLoading(false))
-  }, [tab, id, giftingOrders.length])
+  }, [id])
+
+  useEffect(() => {
+    if (tab !== "gifting" || giftingOrders.length > 0) return
+    loadGifting()
+  }, [tab, id, giftingOrders.length, loadGifting])
 
   const loadApplications = useCallback(() => {
     if (!campaign?.slug) return
@@ -324,7 +360,12 @@ export default function CampaignDetailPage() {
       )}
 
       {tab === "gifting" && (
-        <GiftingTab orders={giftingOrders} loading={giftingLoading} />
+        <GiftingTab
+          orders={giftingOrders}
+          loading={giftingLoading}
+          campaign={campaign}
+          onGiftingCreated={() => { setGiftingOrders([]); loadGifting() }}
+        />
       )}
 
       {tab === "briefings" && (
@@ -617,63 +658,88 @@ const GIFTING_STATUS: Record<string, { label: string; style: string }> = {
   CANCELLED:  { label: "Cancelado",  style: "bg-red-100 text-red-600" },
 }
 
-function GiftingTab({ orders, loading }: { orders: GiftingOrder[]; loading: boolean }) {
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <RefreshCw size={18} className="animate-spin text-gray-400" />
-      </div>
-    )
-  }
-
-  if (orders.length === 0) {
-    return (
-      <div className="bg-white rounded-xl border border-gray-100 p-10 text-center">
-        <Package size={28} className="mx-auto text-gray-300 mb-3" />
-        <p className="text-sm text-gray-500">No hay gifting registrado en esta campaña.</p>
-        <p className="text-xs text-gray-400 mt-1">Al crear un gifting podés asignarlo a esta campaña.</p>
-      </div>
-    )
-  }
+function GiftingTab({ orders, loading, campaign, onGiftingCreated }: {
+  orders: GiftingOrder[]
+  loading: boolean
+  campaign: CampaignDetail
+  onGiftingCreated: () => void
+}) {
+  const [showCreate, setShowCreate] = useState(false)
 
   const total = orders.reduce((s, o) => s + o.totalValue, 0)
 
   return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between mb-2">
-        <p className="text-[13px] text-gray-500">{orders.length} envío{orders.length !== 1 ? "s" : ""}</p>
-        <p className="text-[13px] font-medium text-gray-700">Total: {formatCurrency(total)}</p>
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <p className="text-[13px] text-gray-500">
+          {loading ? "—" : `${orders.length} envío${orders.length !== 1 ? "s" : ""}`}
+          {!loading && orders.length > 0 && (
+            <span className="ml-2 text-gray-400">· Total: {formatCurrency(total)}</span>
+          )}
+        </p>
+        <button
+          onClick={() => setShowCreate(true)}
+          className="flex items-center gap-1.5 text-[13px] font-medium text-gray-700 border border-gray-200 px-3 py-1.5 rounded-lg hover:bg-gray-50 transition-colors"
+        >
+          <Gift size={14} />
+          Nuevo gifting
+        </button>
       </div>
-      {orders.map((order) => {
-        const cfg = GIFTING_STATUS[order.status] ?? GIFTING_STATUS.PENDING
-        const products = Array.isArray(order.products)
-          ? (order.products as { name: string; quantity: number }[])
-          : []
-        return (
-          <div key={order.id} className="bg-white rounded-xl border border-gray-100 p-4 flex items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-brand-50 flex items-center justify-center flex-shrink-0">
-                <Package size={15} className="text-brand-500" />
-              </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <p className="text-sm font-medium text-gray-900">{order.creator.name}</p>
-                  <span className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${cfg.style}`}>
-                    {cfg.label}
-                  </span>
+
+      {loading ? (
+        <div className="flex items-center justify-center py-12">
+          <RefreshCw size={18} className="animate-spin text-gray-400" />
+        </div>
+      ) : orders.length === 0 ? (
+        <div className="bg-white rounded-xl border border-gray-100 p-10 text-center">
+          <Package size={28} className="mx-auto text-gray-300 mb-3" />
+          <p className="text-sm text-gray-500">No hay gifting registrado en esta campaña.</p>
+          <button onClick={() => setShowCreate(true)} className="text-sm font-medium text-brand-600 hover:underline mt-2">
+            Crear primer gifting
+          </button>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {orders.map((order) => {
+            const cfg = GIFTING_STATUS[order.status] ?? GIFTING_STATUS.PENDING
+            const products = Array.isArray(order.products)
+              ? (order.products as { name: string; quantity: number }[])
+              : []
+            return (
+              <div key={order.id} className="bg-white rounded-xl border border-gray-100 p-4 flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-brand-50 flex items-center justify-center flex-shrink-0">
+                    <Package size={15} className="text-brand-500" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-medium text-gray-900">{order.creator.name}</p>
+                      <span className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${cfg.style}`}>
+                        {cfg.label}
+                      </span>
+                    </div>
+                    <p className="text-xs text-gray-400 mt-0.5">
+                      {products.map((p) => `${p.quantity}x ${p.name}`).join(" · ")}
+                    </p>
+                  </div>
                 </div>
-                <p className="text-xs text-gray-400 mt-0.5">
-                  {products.map((p) => `${p.quantity}x ${p.name}`).join(" · ")}
-                </p>
+                <div className="text-right flex-shrink-0">
+                  <p className="text-sm font-semibold text-gray-900">{formatCurrency(order.totalValue)}</p>
+                  <p className="text-xs text-gray-400">{new Date(order.createdAt).toLocaleDateString("es-AR")}</p>
+                </div>
               </div>
-            </div>
-            <div className="text-right flex-shrink-0">
-              <p className="text-sm font-semibold text-gray-900">{formatCurrency(order.totalValue)}</p>
-              <p className="text-xs text-gray-400">{new Date(order.createdAt).toLocaleDateString("es-AR")}</p>
-            </div>
-          </div>
-        )
-      })}
+            )
+          })}
+        </div>
+      )}
+
+      {showCreate && (
+        <CreateCampaignGiftingModal
+          campaign={campaign}
+          onClose={() => setShowCreate(false)}
+          onCreated={() => { setShowCreate(false); onGiftingCreated() }}
+        />
+      )}
     </div>
   )
 }
@@ -685,78 +751,51 @@ function AddCreatorsModal({ campaignId, workspaceId, existingCreatorIds, onClose
   onClose: () => void
   onAdded: () => void
 }) {
-  const [available, setAvailable] = useState<AvailableCreator[]>([])
-  const [selected, setSelected] = useState<Set<string>>(new Set())
-  const [configs, setConfigs] = useState<Record<string, CreatorConfig>>({})
-  const [step, setStep] = useState<"select" | "configure">("select")
-  const [loading, setLoading] = useState(true)
+  const [query, setQuery] = useState("")
+  const [results, setResults] = useState<SearchCreator[]>([])
+  const [searching, setSearching] = useState(false)
+  const [selected, setSelected] = useState<SearchCreator | null>(null)
+  const [commissionPct, setCommissionPct] = useState("10")
+  const [discountCode, setDiscountCode] = useState("")
   const [submitting, setSubmitting] = useState(false)
 
   useEffect(() => {
-    fetch(`/api/creators?workspaceId=${workspaceId}`)
-      .then((r) => r.json())
-      .then((data) => {
-        const filtered = (data.creators as AvailableCreator[]).filter(
-          (c) => !existingCreatorIds.includes(c.id)
+    if (query.length < 2) { setResults([]); return }
+    const timeout = setTimeout(async () => {
+      setSearching(true)
+      try {
+        const res = await fetch(
+          `/api/creators/search?q=${encodeURIComponent(query)}&campaignId=${campaignId}`
         )
-        setAvailable(filtered)
-      })
-      .finally(() => setLoading(false))
-  }, [workspaceId, existingCreatorIds])
-
-  const toggle = (creator: AvailableCreator) => {
-    setSelected((prev) => {
-      const next = new Set(prev)
-      if (next.has(creator.id)) {
-        next.delete(creator.id)
-      } else {
-        next.add(creator.id)
-        // Pre-fill config with auto-generated code
-        setConfigs((c) => ({
-          ...c,
-          [creator.id]: {
-            commissionPct: creator.commissionPct.toString(),
-            discountCode: generateDiscountCode(creator.name, creator.commissionPct),
-          },
-        }))
+        const data = await res.json()
+        setResults(data.creators ?? [])
+      } finally {
+        setSearching(false)
       }
-      return next
-    })
-  }
+    }, 300)
+    return () => clearTimeout(timeout)
+  }, [query, campaignId])
 
-  const updateConfig = (creatorId: string, field: keyof CreatorConfig, value: string) => {
-    setConfigs((c) => ({ ...c, [creatorId]: { ...c[creatorId], [field]: value } }))
-  }
-
-  const regenerateCode = (creator: AvailableCreator) => {
-    const pct = parseInt(configs[creator.id]?.commissionPct) || creator.commissionPct
-    const code = generateDiscountCode(creator.name, pct)
-    updateConfig(creator.id, "discountCode", code)
-  }
-
-  const handleNext = () => {
-    if (!selected.size) return
-    setStep("configure")
+  const handleSelect = (creator: SearchCreator) => {
+    setSelected(creator)
+    setCommissionPct(creator.commissionPct.toString())
+    setDiscountCode(generateDiscountCode(creator.name, creator.commissionPct))
   }
 
   const handleAdd = async () => {
+    if (!selected) return
     setSubmitting(true)
     try {
-      const results = await Promise.all(
-        Array.from(selected).map((creatorId) => {
-          const cfg = configs[creatorId]
-          return fetch(`/api/campaigns/${campaignId}/creators`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              creatorIds: [creatorId],
-              commissionPct: cfg ? parseFloat(cfg.commissionPct) : undefined,
-              discountCode: cfg?.discountCode || undefined,
-            }),
-          })
-        })
-      )
-      if (results.every((r) => r.ok)) {
+      const res = await fetch(`/api/campaigns/${campaignId}/creators`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          creatorIds: [selected.id],
+          commissionPct: parseFloat(commissionPct),
+          discountCode: discountCode || undefined,
+        }),
+      })
+      if (res.ok) {
         onAdded()
         onClose()
       }
@@ -765,151 +804,570 @@ function AddCreatorsModal({ campaignId, workspaceId, existingCreatorIds, onClose
     }
   }
 
-  const selectedCreators = available.filter((c) => selected.has(c.id))
+  return (
+    <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg">
+        <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100">
+          <h2 className="text-base font-semibold text-gray-900">
+            Agregar creator a la campaña
+          </h2>
+          <button onClick={onClose} className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg">
+            <X size={16} />
+          </button>
+        </div>
+
+        <div className="p-6 space-y-4">
+          {!selected ? (
+            <div>
+              {/* Search input */}
+              <div className="relative">
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                <input
+                  type="text"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="Buscar por nombre, email o @instagram..."
+                  autoFocus
+                  className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400"
+                />
+              </div>
+
+              {/* Results */}
+              {results.length > 0 && (
+                <div className="mt-2 border border-gray-100 rounded-lg overflow-hidden max-h-60 overflow-y-auto">
+                  {results.map((creator) => (
+                    <button
+                      key={creator.id}
+                      onClick={() => !creator.alreadyInCampaign && handleSelect(creator)}
+                      disabled={creator.alreadyInCampaign || existingCreatorIds.includes(creator.id)}
+                      className={`w-full flex items-center gap-3 px-4 py-3 text-left border-b border-gray-50 last:border-0 transition-colors ${
+                        creator.alreadyInCampaign || existingCreatorIds.includes(creator.id)
+                          ? "opacity-40 cursor-not-allowed"
+                          : "hover:bg-gray-50"
+                      }`}
+                    >
+                      <div className="w-8 h-8 rounded-full bg-brand-100 flex items-center justify-center text-brand-700 text-xs font-semibold flex-shrink-0">
+                        {creator.name.split(" ").map((n) => n[0]).join("").slice(0, 2)}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-gray-900">{creator.name}</p>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <span className="text-xs text-gray-400">{creator.email}</span>
+                          {creator.instagram && (
+                            <span className="text-xs text-gray-400 flex items-center gap-0.5">
+                              <Instagram size={10} />
+                              {creator.instagram}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      {(creator.alreadyInCampaign || existingCreatorIds.includes(creator.id)) && (
+                        <span className="text-xs text-gray-400 flex-shrink-0">Ya está</span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {query.length >= 2 && !searching && results.length === 0 && (
+                <p className="text-xs text-gray-400 mt-2 text-center py-3">
+                  No se encontraron creators con &quot;{query}&quot;
+                </p>
+              )}
+
+              {searching && (
+                <div className="flex items-center justify-center mt-3">
+                  <RefreshCw size={14} className="animate-spin text-gray-400" />
+                </div>
+              )}
+
+              <div className="mt-3 pt-3 border-t border-gray-100 text-center">
+                <p className="text-xs text-gray-400">
+                  ¿No está en Kool?{" "}
+                  <button
+                    onClick={onClose}
+                    className="text-brand-600 hover:underline"
+                  >
+                    Invitarlo desde Creators
+                  </button>
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {/* Selected creator preview */}
+              <div className="flex items-center gap-3 p-3 bg-brand-50 rounded-lg border border-brand-100">
+                <div className="w-9 h-9 rounded-full bg-brand-100 flex items-center justify-center text-brand-700 text-sm font-semibold flex-shrink-0">
+                  {selected.name.split(" ").map((n) => n[0]).join("").slice(0, 2)}
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-gray-900">{selected.name}</p>
+                  <p className="text-xs text-gray-500">{selected.email}</p>
+                </div>
+                <button
+                  onClick={() => { setSelected(null); setQuery("") }}
+                  className="text-xs text-gray-400 hover:text-gray-600"
+                >
+                  Cambiar
+                </button>
+              </div>
+
+              {/* Commission */}
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1.5">
+                  Comisión para esta campaña (%)
+                </label>
+                <input
+                  type="number"
+                  value={commissionPct}
+                  onChange={(e) => {
+                    setCommissionPct(e.target.value)
+                    setDiscountCode(generateDiscountCode(selected.name, parseInt(e.target.value) || 10))
+                  }}
+                  min="1" max="50"
+                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400"
+                />
+                <p className="text-xs text-gray-400 mt-1">Esta comisión aplica solo para esta campaña.</p>
+              </div>
+
+              {/* Discount code */}
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1.5">
+                  Código de descuento
+                </label>
+                <div className="flex gap-1">
+                  <input
+                    type="text"
+                    value={discountCode}
+                    onChange={(e) => setDiscountCode(e.target.value.toUpperCase())}
+                    className="flex-1 px-3 py-2 text-sm font-mono border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setDiscountCode(generateDiscountCode(selected.name, parseInt(commissionPct) || 10))}
+                    title="Regenerar código"
+                    className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg flex-shrink-0"
+                  >
+                    <RefreshCcw size={14} />
+                  </button>
+                </div>
+                <p className="text-xs text-gray-400 mt-1">
+                  Se crea automáticamente en Tiendanube.
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="px-6 py-4 border-t border-gray-100 flex gap-3">
+          <button
+            onClick={onClose}
+            className="flex-1 px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50"
+          >
+            Cancelar
+          </button>
+          {selected && (
+            <button
+              onClick={handleAdd}
+              disabled={submitting || !discountCode || !commissionPct}
+              className="flex-1 px-4 py-2 text-sm font-medium bg-gray-900 text-white rounded-lg hover:bg-gray-800 disabled:opacity-50"
+            >
+              {submitting ? "Agregando..." : "Agregar a la campaña"}
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────
+// CREATE CAMPAIGN GIFTING MODAL
+// ─────────────────────────────────────────────
+
+function productName(p: TiendanubeProduct): string {
+  return typeof p.name === "object" ? p.name.es : p.name
+}
+
+function CreateCampaignGiftingModal({
+  campaign,
+  onClose,
+  onCreated,
+}: {
+  campaign: CampaignDetail
+  onClose: () => void
+  onCreated: () => void
+}) {
+  const [step, setStep] = useState<"creator" | "products" | "confirm">("creator")
+  const [selectedCreators, setSelectedCreators] = useState<{ id: string; name: string; address: string | null; city: string | null }[]>([])
+  const [products, setProducts] = useState<TiendanubeProduct[]>([])
+  const [productsLoading, setProductsLoading] = useState(false)
+  const [selected, setSelected] = useState<SelectedProduct[]>([])
+  const [search, setSearch] = useState("")
+  const [notes, setNotes] = useState("")
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState("")
+
+  const campaignCreators = campaign.creators.map((cc) => ({
+    id: cc.creator.id,
+    name: cc.creator.name,
+    address: null as string | null,
+    city: null as string | null,
+  }))
+
+  const loadProducts = async () => {
+    setProductsLoading(true)
+    try {
+      const res = await fetch(`/api/tiendanube/products?workspaceId=${campaign.workspaceId}`)
+      const data = await res.json()
+      setProducts(data.products ?? [])
+    } finally {
+      setProductsLoading(false)
+    }
+  }
+
+  const goToProducts = () => {
+    setStep("products")
+    if (products.length === 0) loadProducts()
+  }
+
+  const addVariant = (product: TiendanubeProduct, variant: TiendanubeVariant) => {
+    const existing = selected.find((s) => s.variantId === variant.id)
+    if (existing) {
+      setSelected((prev) => prev.map((s) => s.variantId === variant.id ? { ...s, quantity: s.quantity + 1 } : s))
+    } else {
+      const name = productName(product)
+      const variantName = product.variants.length > 1 ? (variant.sku || `Variante ${variant.id}`) : ""
+      setSelected((prev) => [...prev, {
+        variantId: variant.id,
+        productId: product.id,
+        name,
+        variantName,
+        price: parseFloat(variant.price) || 0,
+        quantity: 1,
+      }])
+    }
+  }
+
+  const updateQty = (variantId: number, delta: number) => {
+    setSelected((prev) =>
+      prev
+        .map((s) => s.variantId === variantId ? { ...s, quantity: s.quantity + delta } : s)
+        .filter((s) => s.quantity > 0)
+    )
+  }
+
+  const filteredProducts = products.filter((p) =>
+    productName(p).toLowerCase().includes(search.toLowerCase())
+  )
+
+  const totalValue = selected.reduce((s, p) => s + p.price * p.quantity, 0)
+
+  const handleSubmit = async () => {
+    if (selectedCreators.length === 0 || selected.length === 0) return
+    setSubmitting(true)
+    setError("")
+    try {
+      const payload = selected.map((p) => ({
+        variantId: p.variantId,
+        productId: p.productId,
+        name: p.variantName ? `${p.name} - ${p.variantName}` : p.name,
+        quantity: p.quantity,
+        value: p.price,
+      }))
+
+      const results = await Promise.all(
+        selectedCreators.map((creator) =>
+          fetch("/api/gifting", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              workspaceId: campaign.workspaceId,
+              creatorId: creator.id,
+              campaignId: campaign.id,
+              products: payload,
+              notes: notes || undefined,
+            }),
+          }).then((r) => r.json())
+        )
+      )
+
+      const failed = results.find((r) => r.error)
+      if (failed) { setError(failed.error); return }
+      onCreated()
+    } catch {
+      setError("Error de conexión")
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const toggleCreator = (c: typeof campaignCreators[0]) => {
+    setSelectedCreators((prev) =>
+      prev.some((s) => s.id === c.id) ? prev.filter((s) => s.id !== c.id) : [...prev, c]
+    )
+  }
 
   return (
     <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[80vh] flex flex-col">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[85vh] flex flex-col">
+
+        {/* Header */}
         <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100">
           <div>
-            <h2 className="text-base font-semibold text-gray-900">
-              {step === "select" ? "Agregar creators" : "Asignar códigos"}
-            </h2>
-            <p className="text-xs text-gray-500 mt-0.5">
-              {step === "select"
-                ? "Seleccioná los creators para esta campaña."
-                : "Revisá el código y comisión de cada creator en esta campaña."}
-            </p>
+            <h2 className="text-base font-semibold text-gray-900">Nuevo gifting</h2>
+            <div className="flex items-center gap-2 mt-1">
+              {(["creator", "products", "confirm"] as const).map((s, i) => (
+                <div key={s} className="flex items-center gap-2">
+                  <span className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${
+                    step === s ? "bg-gray-900 text-white" : "bg-gray-100 text-gray-400"
+                  }`}>
+                    {i + 1}. {s === "creator" ? "Creator" : s === "products" ? "Productos" : "Confirmar"}
+                  </span>
+                  {i < 2 && <span className="text-gray-200 text-xs">›</span>}
+                </div>
+              ))}
+            </div>
           </div>
           <button onClick={onClose} className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg">
             <X size={16} />
           </button>
         </div>
 
-        <div className="flex-1 overflow-auto p-4">
-          {step === "select" ? (
-            loading ? (
-              <div className="flex items-center justify-center py-10">
-                <RefreshCw size={18} className="animate-spin text-gray-400" />
-              </div>
-            ) : available.length === 0 ? (
-              <div className="text-center py-10">
-                <p className="text-sm text-gray-400">Todos tus creators ya están en esta campaña.</p>
-              </div>
-            ) : (
-              <div className="space-y-1">
-                {available.map((c) => {
-                  const isSelected = selected.has(c.id)
-                  return (
-                    <button
-                      key={c.id}
-                      onClick={() => toggle(c)}
-                      className={`w-full flex items-center gap-3 px-3 py-3 rounded-lg text-left transition-colors ${
-                        isSelected ? "bg-brand-50 border border-brand-200" : "hover:bg-gray-50 border border-transparent"
-                      }`}
-                    >
-                      <div className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 ${
-                        isSelected ? "bg-brand-400 border-brand-400" : "border-gray-300"
-                      }`}>
-                        {isSelected && (
-                          <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
-                            <path d="M1 4L3.5 6.5L9 1" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                          </svg>
-                        )}
-                      </div>
-                      <div className="min-w-0 flex-1">
+        {/* Step 1: Select creators from campaign */}
+        {step === "creator" && (
+          <>
+            <div className="flex-1 overflow-auto p-6">
+              {campaignCreators.length === 0 ? (
+                <div className="text-center py-8">
+                  <Users size={24} className="mx-auto text-gray-300 mb-2" />
+                  <p className="text-sm text-gray-400">Esta campaña no tiene creators todavía.</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {campaignCreators.map((c) => {
+                    const isSelected = selectedCreators.some((s) => s.id === c.id)
+                    return (
+                      <button
+                        key={c.id}
+                        onClick={() => toggleCreator(c)}
+                        className={`w-full flex items-center gap-3 p-3 border rounded-xl text-left transition-colors ${
+                          isSelected ? "border-gray-900 bg-gray-50" : "border-gray-200 hover:border-gray-300"
+                        }`}
+                      >
+                        <div className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 ${
+                          isSelected ? "bg-gray-900 border-gray-900" : "border-gray-300"
+                        }`}>
+                          {isSelected && (
+                            <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
+                              <path d="M1 4L3.5 6.5L9 1" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                            </svg>
+                          )}
+                        </div>
+                        <div className="w-8 h-8 rounded-full bg-brand-100 flex items-center justify-center text-brand-700 text-xs font-semibold flex-shrink-0">
+                          {c.name.split(" ").map((n) => n[0]).join("").slice(0, 2)}
+                        </div>
                         <p className="text-sm font-medium text-gray-900">{c.name}</p>
-                        <p className="text-xs text-gray-400">{c.email}</p>
-                      </div>
-                      <span className="text-[11px] text-gray-400">{c.commissionPct}%</span>
-                    </button>
-                  )
-                })}
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+            <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-between">
+              <p className="text-[12px] text-gray-400">
+                {selectedCreators.length > 0
+                  ? `${selectedCreators.length} seleccionado${selectedCreators.length !== 1 ? "s" : ""}`
+                  : ""}
+              </p>
+              <button
+                onClick={goToProducts}
+                disabled={selectedCreators.length === 0}
+                className="px-5 py-2 text-sm font-medium bg-gray-900 text-white rounded-lg hover:bg-gray-800 disabled:opacity-50"
+              >
+                Elegir productos →
+              </button>
+            </div>
+          </>
+        )}
+
+        {/* Step 2: Products */}
+        {step === "products" && (
+          <>
+            <div className="flex-1 overflow-auto flex flex-col min-h-0">
+              <div className="px-6 py-3 border-b border-gray-100">
+                <div className="relative">
+                  <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <input
+                    type="text"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="Buscar producto..."
+                    className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-gray-300"
+                  />
+                </div>
               </div>
-            )
-          ) : (
-            <div className="space-y-3">
-              {selectedCreators.map((c) => {
-                const cfg = configs[c.id] ?? { commissionPct: c.commissionPct.toString(), discountCode: "" }
-                return (
-                  <div key={c.id} className="border border-gray-100 rounded-xl p-4">
-                    <div className="flex items-center gap-2 mb-3">
-                      <div className="w-7 h-7 rounded-full bg-brand-100 flex items-center justify-center text-brand-700 text-xs font-semibold">
-                        {c.name.split(" ").map((n) => n[0]).join("").slice(0, 2)}
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-gray-900">{c.name}</p>
-                        <p className="text-xs text-gray-400">{c.email}</p>
-                      </div>
+
+              <div className="flex flex-1 min-h-0">
+                <div className="flex-1 overflow-auto p-4 space-y-2">
+                  {productsLoading ? (
+                    <div className="flex items-center justify-center py-10">
+                      <RefreshCw size={18} className="animate-spin text-gray-400" />
                     </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-[11px] font-medium text-gray-500 mb-1">Comisión %</label>
-                        <input
-                          type="number"
-                          value={cfg.commissionPct}
-                          onChange={(e) => updateConfig(c.id, "commissionPct", e.target.value)}
-                          min="1" max="50"
-                          className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-brand-400"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[11px] font-medium text-gray-500 mb-1">Código de descuento</label>
-                        <div className="flex gap-1">
-                          <input
-                            type="text"
-                            value={cfg.discountCode}
-                            onChange={(e) => updateConfig(c.id, "discountCode", e.target.value.toUpperCase())}
-                            className="flex-1 min-w-0 px-2.5 py-1.5 text-sm font-mono border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-brand-400"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => regenerateCode(c)}
-                            title="Regenerar código"
-                            className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg flex-shrink-0"
-                          >
-                            <RefreshCcw size={13} />
-                          </button>
+                  ) : filteredProducts.length === 0 ? (
+                    <p className="text-sm text-gray-400 text-center py-8">No se encontraron productos.</p>
+                  ) : (
+                    filteredProducts.map((product) => (
+                      <div key={product.id} className="border border-gray-100 rounded-xl p-3">
+                        <div className="flex items-center gap-3 mb-2">
+                          {product.images[0] ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={product.images[0].src} alt="" className="w-10 h-10 rounded-lg object-cover flex-shrink-0 bg-gray-100" />
+                          ) : (
+                            <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
+                              <Package size={14} className="text-gray-400" />
+                            </div>
+                          )}
+                          <p className="text-sm font-medium text-gray-900">{productName(product)}</p>
+                        </div>
+                        <div className="space-y-1.5 pl-13">
+                          {product.variants.map((variant) => {
+                            const inCart = selected.find((s) => s.variantId === variant.id)
+                            return (
+                              <div key={variant.id} className="flex items-center justify-between gap-2">
+                                <div className="min-w-0">
+                                  {product.variants.length > 1 && (
+                                    <span className="text-xs text-gray-500">{variant.sku || `Var. ${variant.id}`}</span>
+                                  )}
+                                  <span className="text-xs text-gray-400 ml-1">${parseFloat(variant.price).toLocaleString("es-AR")}</span>
+                                </div>
+                                {inCart ? (
+                                  <div className="flex items-center gap-1 flex-shrink-0">
+                                    <button onClick={() => updateQty(variant.id, -1)} className="w-6 h-6 flex items-center justify-center rounded-md hover:bg-gray-100">
+                                      <Minus size={12} />
+                                    </button>
+                                    <span className="text-sm font-medium w-5 text-center">{inCart.quantity}</span>
+                                    <button onClick={() => addVariant(product, variant)} className="w-6 h-6 flex items-center justify-center rounded-md hover:bg-gray-100">
+                                      <Plus size={12} />
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <button
+                                    onClick={() => addVariant(product, variant)}
+                                    className="flex-shrink-0 text-[11px] font-medium text-gray-700 border border-gray-200 px-2 py-1 rounded-md hover:bg-gray-50"
+                                  >
+                                    + Agregar
+                                  </button>
+                                )}
+                              </div>
+                            )
+                          })}
                         </div>
                       </div>
+                    ))
+                  )}
+                </div>
+
+                {selected.length > 0 && (
+                  <div className="w-52 border-l border-gray-100 p-4 flex flex-col gap-2 overflow-auto">
+                    <p className="text-[11px] font-medium text-gray-400 uppercase tracking-wide">Seleccionados</p>
+                    {selected.map((p) => (
+                      <div key={p.variantId} className="text-xs">
+                        <p className="font-medium text-gray-800 leading-tight">{p.name}</p>
+                        {p.variantName && <p className="text-gray-400">{p.variantName}</p>}
+                        <p className="text-gray-500">{p.quantity}x ${p.price.toLocaleString("es-AR")}</p>
+                      </div>
+                    ))}
+                    <div className="mt-auto pt-2 border-t border-gray-100">
+                      <p className="text-[11px] text-gray-400">Valor total</p>
+                      <p className="text-sm font-semibold text-gray-900">${totalValue.toLocaleString("es-AR")}</p>
                     </div>
                   </div>
-                )
-              })}
+                )}
+              </div>
             </div>
-          )}
-        </div>
-
-        <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-between">
-          {step === "select" ? (
-            <>
-              <p className="text-[12px] text-gray-400">{selected.size} seleccionados</p>
-              <button
-                onClick={handleNext}
-                disabled={!selected.size}
-                className="px-5 py-2 text-[13px] font-medium bg-gray-900 text-white rounded-lg hover:bg-gray-800 disabled:opacity-50 transition-colors"
-              >
-                Continuar →
-              </button>
-            </>
-          ) : (
-            <>
-              <button
-                onClick={() => setStep("select")}
-                className="text-[13px] text-gray-500 hover:text-gray-700"
-              >
+            <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-between">
+              <button onClick={() => setStep("creator")} className="text-sm text-gray-500 hover:text-gray-700">
                 ← Volver
               </button>
               <button
-                onClick={handleAdd}
-                disabled={submitting}
-                className="px-5 py-2 text-[13px] font-medium bg-gray-900 text-white rounded-lg hover:bg-gray-800 disabled:opacity-50 transition-colors"
+                onClick={() => setStep("confirm")}
+                disabled={selected.length === 0}
+                className="px-5 py-2 text-sm font-medium bg-gray-900 text-white rounded-lg hover:bg-gray-800 disabled:opacity-50"
               >
-                {submitting ? "Agregando..." : `Agregar ${selected.size} creator${selected.size !== 1 ? "s" : ""}`}
+                Confirmar ({selected.reduce((s, p) => s + p.quantity, 0)} items) →
               </button>
-            </>
-          )}
-        </div>
+            </div>
+          </>
+        )}
+
+        {/* Step 3: Confirm */}
+        {step === "confirm" && (
+          <>
+            <div className="flex-1 overflow-auto p-6 space-y-4">
+              <div className="border border-gray-100 rounded-xl p-4">
+                <p className="text-[11px] font-medium text-gray-400 uppercase tracking-wide mb-2">
+                  {selectedCreators.length === 1 ? "Creator" : `${selectedCreators.length} Creators`}
+                </p>
+                {selectedCreators.map((c) => (
+                  <p key={c.id} className="text-sm font-medium text-gray-900">{c.name}</p>
+                ))}
+              </div>
+
+              <div className="border border-gray-100 rounded-xl p-4">
+                <p className="text-[11px] font-medium text-gray-400 uppercase tracking-wide mb-2">Productos</p>
+                <div className="space-y-2">
+                  {selected.map((p) => (
+                    <div key={p.variantId} className="flex justify-between text-sm">
+                      <span className="text-gray-700">
+                        {p.quantity}x {p.name}{p.variantName ? ` - ${p.variantName}` : ""}
+                      </span>
+                      <span className="text-gray-500 flex-shrink-0 ml-3">${(p.price * p.quantity).toLocaleString("es-AR")}</span>
+                    </div>
+                  ))}
+                  <div className="pt-2 border-t border-gray-100 flex justify-between text-sm font-medium">
+                    <span className="text-gray-900">Total</span>
+                    <span className="text-gray-900">${totalValue.toLocaleString("es-AR")}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="border border-gray-100 rounded-xl p-4">
+                <p className="text-[11px] font-medium text-gray-400 uppercase tracking-wide mb-1">Campaña</p>
+                <p className="text-sm font-medium text-gray-900">{campaign.name}</p>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1.5">
+                  Nota para el creator <span className="text-gray-400 font-normal">(opcional)</span>
+                </label>
+                <textarea
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  placeholder="Ej: Esperamos que te encante el producto..."
+                  rows={3}
+                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-gray-300 resize-none"
+                />
+              </div>
+
+              {error && <p className="text-xs text-red-600 bg-red-50 p-3 rounded-lg">{error}</p>}
+            </div>
+            <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-between">
+              <button onClick={() => setStep("products")} className="text-sm text-gray-500 hover:text-gray-700">
+                ← Volver
+              </button>
+              <button
+                onClick={handleSubmit}
+                disabled={submitting}
+                className="px-5 py-2 text-sm font-medium bg-gray-900 text-white rounded-lg hover:bg-gray-800 disabled:opacity-50"
+              >
+                {submitting
+                  ? `Creando ${selectedCreators.length > 1 ? selectedCreators.length + " órdenes" : "orden"}...`
+                  : `Crear gifting${selectedCreators.length > 1 ? ` (${selectedCreators.length} creators)` : ""}`}
+              </button>
+            </div>
+          </>
+        )}
       </div>
     </div>
   )

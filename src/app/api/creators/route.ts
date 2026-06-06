@@ -77,6 +77,10 @@ export async function GET(request: NextRequest) {
     include: {
       links: { where: { archived: false }, select: { id: true, slug: true } },
       _count: { select: { conversions: true } },
+      campaigns: {
+        where: { campaign: { workspaceId } },
+        include: { campaign: { select: { id: true, name: true } } },
+      },
     },
     orderBy: { createdAt: "desc" },
   })

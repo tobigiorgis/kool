@@ -15,6 +15,7 @@ interface Creator {
   niche: string | null
   audienceSize: number | null
   _count: { conversions: number }
+  campaigns: { campaign: { id: string; name: string } }[]
 }
 
 const TIER_STYLES: Record<string, string> = {
@@ -130,6 +131,7 @@ export default function CreatorsPage() {
                 <th className="text-left px-6 py-3 text-xs font-medium text-gray-500">Tier</th>
                 <th className="text-left px-6 py-3 text-xs font-medium text-gray-500">Estado</th>
                 <th className="text-left px-6 py-3 text-xs font-medium text-gray-500">Código</th>
+                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500">Campañas</th>
                 <th className="text-right px-6 py-3 text-xs font-medium text-gray-500">Ventas</th>
                 <th className="px-6 py-3" />
               </tr>
@@ -181,6 +183,21 @@ export default function CreatorsPage() {
                     ) : (
                       <span className="text-xs text-gray-400">—</span>
                     )}
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="flex items-center gap-1 flex-wrap">
+                      {(creator.campaigns ?? []).slice(0, 2).map((cc) => (
+                        <span key={cc.campaign.id} className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full whitespace-nowrap">
+                          {cc.campaign.name}
+                        </span>
+                      ))}
+                      {(creator.campaigns ?? []).length > 2 && (
+                        <span className="text-xs text-gray-400">+{(creator.campaigns ?? []).length - 2}</span>
+                      )}
+                      {(creator.campaigns ?? []).length === 0 && (
+                        <span className="text-xs text-gray-300">—</span>
+                      )}
+                    </div>
                   </td>
                   <td className="px-6 py-4 text-right text-sm text-gray-700">
                     {creator._count?.conversions ?? 0}
