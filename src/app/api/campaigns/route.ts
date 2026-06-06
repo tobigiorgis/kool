@@ -29,6 +29,11 @@ const CreateCampaignSchema = z.object({
   coverImage:  z.string().optional(),
   brandColor:  z.string().optional(),
   formStatus:  z.enum(["ACTIVE", "PAUSED", "CLOSED"]).default("ACTIVE"),
+  // Rewards section
+  giftingEnabled:     z.boolean().default(false),
+  giftingDescription: z.string().optional(),
+  commissionEnabled:  z.boolean().default(false),
+  commissionMaxPct:   z.number().min(1).max(100).optional(),
 })
 
 export async function POST(request: NextRequest) {
@@ -67,6 +72,10 @@ export async function POST(request: NextRequest) {
         coverImage: data.coverImage,
         brandColor: data.brandColor ?? "#00C46A",
         formStatus: data.formStatus,
+        giftingEnabled: data.giftingEnabled,
+        giftingDescription: data.giftingEnabled ? data.giftingDescription : null,
+        commissionEnabled: data.commissionEnabled,
+        commissionMaxPct: data.commissionEnabled ? data.commissionMaxPct : null,
       },
     })
 

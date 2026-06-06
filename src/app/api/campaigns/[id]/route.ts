@@ -97,6 +97,10 @@ const UpdateCampaignSchema = z.object({
   endDate: z.string().nullable().optional(),
   status: z.enum(["PRE_LAUNCH", "RUNNING", "COMPLETED"]).optional(),
   budget: z.number().nullable().optional(),
+  giftingEnabled:     z.boolean().optional(),
+  giftingDescription: z.string().nullable().optional(),
+  commissionEnabled:  z.boolean().optional(),
+  commissionMaxPct:   z.number().min(1).max(100).nullable().optional(),
 })
 
 export async function PATCH(

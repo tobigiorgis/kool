@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useParams } from "next/navigation"
-import { CheckCircle2, AlertCircle, RefreshCw } from "lucide-react"
+import { CheckCircle2, AlertCircle, RefreshCw, Gift, DollarSign } from "lucide-react"
 
 interface FieldConfig {
   enabled: boolean
@@ -24,6 +24,10 @@ interface CampaignInfo {
     instagram?: FieldConfig
     tiktok?:    FieldConfig
   } | null
+  giftingEnabled: boolean
+  giftingDescription: string | null
+  commissionEnabled: boolean
+  commissionMaxPct: number | null
   workspace: { name: string }
 }
 
@@ -197,6 +201,41 @@ export default function ApplyPage() {
             </p>
           )}
         </div>
+
+        {/* Qué vas a recibir */}
+        {(campaign?.giftingEnabled || campaign?.commissionEnabled) && (
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 mb-6">
+            <h2 className="text-sm font-semibold text-gray-900 mb-3">Qué vas a recibir</h2>
+            <div className="space-y-3">
+              {campaign.giftingEnabled && (
+                <div className="flex items-start gap-3">
+                  <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5" style={{ backgroundColor: color + "20" }}>
+                    <Gift size={15} style={{ color }} />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-900">Gifting</p>
+                    {campaign.giftingDescription && (
+                      <p className="text-xs text-gray-500 mt-0.5">{campaign.giftingDescription}</p>
+                    )}
+                  </div>
+                </div>
+              )}
+              {campaign.commissionEnabled && campaign.commissionMaxPct && (
+                <div className="flex items-start gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-green-50 flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <DollarSign size={15} className="text-green-500" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-900">Comisión</p>
+                    <p className="text-xs text-gray-500 mt-0.5">
+                      Hasta <strong>{campaign.commissionMaxPct}%</strong> por venta generada
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Form */}
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 sm:p-8">

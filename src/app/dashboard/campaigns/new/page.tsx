@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { ArrowLeft, Copy, Check, RefreshCw } from "lucide-react"
+import { ArrowLeft, Copy, Check, RefreshCw, Gift, DollarSign } from "lucide-react"
 
 interface FieldState {
   enabled: boolean
@@ -61,6 +61,10 @@ export default function NewCampaignPage() {
   })
   const [fields, setFields] = useState<Fields>(DEFAULT_FIELDS)
   const [slugManuallyEdited, setSlugManuallyEdited] = useState(false)
+  const [giftingEnabled, setGiftingEnabled] = useState(false)
+  const [giftingDescription, setGiftingDescription] = useState("")
+  const [commissionEnabled, setCommissionEnabled] = useState(false)
+  const [commissionMaxPct, setCommissionMaxPct] = useState("")
 
   useEffect(() => {
     fetch("/api/workspace/me")
@@ -113,6 +117,10 @@ export default function NewCampaignPage() {
           fields,
           brandColor: form.brandColor,
           formStatus: "ACTIVE",
+          giftingEnabled,
+          giftingDescription: giftingEnabled ? giftingDescription : null,
+          commissionEnabled,
+          commissionMaxPct: commissionEnabled && commissionMaxPct ? parseFloat(commissionMaxPct) : null,
         }),
       })
       const data = await res.json()
@@ -273,6 +281,85 @@ export default function NewCampaignPage() {
                 ))}
               </tbody>
             </table>
+          </div>
+        </div>
+
+        {/* Sección 3: Qué va a recibir el creator */}
+        <div className="bg-white rounded-2xl border border-gray-100 p-6">
+          <h2 className="text-sm font-semibold text-gray-900 mb-1">Qué va a recibir el creator</h2>
+          <p className="text-xs text-gray-500 mb-4">
+            Esto aparece en la landing de aplicación para atraer creators.
+          </p>
+
+          <div className="space-y-3">
+            {/* Gifting */}
+            <div className={`border rounded-xl p-4 transition-colors ${
+              giftingEnabled ? "border-brand-300 bg-brand-50" : "border-gray-200 bg-white"
+            }`}>
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <Gift size={15} className={giftingEnabled ? "text-brand-500" : "text-gray-400"} />
+                  <span className="text-sm font-medium text-gray-900">Gifting</span>
+                </div>
+                <ToggleSwitch
+                  checked={giftingEnabled}
+                  onChange={() => setGiftingEnabled((v) => !v)}
+                />
+              </div>
+              {giftingEnabled && (
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1.5">
+                    Descripción del gifting
+                  </label>
+                  <textarea
+                    value={giftingDescription}
+                    onChange={(e) => setGiftingDescription(e.target.value)}
+                    placeholder="Ej: Recibirás una selección de productos de nuestra nueva colección para que los pruebes y compartas con tu comunidad."
+                    rows={2}
+                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400 resize-none"
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* Comisión */}
+            <div className={`border rounded-xl p-4 transition-colors ${
+              commissionEnabled ? "border-brand-300 bg-brand-50" : "border-gray-200 bg-white"
+            }`}>
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <DollarSign size={15} className={commissionEnabled ? "text-brand-500" : "text-gray-400"} />
+                  <span className="text-sm font-medium text-gray-900">Comisión</span>
+                </div>
+                <ToggleSwitch
+                  checked={commissionEnabled}
+                  onChange={() => setCommissionEnabled((v) => !v)}
+                />
+              </div>
+              {commissionEnabled && (
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1.5">
+                    Comisión máxima
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-gray-500">Hasta</span>
+                    <input
+                      type="number"
+                      value={commissionMaxPct}
+                      onChange={(e) => setCommissionMaxPct(e.target.value)}
+                      min="1"
+                      max="100"
+                      placeholder="15"
+                      className="w-20 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400 text-center"
+                    />
+                    <span className="text-sm text-gray-500">% por venta</span>
+                  </div>
+                  <p className="text-xs text-gray-400 mt-1.5">
+                    El creator verá &quot;Hasta {commissionMaxPct || "X"}% por venta&quot; en la landing.
+                  </p>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 

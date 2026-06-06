@@ -108,6 +108,12 @@ model Campaign {
   brandColor  String?  @default("#00C46A")
   formStatus  String   @default("ACTIVE") // "ACTIVE" | "PAUSED" | "CLOSED"
 
+  // Qué recibe el creator
+  giftingEnabled     Boolean @default(false)
+  giftingDescription String?
+  commissionEnabled  Boolean @default(false)
+  commissionMaxPct   Float?
+
   // Relaciones
   workspace     Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   creators      CampaignCreator[]

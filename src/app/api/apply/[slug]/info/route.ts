@@ -18,6 +18,10 @@ export async function GET(
       brandColor: true,
       formStatus: true,
       fields: true,
+      giftingEnabled: true,
+      giftingDescription: true,
+      commissionEnabled: true,
+      commissionMaxPct: true,
       workspace: { select: { name: true } },
     },
   })
