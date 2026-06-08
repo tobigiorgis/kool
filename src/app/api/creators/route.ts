@@ -75,15 +75,72 @@ export async function GET(request: NextRequest) {
   const creators = await prisma.creator.findMany({
     where: { workspaceId },
     include: {
-      links: { where: { archived: false }, select: { id: true, slug: true } },
-      _count: { select: { conversions: true } },
+      links: {
+        where: { archived: false },
+        select: {
+          id: true,
+          slug: true,
+          destination: true,
+          conversions: { select: { orderAmount: true } },
+        },
+      },
+      commissions: {
+        select: {
+          id: true,
+          amount: true,
+          orderAmount: true,
+          percentage: true,
+          status: true,
+          createdAt: true,
+        },
+        orderBy: { createdAt: "desc" },
+      },
+      conversions: {
+        select: { orderAmount: true },
+      },
       campaigns: {
-        where: { campaign: { workspaceId } },
-        include: { campaign: { select: { id: true, name: true } } },
+        include: {
+          campaign: { select: { id: true, name: true, formStatus: true } },
+        },
       },
     },
     orderBy: { createdAt: "desc" },
   })
 
-  return NextResponse.json({ creators })
+  const enriched = creators.map((c) => {
+    const totalSales = c.conversions.length
+    const totalRevenue = c.conversions.reduce((s, cv) => s + cv.orderAmount, 0)
+    const totalCommissions = c.commissions.reduce((s, cm) => s + cm.amount, 0)
+    const pendingCommissions = c.commissions
+      .filter((cm) => cm.status === "PENDING")
+      .reduce((s, cm) => s + cm.amount, 0)
+    const approvedCommissions = c.commissions
+      .filter((cm) => cm.status === "APPROVED")
+      .reduce((s, cm) => s + cm.amount, 0)
+    const paidCommissions = c.commissions
+      .filter((cm) => cm.status === "PAID")
+      .reduce((s, cm) => s + cm.amount, 0)
+
+    const links = c.links.map((l) => ({
+      id: l.id,
+      slug: l.slug,
+      destination: l.destination,
+      sales: l.conversions.length,
+      revenue: l.conversions.reduce((s, cv) => s + cv.orderAmount, 0),
+    }))
+
+    return {
+      ...c,
+      links,
+      totalClicks: 0, // Tinybird — not available here yet
+      totalSales,
+      totalRevenue,
+      totalCommissions,
+      pendingCommissions,
+      approvedCommissions,
+      paidCommissions,
+    }
+  })
+
+  return NextResponse.json({ creators: enriched })
 }

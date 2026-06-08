@@ -245,10 +245,13 @@ model Creator {
   avatar      String?
   
   // Redes sociales
-  instagram   String?       // handle sin @
-  tiktok      String?
-  youtube     String?
-  twitter     String?
+  instagram           String?       // handle sin @
+  instagramFollowers  Int?
+  instagramPosts      Int?
+  tiktok              String?
+  tiktokFollowers     Int?
+  youtube             String?
+  twitter             String?
   
   // Nicho y audiencia
   niche       String?       // "moda" | "tecnologia" | "gastronomia" etc
