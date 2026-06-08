@@ -11,6 +11,14 @@ module.exports = {
         sans: ["var(--font-inter)", "Inter", "system-ui", "sans-serif"],
       },
       colors: {
+        rose: {
+          50:  "#FFF1F2",
+          100: "#FFE4E6",
+          200: "#FECDD3",
+          300: "#FDA4AF",
+          400: "#FB7185",
+          500: "#F43F5E",
+        },
         brand: {
           DEFAULT: "#00C46A",
           50:  "#f0fdf6",
