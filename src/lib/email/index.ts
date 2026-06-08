@@ -354,6 +354,99 @@ export async function sendApplicationRejected({
   })
 }
 
+// ─── Invitación a campaña (creator existente) ─
+
+export async function sendCampaignInviteExisting({
+  to,
+  creatorName,
+  brandName,
+  campaignName,
+  discountCode,
+  commissionPct,
+  dashboardUrl,
+}: {
+  to: string
+  creatorName: string
+  brandName: string
+  campaignName: string
+  discountCode?: string
+  commissionPct?: number
+  dashboardUrl: string
+}) {
+  const html = baseTemplate(
+    `
+    <h1>Te invitaron a una nueva campaña 🚀</h1>
+    <p>Hola ${creatorName},</p>
+    <p><strong>${brandName}</strong> te invitó a participar en su campaña <strong>${campaignName}</strong>.</p>
+    ${discountCode ? `
+    <p>Tu código de descuento exclusivo para esta campaña:</p>
+    <div style="text-align:center; margin: 20px 0;">
+      <span class="pill">${discountCode}</span>
+    </div>` : ""}
+    ${commissionPct ? `<p style="color:#6b7280; font-size:13px; text-align:center;">Ganás <strong>${commissionPct}%</strong> de comisión por cada venta que generes.</p>` : ""}
+    <hr class="divider">
+    <p>Aceptá o decliná la invitación desde tu panel:</p>
+    <p style="text-align:center;">
+      <a href="${dashboardUrl}" class="btn">Ver invitación →</a>
+    </p>
+    `,
+    brandName
+  )
+
+  return sendEmail({
+    to,
+    subject: `${brandName} te invitó a su campaña "${campaignName}"`,
+    html,
+  })
+}
+
+// ─── Invitación a campaña (creator nuevo) ─────
+
+export async function sendCampaignInviteNew({
+  to,
+  creatorName,
+  brandName,
+  campaignName,
+  discountCode,
+  commissionPct,
+  registerUrl,
+}: {
+  to: string
+  creatorName: string
+  brandName: string
+  campaignName: string
+  discountCode?: string
+  commissionPct?: number
+  registerUrl: string
+}) {
+  const html = baseTemplate(
+    `
+    <h1>¡${brandName} quiere trabajar con vos! 🎉</h1>
+    <p>Hola ${creatorName},</p>
+    <p><strong>${brandName}</strong> te invitó a ser parte de su programa de creators en Kool y participar en la campaña <strong>${campaignName}</strong>.</p>
+    ${discountCode ? `
+    <p>Tu código de descuento exclusivo para compartir con tu comunidad:</p>
+    <div style="text-align:center; margin: 20px 0;">
+      <span class="pill">${discountCode}</span>
+    </div>` : ""}
+    ${commissionPct ? `<p style="color:#6b7280; font-size:13px; text-align:center;">Tus seguidores obtienen un descuento, vos ganás <strong>${commissionPct}%</strong> de comisión por cada venta.</p>` : ""}
+    <hr class="divider">
+    <p>Completá tu perfil para activar tu cuenta y empezar a ganar:</p>
+    <p style="text-align:center;">
+      <a href="${registerUrl}" class="btn">Activar mi cuenta →</a>
+    </p>
+    <p style="color:#9ca3af; font-size:12px; text-align:center;">Este link es personal. Una vez que completes tu perfil, podrás aceptar o declinar la invitación.</p>
+    `,
+    brandName
+  )
+
+  return sendEmail({
+    to,
+    subject: `${brandName} te invitó a su programa de creators en Kool`,
+    html,
+  })
+}
+
 // ─── Notificación de comisión ─────────────────
 
 export async function sendCommissionApproved({

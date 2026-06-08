@@ -3,9 +3,22 @@ import { auth } from "@clerk/nextjs/server"
 import { prisma } from "@/lib/prisma"
 import { createTiendanubeCoupon } from "@/lib/tiendanube"
 import { decrypt } from "@/lib/utils/crypto"
-import { slugify } from "@/lib/utils"
+import { slugify, generateDiscountCode } from "@/lib/utils"
+import { sendCampaignInviteExisting, sendCampaignInviteNew } from "@/lib/email"
 import { z } from "zod"
+import crypto from "crypto"
 
+// Schema for inviting via email (new flow)
+const InviteCreatorSchema = z.object({
+  firstName: z.string().min(1),
+  lastName: z.string().min(1),
+  email: z.string().email(),
+  commissionPct: z.number().min(1).max(50).optional(),
+  discountCode: z.string().optional(),
+  destination: z.string().url().optional(),
+})
+
+// Schema for adding existing creators (legacy flow)
 const AddCreatorsSchema = z.object({
   creatorIds: z.array(z.string()).min(1),
   commissionPct: z.number().min(1).max(50).optional(),
@@ -49,9 +62,11 @@ export async function POST(
 
   try {
     const body = await request.json()
-    const data = AddCreatorsSchema.parse(body)
 
-    const campaign = await prisma.campaign.findUnique({ where: { id: campaignId } })
+    const campaign = await prisma.campaign.findUnique({
+      where: { id: campaignId },
+      include: { workspace: { select: { name: true } } },
+    })
     if (!campaign) return NextResponse.json({ error: "Not found" }, { status: 404 })
 
     const member = await prisma.workspaceMember.findFirst({
@@ -59,17 +74,142 @@ export async function POST(
     })
     if (!member) return NextResponse.json({ error: "No access" }, { status: 403 })
 
-    // Obtener la conexión con Tiendanube
     const connection = await prisma.tiendanubeConnection.findUnique({
       where: { workspaceId: campaign.workspaceId },
     })
+
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://app.kool.link"
+
+    // ── New invite-by-email flow ───────────────
+    if ("email" in body) {
+      const data = InviteCreatorSchema.parse(body)
+      const name = `${data.firstName} ${data.lastName}`
+      const discountCode = data.discountCode || generateDiscountCode(data.firstName, data.commissionPct ?? 10)
+
+      // Find or create creator
+      let creator = await prisma.creator.findFirst({
+        where: { workspaceId: campaign.workspaceId, email: data.email },
+      })
+
+      const inviteToken = crypto.randomBytes(32).toString("hex")
+
+      if (!creator) {
+        creator = await prisma.creator.create({
+          data: {
+            workspaceId: campaign.workspaceId,
+            name,
+            firstName: data.firstName,
+            lastName: data.lastName,
+            email: data.email,
+            commissionPct: data.commissionPct ?? 10,
+            discountCode,
+            status: "PENDING",
+            inviteToken,
+            invitedAt: new Date(),
+          },
+        })
+      } else {
+        // Update invite token if re-inviting
+        creator = await prisma.creator.update({
+          where: { id: creator.id },
+          data: { inviteToken, invitedAt: new Date() },
+        })
+      }
+
+      // Upsert CampaignCreator
+      await prisma.campaignCreator.upsert({
+        where: { campaignId_creatorId: { campaignId, creatorId: creator.id } },
+        create: {
+          campaignId,
+          creatorId: creator.id,
+          commissionPct: data.commissionPct,
+          discountCode,
+        },
+        update: {
+          ...(data.commissionPct !== undefined && { commissionPct: data.commissionPct }),
+          discountCode,
+        },
+      })
+
+      // Upsert CampaignInvite
+      await prisma.campaignInvite.upsert({
+        where: { campaignId_creatorId: { campaignId, creatorId: creator.id } },
+        create: { campaignId, creatorId: creator.id, status: "PENDING" },
+        update: { status: "PENDING", sentAt: new Date(), respondedAt: null },
+      })
+
+      // Create affiliate link if destination provided
+      if (data.destination) {
+        const existingLink = await prisma.link.findFirst({ where: { creatorId: creator.id, campaignId } })
+        if (!existingLink) {
+          const slug = await ensureUniqueSlug(generateSlug(name))
+          await prisma.link.create({
+            data: {
+              workspaceId: campaign.workspaceId,
+              creatorId: creator.id,
+              campaignId,
+              slug,
+              destination: data.destination,
+              discountCode,
+              utmSource: slugify(name),
+              utmMedium: "influencer",
+            },
+          })
+        }
+      }
+
+      // Create Tiendanube coupon
+      if (discountCode && connection?.active) {
+        try {
+          const accessToken = decrypt(connection.accessToken)
+          await createTiendanubeCoupon(connection.storeId, accessToken, {
+            code: discountCode,
+            type: "percentage",
+            value: data.commissionPct ?? 10,
+            valid: true,
+          })
+        } catch (e: any) {
+          if (!e?.message?.includes("422")) console.error(`[Campaign] Coupon error:`, e)
+        }
+      }
+
+      const brandName = campaign.workspace.name
+
+      // Send email — new vs existing
+      if (creator.userId) {
+        await sendCampaignInviteExisting({
+          to: data.email,
+          creatorName: data.firstName,
+          brandName,
+          campaignName: campaign.name,
+          discountCode,
+          commissionPct: data.commissionPct,
+          dashboardUrl: `${appUrl}/creator`,
+        })
+      } else {
+        const registerUrl = `${appUrl}/register?token=${inviteToken}`
+        await sendCampaignInviteNew({
+          to: data.email,
+          creatorName: data.firstName,
+          brandName,
+          campaignName: campaign.name,
+          discountCode,
+          commissionPct: data.commissionPct,
+          registerUrl,
+        })
+      }
+
+      return NextResponse.json({ ok: true, creatorId: creator.id })
+    }
+
+    // ── Legacy: add existing creators by ID ───
+    const data = AddCreatorsSchema.parse(body)
 
     const results = await Promise.all(
       data.creatorIds.map(async (creatorId) => {
         const creator = await prisma.creator.findUnique({ where: { id: creatorId } })
         if (!creator) return null
 
-        // Upsert CampaignCreator
         const cc = await prisma.campaignCreator.upsert({
           where: { campaignId_creatorId: { campaignId, creatorId } },
           create: {
@@ -84,12 +224,8 @@ export async function POST(
           },
         })
 
-        // Crear link de afiliado si se proporcionó destino y no existe ya uno
         if (data.destination) {
-          const existingLink = await prisma.link.findFirst({
-            where: { creatorId, campaignId },
-          })
-
+          const existingLink = await prisma.link.findFirst({ where: { creatorId, campaignId } })
           if (!existingLink) {
             const slug = await ensureUniqueSlug(generateSlug(creator.name))
             await prisma.link.create({
@@ -108,7 +244,6 @@ export async function POST(
           }
         }
 
-        // Crear cupón en Tiendanube si hay código
         if (data.discountCode && connection?.active) {
           try {
             const accessToken = decrypt(connection.accessToken)
@@ -119,9 +254,7 @@ export async function POST(
               valid: true,
             })
           } catch (e: any) {
-            if (!e?.message?.includes("422")) {
-              console.error(`[Campaign] Error creando cupón ${data.discountCode}:`, e)
-            }
+            if (!e?.message?.includes("422")) console.error(`[Campaign] Coupon error:`, e)
           }
         }
 

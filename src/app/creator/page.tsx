@@ -3,7 +3,8 @@ import { redirect } from "next/navigation"
 import { prisma } from "@/lib/prisma"
 import Link from "next/link"
 import { formatCurrency } from "@/lib/utils/index"
-import { ArrowRight, Tag } from "lucide-react"
+import { ArrowRight, Tag, Bell, Check, X } from "lucide-react"
+import { PendingInvites } from "./pending-invites"
 
 export default async function CreatorHomePage() {
   const { userId } = await auth()
@@ -16,6 +17,14 @@ export default async function CreatorHomePage() {
       workspace: true,
       commissions: {
         where: { status: { in: ["PENDING", "APPROVED", "PAID"] } },
+      },
+      invites: {
+        where: { status: "PENDING" },
+        include: {
+          campaign: {
+            select: { id: true, name: true, workspace: { select: { name: true, brandLogo: true, brandColor: true } } },
+          },
+        },
       },
     },
   })
@@ -31,12 +40,34 @@ export default async function CreatorHomePage() {
           commissions: {
             where: { status: { in: ["PENDING", "APPROVED", "PAID"] } },
           },
+          invites: {
+            where: { status: "PENDING" },
+            include: {
+              campaign: {
+                select: { id: true, name: true, workspace: { select: { name: true, brandLogo: true, brandColor: true } } },
+              },
+            },
+          },
         },
       })
     }
   }
 
   if (creators.length === 0) redirect("/onboarding/creator")
+
+  // Collect all pending invites across creator profiles
+  const pendingInvites = creators.flatMap((c) =>
+    c.invites.map((inv) => ({
+      id: inv.id,
+      campaignId: inv.campaign.id,
+      campaignName: inv.campaign.name,
+      brandName: inv.campaign.workspace.name,
+      brandLogo: inv.campaign.workspace.brandLogo,
+      brandColor: inv.campaign.workspace.brandColor,
+      discountCode: c.discountCode,
+      commissionPct: c.commissionPct,
+    }))
+  )
 
   return (
     <div className="min-h-screen bg-gray-50/50 px-8 py-10">
@@ -48,6 +79,23 @@ export default async function CreatorHomePage() {
           </p>
         </div>
 
+        {/* Pending invites */}
+        {pendingInvites.length > 0 && (
+          <div className="mb-6">
+            <div className="flex items-center gap-2 mb-3">
+              <Bell size={14} className="text-amber-500" />
+              <h2 className="text-sm font-semibold text-gray-900">
+                Invitaciones pendientes
+              </h2>
+              <span className="px-1.5 py-0.5 text-xs font-semibold bg-amber-100 text-amber-700 rounded-full">
+                {pendingInvites.length}
+              </span>
+            </div>
+            <PendingInvites invites={pendingInvites} />
+          </div>
+        )}
+
+        {/* Active programs */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {creators.map((creator) => {
             const totalEarnings = creator.commissions.reduce(

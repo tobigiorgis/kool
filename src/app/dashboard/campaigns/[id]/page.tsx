@@ -8,6 +8,7 @@ import {
   FileText, Plus, Paperclip, ExternalLink, Upload, CheckCircle2,
   XCircle, ChevronDown, ChevronUp, Copy, Check, Instagram, Search, Gift, Minus, BarChart2,
 } from "lucide-react"
+import { Area, AreaChart, ResponsiveContainer, XAxis, YAxis, Tooltip } from "recharts"
 import { formatNumber, formatCurrency, formatDate, generateDiscountCode } from "@/lib/utils"
 
 interface CampaignCreator {
@@ -31,6 +32,7 @@ interface CampaignLink {
   slug: string
   destination: string
   discountCode: string | null
+  creatorId?: string | null
   creator: { name: string } | null
   clicks?: number
   sales?: number
@@ -204,6 +206,11 @@ export default function CampaignDetailPage() {
     loadGifting()
   }, [tab, id, giftingOrders.length, loadGifting])
 
+  // Also load gifting for overview
+  useEffect(() => {
+    if (tab === "overview" && giftingOrders.length === 0) loadGifting()
+  }, [tab, giftingOrders.length, loadGifting])
+
   const loadApplications = useCallback(() => {
     if (!campaign?.slug) return
     setApplicationsLoading(true)
@@ -214,8 +221,26 @@ export default function CampaignDetailPage() {
   }, [id, campaign?.slug])
 
   useEffect(() => {
-    if (tab === "applications") loadApplications()
+    if (tab === "applications" || tab === "overview") loadApplications()
   }, [tab, loadApplications])
+
+  const handleAcceptApplication = useCallback(async (applicationId: string) => {
+    await fetch(`/api/campaigns/${id}/applications/${applicationId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: "ACCEPTED" }),
+    })
+    loadApplications()
+  }, [id, loadApplications])
+
+  const handleRejectApplication = useCallback(async (applicationId: string) => {
+    await fetch(`/api/campaigns/${id}/applications/${applicationId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: "REJECTED" }),
+    })
+    loadApplications()
+  }, [id, loadApplications])
 
   const updateStatus = async (status: string) => {
     setStatusUpdating(true)
@@ -355,7 +380,17 @@ export default function CampaignDetailPage() {
 
       {/* Tab content */}
       {tab === "overview" && (
-        <OverviewTab campaign={campaign} analytics={analytics} />
+        <OverviewTab
+          campaign={campaign}
+          analytics={analytics}
+          creators={campaign.creators}
+          briefings={campaign.briefings}
+          giftingOrders={giftingOrders}
+          applications={applications}
+          onNavigate={setTab}
+          onAcceptApplication={handleAcceptApplication}
+          onRejectApplication={handleRejectApplication}
+        />
       )}
 
       {tab === "creators" && (
@@ -441,85 +476,377 @@ function MetricCard({ icon: Icon, label, value, accent }: {
   )
 }
 
-function OverviewTab({ campaign, analytics }: { campaign: CampaignDetail; analytics: Analytics }) {
-  const convRate = analytics.clicks > 0
-    ? ((analytics.conversions / analytics.clicks) * 100).toFixed(1)
-    : "0"
+function OverviewTab({
+  campaign,
+  analytics,
+  creators,
+  briefings,
+  giftingOrders,
+  applications,
+  onNavigate,
+  onAcceptApplication,
+  onRejectApplication,
+}: {
+  campaign: CampaignDetail
+  analytics: Analytics
+  creators: CampaignCreator[]
+  briefings: CampaignBriefing[]
+  giftingOrders: GiftingOrder[]
+  applications: Application[]
+  onNavigate: (tab: Tab) => void
+  onAcceptApplication: (id: string) => void
+  onRejectApplication: (id: string) => void
+}) {
+  const [chartPeriod, setChartPeriod] = useState<"1d" | "7d" | "30d">("7d")
+  const [chartData, setChartData] = useState<{ date: string; clicks: number; sales: number }[]>([])
+  const [chartLoading, setChartLoading] = useState(true)
+
+  useEffect(() => {
+    setChartLoading(true)
+    fetch(`/api/campaigns/${campaign.id}/analytics/chart?period=${chartPeriod}`)
+      .then((r) => r.json())
+      .then((d) => setChartData(d.chartData || []))
+      .catch(() => setChartData([]))
+      .finally(() => setChartLoading(false))
+  }, [chartPeriod, campaign.id])
+
+  const pendingApplications = applications.filter((a) => a.status === "PENDING")
+  const latestBriefing = briefings[0] ?? null
+  const latestGifting = giftingOrders[0] ?? null
+
+  // Build per-creator revenue from links
+  const creatorsWithMetrics = creators.map((cc) => {
+    const creatorLinks = campaign.links.filter((l) => l.creatorId === cc.creator.id)
+    const totalRevenue = creatorLinks.reduce((s, l) => s + (l.revenue ?? 0), 0)
+    const totalSales = creatorLinks.reduce((s, l) => s + (l.sales ?? 0), 0)
+    return { ...cc, totalRevenue, totalSales }
+  })
+  const topCreators = [...creatorsWithMetrics]
+    .sort((a, b) => b.totalRevenue - a.totalRevenue)
+    .slice(0, 3)
+
+  const formatAxisDate = (v: string) => {
+    const d = new Date(v)
+    return chartPeriod === "1d"
+      ? d.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })
+      : d.toLocaleDateString("es-AR", { day: "numeric", month: "short" })
+  }
 
   return (
-    <div className="space-y-6">
-      {/* Summary cards */}
-      <div className="grid grid-cols-2 gap-4">
-        <div className="bg-white rounded-xl border border-gray-100 p-5">
-          <h3 className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-3">Resumen</h3>
-          <div className="space-y-2.5">
-            <div className="flex justify-between text-[13px]">
-              <span className="text-gray-500">Creators</span>
-              <span className="font-medium text-gray-900">{campaign.creators.length}</span>
+    <div className="space-y-4">
+      {/* Row 1: Chart + Top creators */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        {/* Performance chart */}
+        <div className="lg:col-span-2 bg-white rounded-2xl border border-gray-100 p-5">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-semibold text-gray-900">Performance</h3>
+            <div className="flex items-center gap-0.5 bg-gray-100 rounded-lg p-0.5 text-xs">
+              {(["1d", "7d", "30d"] as const).map((p) => (
+                <button
+                  key={p}
+                  onClick={() => setChartPeriod(p)}
+                  className={`px-3 py-1 rounded-md transition-colors ${
+                    chartPeriod === p
+                      ? "bg-white shadow-sm text-gray-900 font-medium"
+                      : "text-gray-500 hover:text-gray-700"
+                  }`}
+                >
+                  {p === "1d" ? "Hoy" : p === "7d" ? "7 días" : "30 días"}
+                </button>
+              ))}
             </div>
-            <div className="flex justify-between text-[13px]">
-              <span className="text-gray-500">Links activos</span>
-              <span className="font-medium text-gray-900">{campaign.links.length}</span>
-            </div>
-            <div className="flex justify-between text-[13px]">
-              <span className="text-gray-500">Briefings enviados</span>
-              <span className="font-medium text-gray-900">
-                {campaign.briefings.filter((b) => b.status === "SENT").length}
+          </div>
+
+          {/* Inline metrics */}
+          <div className="flex items-center gap-6 mb-4">
+            <div className="flex items-center gap-2">
+              <div className="w-2.5 h-2.5 rounded-full bg-rose-400" />
+              <span className="text-xs text-gray-500">Clicks</span>
+              <span className="text-sm font-semibold text-gray-900">
+                {(analytics.clicks || 0).toLocaleString()}
               </span>
             </div>
-            <div className="flex justify-between text-[13px]">
-              <span className="text-gray-500">Tasa de conversión</span>
-              <span className="font-medium text-gray-900">{convRate}%</span>
+            <div className="flex items-center gap-2">
+              <div className="w-2.5 h-2.5 rounded-full bg-brand-400" />
+              <span className="text-xs text-gray-500">Ventas</span>
+              <span className="text-sm font-semibold text-gray-900">
+                {(analytics.conversions || 0).toLocaleString()}
+              </span>
             </div>
+          </div>
+
+          <div className="h-48">
+            {chartLoading ? (
+              <div className="h-full flex items-center justify-center">
+                <div className="w-5 h-5 border-2 border-brand-400 border-t-transparent rounded-full animate-spin" />
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={chartData} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
+                  <defs>
+                    <linearGradient id="clicksGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#FB7185" stopOpacity={0.12} />
+                      <stop offset="100%" stopColor="#FB7185" stopOpacity={0} />
+                    </linearGradient>
+                    <linearGradient id="salesGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#00C46A" stopOpacity={0.12} />
+                      <stop offset="100%" stopColor="#00C46A" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <XAxis
+                    dataKey="date"
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fontSize: 11, fill: "#9CA3AF" }}
+                    tickFormatter={formatAxisDate}
+                    interval="preserveStartEnd"
+                  />
+                  <YAxis
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fontSize: 11, fill: "#9CA3AF" }}
+                    width={28}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      background: "white",
+                      border: "1px solid #f3f4f6",
+                      borderRadius: "12px",
+                      fontSize: "12px",
+                      boxShadow: "0 1px 4px rgba(0,0,0,0.06)",
+                    }}
+                    labelFormatter={formatAxisDate}
+                    formatter={(v: number, name: string) => [
+                      v.toLocaleString(),
+                      name === "clicks" ? "Clicks" : "Ventas",
+                    ]}
+                  />
+                  <Area type="monotone" dataKey="clicks" stroke="#FB7185" strokeWidth={1.5} fill="url(#clicksGrad)" dot={false} />
+                  <Area type="monotone" dataKey="sales" stroke="#00C46A" strokeWidth={1.5} fill="url(#salesGrad)" dot={false} />
+                </AreaChart>
+              </ResponsiveContainer>
+            )}
           </div>
         </div>
 
-        {campaign.budget && (
-          <div className="bg-white rounded-xl border border-gray-100 p-5">
-            <h3 className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-3">Presupuesto</h3>
-            <div className="space-y-2.5">
-              <div className="flex justify-between text-[13px]">
-                <span className="text-gray-500">Asignado</span>
-                <span className="font-medium text-gray-900">{formatCurrency(campaign.budget)}</span>
-              </div>
-              <div className="flex justify-between text-[13px]">
-                <span className="text-gray-500">Comisiones generadas</span>
-                <span className="font-medium text-gray-900">{formatCurrency(analytics.commissions)}</span>
-              </div>
-              <div className="flex justify-between text-[13px]">
-                <span className="text-gray-500">Disponible</span>
-                <span className="font-medium text-brand-500">
-                  {formatCurrency(Math.max(0, campaign.budget - analytics.commissions))}
-                </span>
-              </div>
-            </div>
+        {/* Top 3 creators */}
+        <div className="bg-white rounded-2xl border border-gray-100 p-5">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-semibold text-gray-900">Top creators</h3>
+            <button
+              onClick={() => onNavigate("creators")}
+              className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              Ver todos →
+            </button>
           </div>
-        )}
+
+          {topCreators.length > 0 ? (
+            <div className="space-y-3">
+              {topCreators.map((cc, i) => {
+                const initials = cc.creator.name.split(" ").map((n) => n[0]).join("").slice(0, 2)
+                return (
+                  <div key={cc.id} className="flex items-center gap-3">
+                    <span className="text-xs font-medium text-gray-300 w-4 shrink-0">{i + 1}</span>
+                    <div className="w-7 h-7 rounded-full bg-rose-50 flex items-center justify-center shrink-0">
+                      <span className="text-[10px] font-semibold text-rose-400">{initials}</span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-900 truncate">{cc.creator.name}</p>
+                      <p className="text-xs text-gray-400">{cc.totalSales} ventas</p>
+                    </div>
+                    <span className="text-sm font-semibold text-gray-900 shrink-0">
+                      {formatCurrency(cc.totalRevenue)}
+                    </span>
+                  </div>
+                )
+              })}
+            </div>
+          ) : (
+            <div className="py-6 text-center">
+              <p className="text-xs text-gray-400">Sin datos todavía</p>
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* Briefings */}
-      {campaign.briefings.length > 0 && (
-        <div className="bg-white rounded-xl border border-gray-100">
-          <div className="px-5 py-4 border-b border-gray-100">
-            <h3 className="text-sm font-semibold text-gray-900">Briefings</h3>
+      {/* Row 2: Last briefing + Last gifting */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* Last briefing */}
+        <div className="bg-white rounded-2xl border border-gray-100 p-5">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-semibold text-gray-900">Último briefing</h3>
+            <button
+              onClick={() => onNavigate("briefings")}
+              className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              Ver todos →
+            </button>
           </div>
-          <div className="divide-y divide-gray-50">
-            {campaign.briefings.map((b) => (
-              <div key={b.id} className="px-5 py-3.5 flex items-center justify-between">
-                <span className="text-[13px] text-gray-700">{b.subject}</span>
-                <div className="flex items-center gap-2">
-                  {b.sentAt && (
-                    <span className="text-[11px] text-gray-400">{formatDate(b.sentAt)}</span>
-                  )}
-                  <span className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${
-                    b.status === "SENT" ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"
+
+          {latestBriefing ? (
+            <div>
+              <div className="flex items-start gap-3 mb-3">
+                <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center shrink-0 mt-0.5">
+                  <FileText size={14} className="text-blue-500" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-900 truncate">{latestBriefing.subject}</p>
+                  <div className="flex items-center gap-3 mt-1.5">
+                    <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${
+                      latestBriefing.status === "SENT"
+                        ? "bg-brand-50 text-brand-600"
+                        : "bg-amber-50 text-amber-600"
+                    }`}>
+                      {latestBriefing.status === "SENT" ? "Enviado" : "Borrador"}
+                    </span>
+                    {latestBriefing.sentAt && (
+                      <span className="text-xs text-gray-400">{formatDate(latestBriefing.sentAt)}</span>
+                    )}
+                    <span className="text-xs text-gray-400">
+                      {latestBriefing._count.recipients} destinatarios
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="py-4 text-center">
+              <p className="text-xs text-gray-400 mb-2">Sin briefings todavía</p>
+              <button
+                onClick={() => onNavigate("briefings")}
+                className="text-xs text-brand-600 hover:text-brand-700 font-medium"
+              >
+                Crear briefing →
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Last gifting */}
+        <div className="bg-white rounded-2xl border border-gray-100 p-5">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-semibold text-gray-900">Último gifting</h3>
+            <button
+              onClick={() => onNavigate("gifting")}
+              className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              Ver todos →
+            </button>
+          </div>
+
+          {latestGifting ? (
+            <div className="flex items-start gap-3">
+              <div className="w-8 h-8 rounded-lg bg-brand-50 flex items-center justify-center shrink-0 mt-0.5">
+                <Gift size={14} className="text-brand-500" />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-medium text-gray-900">{latestGifting.creator?.name}</p>
+                <p className="text-xs text-gray-400 mt-0.5 truncate">
+                  {(latestGifting.products as { name: string; quantity: number }[])
+                    ?.map((p) => p.name)
+                    .join(", ")}
+                </p>
+                <div className="flex items-center gap-3 mt-2">
+                  <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${
+                    latestGifting.status === "CONFIRMED" ? "bg-brand-50 text-brand-600" :
+                    latestGifting.status === "SENT" ? "bg-purple-50 text-purple-600" :
+                    latestGifting.status === "PROCESSING" ? "bg-blue-50 text-blue-600" :
+                    "bg-amber-50 text-amber-600"
                   }`}>
-                    {b.status === "SENT" ? "Enviado" : b.status === "DRAFT" ? "Borrador" : b.status}
+                    {latestGifting.status === "CONFIRMED" ? "Confirmado" :
+                     latestGifting.status === "SENT" ? "Enviado" :
+                     latestGifting.status === "PROCESSING" ? "Procesando" : "Pendiente"}
+                  </span>
+                  <span className="text-xs text-gray-900 font-medium">
+                    {formatCurrency(latestGifting.totalValue || 0)}
                   </span>
                 </div>
               </div>
-            ))}
+            </div>
+          ) : (
+            <div className="py-4 text-center">
+              <p className="text-xs text-gray-400 mb-2">Sin giftings todavía</p>
+              <button
+                onClick={() => onNavigate("gifting")}
+                className="text-xs text-brand-600 hover:text-brand-700 font-medium"
+              >
+                Crear gifting →
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Row 3: Pending applications */}
+      {campaign.slug && (
+        <div className="bg-white rounded-2xl border border-gray-100 p-5">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <h3 className="text-sm font-semibold text-gray-900">Aplicaciones pendientes</h3>
+              {pendingApplications.length > 0 && (
+                <span className="text-[10px] font-semibold bg-rose-100 text-rose-600 px-2 py-0.5 rounded-full">
+                  {pendingApplications.length}
+                </span>
+              )}
+            </div>
+            {applications.length > 0 && (
+              <button
+                onClick={() => onNavigate("applications")}
+                className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                Ver todas →
+              </button>
+            )}
           </div>
+
+          {pendingApplications.length > 0 ? (
+            <div className="space-y-2">
+              {pendingApplications.slice(0, 3).map((app) => (
+                <div
+                  key={app.id}
+                  className="flex items-center justify-between p-3 rounded-xl border border-gray-50 hover:border-gray-100 transition-colors"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full bg-rose-50 flex items-center justify-center shrink-0">
+                      <span className="text-[10px] font-semibold text-rose-400">
+                        {app.name.split(" ").map((n) => n[0]).join("").slice(0, 2)}
+                      </span>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">{app.name}</p>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <span className="text-xs text-gray-400">{app.email}</span>
+                        {app.instagram && (
+                          <span className="text-xs text-gray-400">@{app.instagram}</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <button
+                      onClick={() => onRejectApplication(app.id)}
+                      className="w-7 h-7 rounded-lg border border-gray-200 flex items-center justify-center text-gray-400 hover:text-red-500 hover:border-red-200 transition-colors"
+                      title="Rechazar"
+                    >
+                      <X size={12} />
+                    </button>
+                    <button
+                      onClick={() => onAcceptApplication(app.id)}
+                      className="w-7 h-7 rounded-lg bg-brand-500 flex items-center justify-center text-white hover:bg-brand-600 transition-colors"
+                      title="Aceptar"
+                    >
+                      <Check size={12} />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="py-4 text-center">
+              <p className="text-xs text-gray-400">No hay aplicaciones pendientes de revisión.</p>
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -887,231 +1214,174 @@ function AddCreatorsModal({ campaignId, workspaceId, existingCreatorIds, onClose
   onClose: () => void
   onAdded: () => void
 }) {
-  const [query, setQuery] = useState("")
-  const [results, setResults] = useState<SearchCreator[]>([])
-  const [searching, setSearching] = useState(false)
-  const [selected, setSelected] = useState<SearchCreator | null>(null)
-  const [commissionPct, setCommissionPct] = useState("10")
-  const [discountCode, setDiscountCode] = useState("")
+  const [form, setForm] = useState({
+    firstName: "",
+    lastName: "",
+    email: "",
+    commissionPct: "10",
+    discountCode: "",
+  })
   const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState("")
+  const [sent, setSent] = useState(false)
 
-  useEffect(() => {
-    if (query.length < 2) { setResults([]); return }
-    const timeout = setTimeout(async () => {
-      setSearching(true)
-      try {
-        const res = await fetch(
-          `/api/creators/search?q=${encodeURIComponent(query)}&campaignId=${campaignId}`
-        )
-        const data = await res.json()
-        setResults(data.creators ?? [])
-      } finally {
-        setSearching(false)
-      }
-    }, 300)
-    return () => clearTimeout(timeout)
-  }, [query, campaignId])
+  const update = (field: keyof typeof form, value: string) =>
+    setForm((f) => ({ ...f, [field]: value }))
 
-  const handleSelect = (creator: SearchCreator) => {
-    setSelected(creator)
-    setCommissionPct(creator.commissionPct.toString())
-    setDiscountCode(generateDiscountCode(creator.name, creator.commissionPct))
+  // Auto-generate discount code when first name changes
+  const handleFirstNameBlur = () => {
+    if (form.firstName && !form.discountCode) {
+      update("discountCode", generateDiscountCode(form.firstName, parseInt(form.commissionPct) || 10))
+    }
   }
 
-  const handleAdd = async () => {
-    if (!selected) return
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
     setSubmitting(true)
+    setError("")
     try {
       const res = await fetch(`/api/campaigns/${campaignId}/creators`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          creatorIds: [selected.id],
-          commissionPct: parseFloat(commissionPct),
-          discountCode: discountCode || undefined,
+          firstName: form.firstName,
+          lastName: form.lastName,
+          email: form.email,
+          commissionPct: parseFloat(form.commissionPct),
+          discountCode: form.discountCode || undefined,
         }),
       })
-      if (res.ok) {
-        onAdded()
-        onClose()
-      }
+      const data = await res.json()
+      if (!res.ok) { setError(data.error ?? "Error al enviar"); return }
+      setSent(true)
+      onAdded()
     } finally {
       setSubmitting(false)
     }
   }
 
+  const inputCls = "w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400"
+
   return (
     <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md">
         <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100">
-          <h2 className="text-base font-semibold text-gray-900">
-            Agregar creator a la campaña
-          </h2>
+          <h2 className="text-base font-semibold text-gray-900">Invitar creator</h2>
           <button onClick={onClose} className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg">
             <X size={16} />
           </button>
         </div>
 
-        <div className="p-6 space-y-4">
-          {!selected ? (
-            <div>
-              {/* Search input */}
-              <div className="relative">
-                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                <input
-                  type="text"
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Buscar por nombre, email o @instagram..."
-                  autoFocus
-                  className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400"
-                />
-              </div>
-
-              {/* Results */}
-              {results.length > 0 && (
-                <div className="mt-2 border border-gray-100 rounded-lg overflow-hidden max-h-60 overflow-y-auto">
-                  {results.map((creator) => (
-                    <button
-                      key={creator.id}
-                      onClick={() => !creator.alreadyInCampaign && handleSelect(creator)}
-                      disabled={creator.alreadyInCampaign || existingCreatorIds.includes(creator.id)}
-                      className={`w-full flex items-center gap-3 px-4 py-3 text-left border-b border-gray-50 last:border-0 transition-colors ${
-                        creator.alreadyInCampaign || existingCreatorIds.includes(creator.id)
-                          ? "opacity-40 cursor-not-allowed"
-                          : "hover:bg-gray-50"
-                      }`}
-                    >
-                      <div className="w-8 h-8 rounded-full bg-brand-100 flex items-center justify-center text-brand-700 text-xs font-semibold flex-shrink-0">
-                        {creator.name.split(" ").map((n) => n[0]).join("").slice(0, 2)}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-900">{creator.name}</p>
-                        <div className="flex items-center gap-2 mt-0.5">
-                          <span className="text-xs text-gray-400">{creator.email}</span>
-                          {creator.instagram && (
-                            <span className="text-xs text-gray-400 flex items-center gap-0.5">
-                              <Instagram size={10} />
-                              {creator.instagram}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      {(creator.alreadyInCampaign || existingCreatorIds.includes(creator.id)) && (
-                        <span className="text-xs text-gray-400 flex-shrink-0">Ya está</span>
-                      )}
-                    </button>
-                  ))}
-                </div>
-              )}
-
-              {query.length >= 2 && !searching && results.length === 0 && (
-                <p className="text-xs text-gray-400 mt-2 text-center py-3">
-                  No se encontraron creators con &quot;{query}&quot;
-                </p>
-              )}
-
-              {searching && (
-                <div className="flex items-center justify-center mt-3">
-                  <RefreshCw size={14} className="animate-spin text-gray-400" />
-                </div>
-              )}
-
-              <div className="mt-3 pt-3 border-t border-gray-100 text-center">
-                <p className="text-xs text-gray-400">
-                  ¿No está en Kool?{" "}
-                  <button
-                    onClick={onClose}
-                    className="text-brand-600 hover:underline"
-                  >
-                    Invitarlo desde Creators
-                  </button>
-                </p>
-              </div>
+        {sent ? (
+          <div className="p-8 text-center">
+            <div className="w-12 h-12 rounded-full bg-brand-50 flex items-center justify-center mx-auto mb-4">
+              <Check size={20} className="text-brand-500" />
             </div>
-          ) : (
-            <div className="space-y-4">
-              {/* Selected creator preview */}
-              <div className="flex items-center gap-3 p-3 bg-brand-50 rounded-lg border border-brand-100">
-                <div className="w-9 h-9 rounded-full bg-brand-100 flex items-center justify-center text-brand-700 text-sm font-semibold flex-shrink-0">
-                  {selected.name.split(" ").map((n) => n[0]).join("").slice(0, 2)}
-                </div>
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-gray-900">{selected.name}</p>
-                  <p className="text-xs text-gray-500">{selected.email}</p>
-                </div>
-                <button
-                  onClick={() => { setSelected(null); setQuery("") }}
-                  className="text-xs text-gray-400 hover:text-gray-600"
-                >
-                  Cambiar
-                </button>
-              </div>
-
-              {/* Commission */}
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1.5">
-                  Comisión para esta campaña (%)
-                </label>
-                <input
-                  type="number"
-                  value={commissionPct}
-                  onChange={(e) => {
-                    setCommissionPct(e.target.value)
-                    setDiscountCode(generateDiscountCode(selected.name, parseInt(e.target.value) || 10))
-                  }}
-                  min="1" max="50"
-                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400"
-                />
-                <p className="text-xs text-gray-400 mt-1">Esta comisión aplica solo para esta campaña.</p>
-              </div>
-
-              {/* Discount code */}
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1.5">
-                  Código de descuento
-                </label>
-                <div className="flex gap-1">
+            <p className="text-sm font-semibold text-gray-900 mb-1">¡Invitación enviada!</p>
+            <p className="text-xs text-gray-400 mb-5">
+              Le llegará un email a <strong>{form.email}</strong> con instrucciones para activar su cuenta.
+            </p>
+            <button onClick={onClose} className="px-5 py-2 text-sm font-medium bg-gray-900 text-white rounded-lg hover:bg-gray-800">
+              Listo
+            </button>
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit}>
+            <div className="p-6 space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1.5">Nombre *</label>
                   <input
                     type="text"
-                    value={discountCode}
-                    onChange={(e) => setDiscountCode(e.target.value.toUpperCase())}
-                    className="flex-1 px-3 py-2 text-sm font-mono border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400"
+                    required
+                    value={form.firstName}
+                    onChange={(e) => update("firstName", e.target.value)}
+                    onBlur={handleFirstNameBlur}
+                    placeholder="Camila"
+                    className={inputCls}
                   />
-                  <button
-                    type="button"
-                    onClick={() => setDiscountCode(generateDiscountCode(selected.name, parseInt(commissionPct) || 10))}
-                    title="Regenerar código"
-                    className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg flex-shrink-0"
-                  >
-                    <RefreshCcw size={14} />
-                  </button>
                 </div>
-                <p className="text-xs text-gray-400 mt-1">
-                  Se crea automáticamente en Tiendanube.
-                </p>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1.5">Apellido *</label>
+                  <input
+                    type="text"
+                    required
+                    value={form.lastName}
+                    onChange={(e) => update("lastName", e.target.value)}
+                    placeholder="García"
+                    className={inputCls}
+                  />
+                </div>
               </div>
-            </div>
-          )}
-        </div>
 
-        <div className="px-6 py-4 border-t border-gray-100 flex gap-3">
-          <button
-            onClick={onClose}
-            className="flex-1 px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50"
-          >
-            Cancelar
-          </button>
-          {selected && (
-            <button
-              onClick={handleAdd}
-              disabled={submitting || !discountCode || !commissionPct}
-              className="flex-1 px-4 py-2 text-sm font-medium bg-gray-900 text-white rounded-lg hover:bg-gray-800 disabled:opacity-50"
-            >
-              {submitting ? "Agregando..." : "Agregar a la campaña"}
-            </button>
-          )}
-        </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1.5">Email *</label>
+                <input
+                  type="email"
+                  required
+                  value={form.email}
+                  onChange={(e) => update("email", e.target.value)}
+                  placeholder="camila@ejemplo.com"
+                  className={inputCls}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1.5">Comisión (%)</label>
+                  <input
+                    type="number"
+                    min="1" max="50"
+                    value={form.commissionPct}
+                    onChange={(e) => update("commissionPct", e.target.value)}
+                    className={inputCls}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1.5">Código de descuento</label>
+                  <div className="flex gap-1">
+                    <input
+                      type="text"
+                      value={form.discountCode}
+                      onChange={(e) => update("discountCode", e.target.value.toUpperCase())}
+                      placeholder="CAMILA10"
+                      className="flex-1 px-3 py-2 text-sm font-mono border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => update("discountCode", generateDiscountCode(form.firstName || "creator", parseInt(form.commissionPct) || 10))}
+                      title="Regenerar"
+                      className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg flex-shrink-0"
+                    >
+                      <RefreshCcw size={14} />
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {error && (
+                <p className="text-xs text-red-600 bg-red-50 px-3 py-2 rounded-lg">{error}</p>
+              )}
+            </div>
+
+            <div className="px-6 py-4 border-t border-gray-100 flex gap-3">
+              <button
+                type="button"
+                onClick={onClose}
+                className="flex-1 px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50"
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                disabled={submitting || !form.firstName || !form.lastName || !form.email}
+                className="flex-1 px-4 py-2 text-sm font-medium bg-gray-900 text-white rounded-lg hover:bg-gray-800 disabled:opacity-50"
+              >
+                {submitting ? "Enviando..." : "Enviar invitación"}
+              </button>
+            </div>
+          </form>
+        )}
       </div>
     </div>
   )

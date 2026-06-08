@@ -1,19 +1,19 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, Suspense } from "react"
 import { useSearchParams } from "next/navigation"
 import { SignUp } from "@clerk/nextjs"
-import { Suspense } from "react"
 import Link from "next/link"
 import { Mail, ArrowRight } from "lucide-react"
 
 function RegisterForm() {
   const searchParams = useSearchParams()
   const [role, setRole] = useState<"brand" | "creator">("brand")
+  const token = searchParams.get("token")
 
   useEffect(() => {
-    if (searchParams.get("role") === "creator") setRole("creator")
-  }, [searchParams])
+    if (searchParams.get("role") === "creator" || token) setRole("creator")
+  }, [searchParams, token])
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
@@ -26,29 +26,31 @@ function RegisterForm() {
       </div>
 
       <div className="w-full max-w-sm">
-        {/* Toggle */}
-        <div className="flex bg-white border border-gray-200 rounded-xl p-1 mb-6 shadow-sm">
-          <button
-            onClick={() => setRole("brand")}
-            className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all ${
-              role === "brand"
-                ? "bg-gray-900 text-white shadow-sm"
-                : "text-gray-500 hover:text-gray-700"
-            }`}
-          >
-            Soy marca
-          </button>
-          <button
-            onClick={() => setRole("creator")}
-            className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all ${
-              role === "creator"
-                ? "bg-gray-900 text-white shadow-sm"
-                : "text-gray-500 hover:text-gray-700"
-            }`}
-          >
-            Soy creator
-          </button>
-        </div>
+        {/* Toggle — hidden when arriving via token link */}
+        {!token && (
+          <div className="flex bg-white border border-gray-200 rounded-xl p-1 mb-6 shadow-sm">
+            <button
+              onClick={() => setRole("brand")}
+              className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all ${
+                role === "brand"
+                  ? "bg-gray-900 text-white shadow-sm"
+                  : "text-gray-500 hover:text-gray-700"
+              }`}
+            >
+              Soy marca
+            </button>
+            <button
+              onClick={() => setRole("creator")}
+              className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all ${
+                role === "creator"
+                  ? "bg-gray-900 text-white shadow-sm"
+                  : "text-gray-500 hover:text-gray-700"
+              }`}
+            >
+              Soy creator
+            </button>
+          </div>
+        )}
 
         {role === "brand" ? (
           <>
@@ -68,9 +70,30 @@ function RegisterForm() {
               </Link>
             </p>
           </>
+        ) : token ? (
+          <CreatorSignUp token={token} />
         ) : (
           <CreatorRegisterInfo />
         )}
+      </div>
+    </div>
+  )
+}
+
+function CreatorSignUp({ token }: { token: string }) {
+  return (
+    <div className="space-y-4">
+      <div className="text-center mb-4">
+        <h1 className="text-lg font-semibold text-gray-900">Activá tu cuenta</h1>
+        <p className="text-sm text-gray-500 mt-1">
+          Creá tu cuenta para acceder a tu programa
+        </p>
+      </div>
+      <div className="flex justify-center">
+        <SignUp
+          afterSignUpUrl={`/onboarding/creator?token=${token}`}
+          routing="hash"
+        />
       </div>
     </div>
   )
