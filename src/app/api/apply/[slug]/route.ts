@@ -11,6 +11,10 @@ const ApplySchema = z.object({
   city:      z.string().optional(),
   instagram: z.string().optional(),
   tiktok:    z.string().optional(),
+  answers:   z.array(z.object({
+    questionId: z.string(),
+    answer:     z.string(),
+  })).optional(),
 })
 
 export async function POST(
@@ -66,6 +70,20 @@ export async function POST(
         tiktok: data.tiktok,
       },
     })
+
+    // Save custom question answers
+    if (data.answers && data.answers.length > 0) {
+      const validAnswers = data.answers.filter((a) => a.answer?.trim())
+      if (validAnswers.length > 0) {
+        await prisma.applicationAnswer.createMany({
+          data: validAnswers.map((a) => ({
+            applicationId: application.id,
+            questionId: a.questionId,
+            answer: a.answer,
+          })),
+        })
+      }
+    }
 
     // Send confirmation email (fire and forget)
     sendApplicationConfirmation({

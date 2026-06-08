@@ -34,6 +34,14 @@ const CreateCampaignSchema = z.object({
   giftingDescription: z.string().optional(),
   commissionEnabled:  z.boolean().default(false),
   commissionMaxPct:   z.number().min(1).max(100).optional(),
+  // Custom questions
+  questions: z.array(z.object({
+    question: z.string().min(1),
+    type:     z.enum(["OPEN", "SINGLE_CHOICE"]).default("OPEN"),
+    required: z.boolean().default(false),
+    options:  z.array(z.string()).default([]),
+    order:    z.number().default(0),
+  })).optional(),
 })
 
 export async function POST(request: NextRequest) {
@@ -78,6 +86,20 @@ export async function POST(request: NextRequest) {
         commissionMaxPct: data.commissionEnabled ? data.commissionMaxPct : null,
       },
     })
+
+    // Create custom questions if provided
+    if (data.questions && data.questions.length > 0) {
+      await prisma.campaignQuestion.createMany({
+        data: data.questions.map((q, i) => ({
+          campaignId: campaign.id,
+          question: q.question,
+          type: q.type,
+          required: q.required,
+          options: q.options,
+          order: i,
+        })),
+      })
+    }
 
     return NextResponse.json({ ok: true, campaign })
   } catch (error) {

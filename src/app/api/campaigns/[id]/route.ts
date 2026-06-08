@@ -42,6 +42,7 @@ export async function GET(
         },
       },
       _count: { select: { applications: true } },
+      questions: { orderBy: { order: "asc" } },
     },
   })
 

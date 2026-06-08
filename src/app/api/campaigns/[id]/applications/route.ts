@@ -26,6 +26,12 @@ export async function GET(
       campaignId: id,
       ...(status ? { status } : {}),
     },
+    include: {
+      answers: {
+        include: { question: true },
+        orderBy: { question: { order: "asc" } },
+      },
+    },
     orderBy: { createdAt: "desc" },
   })
 

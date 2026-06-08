@@ -121,6 +121,7 @@ model Campaign {
   briefings     Briefing[]
   giftingOrders GiftingOrder[]
   applications  Application[]
+  questions     CampaignQuestion[]
 
   @@map("campaigns")
 }
@@ -579,8 +580,9 @@ model Application {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  campaign    Campaign  @relation(fields: [campaignId], references: [id], onDelete: Cascade)
-  creator     Creator?  @relation(fields: [creatorId], references: [id])
+  campaign    Campaign            @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  creator     Creator?            @relation(fields: [creatorId], references: [id])
+  answers     ApplicationAnswer[]
 
   @@unique([campaignId, email])
   @@map("applications")
@@ -590,6 +592,48 @@ enum ApplicationStatus {
   PENDING
   ACCEPTED
   REJECTED
+}
+
+// ─────────────────────────────────────────────
+// PREGUNTAS DE CAMPAÑA
+// ─────────────────────────────────────────────
+
+model CampaignQuestion {
+  id         String       @id @default(cuid())
+  campaignId String
+
+  question   String
+  type       QuestionType @default(OPEN)
+  required   Boolean      @default(false)
+  order      Int          @default(0)
+  options    String[]
+
+  createdAt  DateTime @default(now())
+
+  campaign   Campaign            @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  answers    ApplicationAnswer[]
+
+  @@index([campaignId])
+  @@map("campaign_questions")
+}
+
+model ApplicationAnswer {
+  id            String @id @default(cuid())
+  questionId    String
+  applicationId String
+
+  answer        String
+
+  question      CampaignQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  application   Application      @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  @@unique([questionId, applicationId])
+  @@map("application_answers")
+}
+
+enum QuestionType {
+  OPEN
+  SINGLE_CHOICE
 }
 
 // ─────────────────────────────────────────────

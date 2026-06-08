@@ -28,6 +28,13 @@ interface CampaignInfo {
   giftingDescription: string | null
   commissionEnabled: boolean
   commissionMaxPct: number | null
+  questions: {
+    id: string
+    question: string
+    type: "OPEN" | "SINGLE_CHOICE"
+    required: boolean
+    options: string[]
+  }[]
   workspace: { name: string }
 }
 
@@ -41,6 +48,7 @@ export default function ApplyPage() {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState("")
   const [alreadyApplied, setAlreadyApplied] = useState(false)
+  const [answers, setAnswers] = useState<Record<string, string>>({})
 
   const [form, setForm] = useState({
     name: "",
@@ -81,6 +89,7 @@ export default function ApplyPage() {
           city: form.city || undefined,
           instagram: form.instagram || undefined,
           tiktok: form.tiktok || undefined,
+          answers: Object.entries(answers).map(([questionId, answer]) => ({ questionId, answer })),
         }),
       })
       const data = await res.json()
@@ -367,6 +376,60 @@ export default function ApplyPage() {
                     className="w-full pl-7 pr-3.5 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:border-transparent"
                     style={{ "--tw-ring-color": color } as React.CSSProperties}
                   />
+                </div>
+              </div>
+            )}
+
+            {/* Preguntas customizadas */}
+            {campaign?.questions && campaign.questions.length > 0 && (
+              <div className="pt-2 space-y-4">
+                <div className="border-t border-gray-100 pt-4">
+                  <h3 className="text-sm font-semibold text-gray-900 mb-4">Preguntas de la campaña</h3>
+                  {campaign.questions.map((q) => (
+                    <div key={q.id} className="mb-4">
+                      <label className="block text-xs font-medium text-gray-700 mb-1.5">
+                        {q.question}
+                        {q.required && <span className="text-red-400 ml-1">*</span>}
+                      </label>
+                      {q.type === "OPEN" ? (
+                        <textarea
+                          value={answers[q.id] || ""}
+                          onChange={(e) => setAnswers((prev) => ({ ...prev, [q.id]: e.target.value }))}
+                          required={q.required}
+                          rows={3}
+                          placeholder="Tu respuesta..."
+                          className="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:border-transparent resize-none"
+                          style={{ "--tw-ring-color": color } as React.CSSProperties}
+                        />
+                      ) : (
+                        <div className="space-y-2">
+                          {q.options.map((option, i) => (
+                            <label
+                              key={i}
+                              className={`flex items-center gap-3 p-3 border rounded-xl cursor-pointer transition-colors ${
+                                answers[q.id] === option
+                                  ? "border-current bg-opacity-5"
+                                  : "border-gray-200 hover:border-gray-300"
+                              }`}
+                              style={answers[q.id] === option ? { borderColor: color, backgroundColor: color + "10" } : {}}
+                            >
+                              <input
+                                type="radio"
+                                name={`question_${q.id}`}
+                                value={option}
+                                checked={answers[q.id] === option}
+                                onChange={() => setAnswers((prev) => ({ ...prev, [q.id]: option }))}
+                                required={q.required && !answers[q.id]}
+                                className="flex-shrink-0"
+                                style={{ accentColor: color }}
+                              />
+                              <span className="text-sm text-gray-700">{option}</span>
+                            </label>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
                 </div>
               </div>
             )}

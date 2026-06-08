@@ -51,6 +51,12 @@ interface CampaignBriefing {
   _count: { recipients: number }
 }
 
+interface ApplicationAnswer {
+  id: string
+  answer: string
+  question: { question: string; order: number }
+}
+
 interface Application {
   id: string
   name: string
@@ -63,6 +69,7 @@ interface Application {
   status: "PENDING" | "ACCEPTED" | "REJECTED"
   notes: string | null
   createdAt: string
+  answers?: ApplicationAnswer[]
 }
 
 interface CampaignDetail {
@@ -1890,6 +1897,17 @@ function ApplicationsTab({
                         <p className="text-gray-700 font-medium">{formatDate(app.createdAt)}</p>
                       </div>
                     </div>
+                    {app.answers && app.answers.length > 0 && (
+                      <div className="mt-3 pt-3 border-t border-gray-50 space-y-2">
+                        <p className="text-[11px] font-medium text-gray-500">Respuestas</p>
+                        {app.answers.map((ans) => (
+                          <div key={ans.id}>
+                            <p className="text-[11px] text-gray-400">{ans.question.question}</p>
+                            <p className="text-[13px] text-gray-900 mt-0.5">{ans.answer}</p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                     {app.notes && (
                       <div className="mt-3 bg-gray-50 rounded-lg px-3 py-2 text-[12px] text-gray-600">
                         <span className="font-medium text-gray-500">Notas: </span>{app.notes}

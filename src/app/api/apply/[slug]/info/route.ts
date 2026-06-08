@@ -22,6 +22,10 @@ export async function GET(
       giftingDescription: true,
       commissionEnabled: true,
       commissionMaxPct: true,
+      questions: {
+        select: { id: true, question: true, type: true, required: true, options: true, order: true },
+        orderBy: { order: "asc" },
+      },
       workspace: { select: { name: true } },
     },
   })

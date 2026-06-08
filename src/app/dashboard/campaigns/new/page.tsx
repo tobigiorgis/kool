@@ -2,11 +2,20 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { ArrowLeft, Copy, Check, RefreshCw, Gift, DollarSign } from "lucide-react"
+import { ArrowLeft, Copy, Check, RefreshCw, Gift, DollarSign, Plus, X } from "lucide-react"
 
 interface FieldState {
   enabled: boolean
   required: boolean
+}
+
+interface Question {
+  id: string
+  question: string
+  type: "OPEN" | "SINGLE_CHOICE"
+  required: boolean
+  options: string[]
+  newOption: string
 }
 
 interface Fields {
@@ -65,6 +74,40 @@ export default function NewCampaignPage() {
   const [giftingDescription, setGiftingDescription] = useState("")
   const [commissionEnabled, setCommissionEnabled] = useState(false)
   const [commissionMaxPct, setCommissionMaxPct] = useState("")
+  const [questions, setQuestions] = useState<Question[]>([])
+
+  const addQuestion = () => {
+    setQuestions((prev) => [...prev, {
+      id: crypto.randomUUID(),
+      question: "",
+      type: "OPEN",
+      required: false,
+      options: [],
+      newOption: "",
+    }])
+  }
+
+  const removeQuestion = (id: string) => {
+    setQuestions((prev) => prev.filter((q) => q.id !== id))
+  }
+
+  const updateQuestion = (id: string, updates: Partial<Question>) => {
+    setQuestions((prev) => prev.map((q) => q.id === id ? { ...q, ...updates } : q))
+  }
+
+  const addOption = (questionId: string) => {
+    setQuestions((prev) => prev.map((q) => {
+      if (q.id !== questionId || !q.newOption.trim()) return q
+      return { ...q, options: [...q.options, q.newOption.trim()], newOption: "" }
+    }))
+  }
+
+  const removeOption = (questionId: string, optionIndex: number) => {
+    setQuestions((prev) => prev.map((q) => {
+      if (q.id !== questionId) return q
+      return { ...q, options: q.options.filter((_, i) => i !== optionIndex) }
+    }))
+  }
 
   useEffect(() => {
     fetch("/api/workspace/me")
@@ -121,6 +164,15 @@ export default function NewCampaignPage() {
           giftingDescription: giftingEnabled ? giftingDescription : null,
           commissionEnabled,
           commissionMaxPct: commissionEnabled && commissionMaxPct ? parseFloat(commissionMaxPct) : null,
+          questions: questions
+            .filter((q) => q.question.trim())
+            .map((q, i) => ({
+              question: q.question,
+              type: q.type,
+              required: q.required,
+              options: q.type === "SINGLE_CHOICE" ? q.options : [],
+              order: i,
+            })),
         }),
       })
       const data = await res.json()
@@ -361,6 +413,150 @@ export default function NewCampaignPage() {
               )}
             </div>
           </div>
+        </div>
+
+        {/* Sección 4: Preguntas para los aplicantes */}
+        <div className="bg-white rounded-2xl border border-gray-100 p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="text-sm font-semibold text-gray-900">Preguntas para los aplicantes</h2>
+              <p className="text-xs text-gray-500 mt-0.5">
+                Los creators responden estas preguntas al aplicar a la campaña.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={addQuestion}
+              className="flex items-center gap-1.5 text-sm text-brand-600 font-medium hover:text-brand-700"
+            >
+              <Plus size={14} />
+              Agregar pregunta
+            </button>
+          </div>
+
+          {questions.length === 0 ? (
+            <button
+              type="button"
+              onClick={addQuestion}
+              className="w-full border-2 border-dashed border-gray-200 rounded-xl py-8 text-center hover:border-brand-300 hover:bg-brand-50 transition-colors group"
+            >
+              <Plus size={18} className="text-gray-300 group-hover:text-brand-400 mx-auto mb-2" />
+              <p className="text-sm text-gray-400 group-hover:text-brand-500">Agregar primera pregunta</p>
+            </button>
+          ) : (
+            <div className="space-y-4">
+              {questions.map((q, index) => (
+                <div key={q.id} className="border border-gray-200 rounded-xl p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-medium text-gray-400">Pregunta {index + 1}</span>
+                    <button
+                      type="button"
+                      onClick={() => removeQuestion(q.id)}
+                      className="text-gray-300 hover:text-red-400 transition-colors"
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+
+                  <input
+                    type="text"
+                    value={q.question}
+                    onChange={(e) => updateQuestion(q.id, { question: e.target.value })}
+                    placeholder="Ej: ¿Qué tipo de pelo tenés?"
+                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400"
+                  />
+
+                  <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1 text-xs">
+                      <button
+                        type="button"
+                        onClick={() => updateQuestion(q.id, { type: "OPEN", options: [] })}
+                        className={`px-3 py-1 rounded transition-colors ${
+                          q.type === "OPEN"
+                            ? "bg-white shadow-sm text-gray-900 font-medium"
+                            : "text-gray-500 hover:text-gray-700"
+                        }`}
+                      >
+                        Respuesta abierta
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => updateQuestion(q.id, { type: "SINGLE_CHOICE" })}
+                        className={`px-3 py-1 rounded transition-colors ${
+                          q.type === "SINGLE_CHOICE"
+                            ? "bg-white shadow-sm text-gray-900 font-medium"
+                            : "text-gray-500 hover:text-gray-700"
+                        }`}
+                      >
+                        Opciones
+                      </button>
+                    </div>
+                    <label className="flex items-center gap-1.5 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={q.required}
+                        onChange={(e) => updateQuestion(q.id, { required: e.target.checked })}
+                        className="rounded text-brand-400"
+                      />
+                      <span className="text-xs text-gray-600">Obligatoria</span>
+                    </label>
+                  </div>
+
+                  {q.type === "SINGLE_CHOICE" && (
+                    <div className="space-y-2 pt-1">
+                      {q.options.map((option, i) => (
+                        <div key={i} className="flex items-center gap-2">
+                          <div className="w-3.5 h-3.5 rounded-full border-2 border-gray-300 flex-shrink-0" />
+                          <span className="text-sm text-gray-700 flex-1">{option}</span>
+                          <button
+                            type="button"
+                            onClick={() => removeOption(q.id, i)}
+                            className="text-gray-300 hover:text-red-400"
+                          >
+                            <X size={12} />
+                          </button>
+                        </div>
+                      ))}
+                      <div className="flex items-center gap-2 mt-2">
+                        <div className="w-3.5 h-3.5 rounded-full border-2 border-gray-200 flex-shrink-0" />
+                        <input
+                          type="text"
+                          value={q.newOption}
+                          onChange={(e) => updateQuestion(q.id, { newOption: e.target.value })}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") { e.preventDefault(); addOption(q.id) }
+                          }}
+                          placeholder="Agregar opción..."
+                          className="flex-1 text-sm text-gray-600 placeholder-gray-300 border-none outline-none bg-transparent"
+                        />
+                        {q.newOption.trim() && (
+                          <button
+                            type="button"
+                            onClick={() => addOption(q.id)}
+                            className="text-xs text-brand-600 font-medium hover:text-brand-700"
+                          >
+                            Agregar
+                          </button>
+                        )}
+                      </div>
+                      {q.options.length === 0 && (
+                        <p className="text-xs text-amber-600 bg-amber-50 px-3 py-1.5 rounded-lg mt-1">
+                          Agregá al menos una opción para esta pregunta.
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ))}
+              <button
+                type="button"
+                onClick={addQuestion}
+                className="w-full py-2.5 border border-dashed border-gray-200 rounded-xl text-sm text-gray-400 hover:border-brand-300 hover:text-brand-500 transition-colors"
+              >
+                + Agregar otra pregunta
+              </button>
+            </div>
+          )}
         </div>
 
         {error && (
