@@ -58,7 +58,7 @@ export async function GET(
   const linkIds = campaign.links.map((l) => l.id)
   const creatorIds = campaign.creators.map((cc) => cc.creatorId)
 
-  const [clickCount, conversions, commissions] = await Promise.all([
+  const [clickCount, conversions, commissions, linkClickCounts, linkConversionData] = await Promise.all([
     linkIds.length
       ? prisma.click.count({ where: { linkId: { in: linkIds } } })
       : 0,
@@ -74,14 +74,47 @@ export async function GET(
           _sum: { amount: true },
         })
       : { _sum: { amount: null } },
+    // Per-link click counts
+    linkIds.length
+      ? prisma.click.groupBy({
+          by: ["linkId"],
+          where: { linkId: { in: linkIds } },
+          _count: { id: true },
+        })
+      : [],
+    // Per-link conversions
+    linkIds.length
+      ? prisma.conversion.findMany({
+          where: { linkId: { in: linkIds } },
+          select: { linkId: true, orderAmount: true },
+        })
+      : [],
   ])
+
+  // Build per-link lookup maps
+  const clicksByLink = new Map(
+    (linkClickCounts as { linkId: string; _count: { id: number } }[]).map((c) => [c.linkId, c._count.id])
+  )
+  const salesByLink = new Map<string, { sales: number; revenue: number }>()
+  for (const conv of linkConversionData as { linkId: string | null; orderAmount: number }[]) {
+    if (!conv.linkId) continue
+    const prev = salesByLink.get(conv.linkId) ?? { sales: 0, revenue: 0 }
+    salesByLink.set(conv.linkId, { sales: prev.sales + 1, revenue: prev.revenue + conv.orderAmount })
+  }
+
+  const linksWithMetrics = campaign.links.map((l) => ({
+    ...l,
+    clicks: clicksByLink.get(l.id) ?? 0,
+    sales: salesByLink.get(l.id)?.sales ?? 0,
+    revenue: salesByLink.get(l.id)?.revenue ?? 0,
+  }))
 
   const totalRevenue = (conversions as { orderAmount: number }[]).reduce((s, c) => s + c.orderAmount, 0)
   const totalConversions = (conversions as { orderAmount: number }[]).length
   const totalCommissions = commissions._sum.amount ?? 0
 
   return NextResponse.json({
-    campaign,
+    campaign: { ...campaign, links: linksWithMetrics },
     analytics: {
       clicks: clickCount,
       conversions: totalConversions,

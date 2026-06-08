@@ -18,8 +18,11 @@ export async function GET(request: NextRequest) {
   const { userId } = await auth()
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-  const period = (request.nextUrl.searchParams.get("period") ?? "30d") as "7d" | "30d" | "90d"
-  const linkId = request.nextUrl.searchParams.get("linkId")
+  const sp = request.nextUrl.searchParams
+  const period = (sp.get("period") ?? "30d") as "7d" | "30d" | "90d"
+  const linkId = sp.get("linkId")
+  const campaignId = sp.get("campaignId")
+  const creatorId = sp.get("creatorId")
 
   const member = await prisma.workspaceMember.findFirst({
     where: { userId },
@@ -32,47 +35,55 @@ export async function GET(request: NextRequest) {
   const toDate = new Date(to + "T23:59:59.999Z")
 
   try {
-    // Traer IDs de links del workspace (evita filtros de relación anidada)
-    const workspaceLinks = await prisma.link.findMany({
-      where: linkId
-        ? { id: linkId, workspaceId: member.workspaceId }
-        : { workspaceId: member.workspaceId },
-      select: { id: true },
-    })
-    const linkIds = workspaceLinks.map((l) => l.id)
+    // Resolve which link IDs to filter by
+    let targetLinkIds: string[]
 
-    const clicks = linkIds.length
+    if (linkId) {
+      const link = await prisma.link.findFirst({
+        where: { id: linkId, workspaceId: member.workspaceId },
+        select: { id: true },
+      })
+      targetLinkIds = link ? [link.id] : []
+    } else if (campaignId) {
+      const campaignLinks = await prisma.link.findMany({
+        where: { campaignId, workspaceId: member.workspaceId },
+        select: { id: true },
+      })
+      targetLinkIds = campaignLinks.map((l) => l.id)
+    } else if (creatorId) {
+      const creatorLinks = await prisma.link.findMany({
+        where: { creatorId, workspaceId: member.workspaceId },
+        select: { id: true },
+      })
+      targetLinkIds = creatorLinks.map((l) => l.id)
+    } else {
+      const workspaceLinks = await prisma.link.findMany({
+        where: { workspaceId: member.workspaceId },
+        select: { id: true },
+      })
+      targetLinkIds = workspaceLinks.map((l) => l.id)
+    }
+
+    const clicks = targetLinkIds.length
       ? await prisma.click.findMany({
           where: {
-            linkId: { in: linkIds },
+            linkId: { in: targetLinkIds },
             timestamp: { gte: fromDate, lte: toDate },
           },
-          select: {
-            timestamp: true,
-            ipHash: true,
-            country: true,
-            device: true,
-            source: true,
-          },
+          select: { timestamp: true, ipHash: true, country: true, device: true, source: true },
         })
       : []
 
-    // clicks por día (rellena días sin clics con 0)
+    // clicks por día
     const days = buildDayRange(from, to)
     const clicksByDay = days.map((date) => {
-      const dayClicks = clicks.filter(
-        (c) => c.timestamp.toISOString().split("T")[0] === date
-      )
+      const dayClicks = clicks.filter((c) => c.timestamp.toISOString().split("T")[0] === date)
       const uniqueHashes = new Set(dayClicks.map((c) => c.ipHash).filter(Boolean))
       return { date, clicks: dayClicks.length, unique_clicks: uniqueHashes.size }
     })
 
-    // totales
     const uniqueHashes = new Set(clicks.map((c) => c.ipHash).filter(Boolean))
-    const stats = {
-      clicks: clicks.length,
-      unique_clicks: uniqueHashes.size,
-    }
+    const stats = { clicks: clicks.length, unique_clicks: uniqueHashes.size }
 
     // países
     const countryMap = new Map<string, number>()
@@ -87,8 +98,7 @@ export async function GET(request: NextRequest) {
     // dispositivos
     const deviceMap = new Map<string, number>()
     clicks.forEach((c) => {
-      const d = c.device || "desktop"
-      deviceMap.set(d, (deviceMap.get(d) ?? 0) + 1)
+      deviceMap.set(c.device || "desktop", (deviceMap.get(c.device || "desktop") ?? 0) + 1)
     })
     const devices = [...deviceMap.entries()]
       .sort((a, b) => b[1] - a[1])
@@ -101,8 +111,7 @@ export async function GET(request: NextRequest) {
     // fuentes
     const sourceMap = new Map<string, number>()
     clicks.forEach((c) => {
-      const s = c.source || "direct"
-      sourceMap.set(s, (sourceMap.get(s) ?? 0) + 1)
+      sourceMap.set(c.source || "direct", (sourceMap.get(c.source || "direct") ?? 0) + 1)
     })
     const sources = [...sourceMap.entries()]
       .sort((a, b) => b[1] - a[1])
@@ -112,16 +121,43 @@ export async function GET(request: NextRequest) {
         percentage: clicks.length ? Math.round((n / clicks.length) * 100) : 0,
       }))
 
-    // conversiones
-    const conversionCount = await prisma.conversion.count({
-      where: {
-        creatorId: { in: await prisma.creator.findMany({
-          where: { workspaceId: member.workspaceId },
-          select: { id: true },
-        }).then((cs) => cs.map((c) => c.id)) },
-        convertedAt: { gte: fromDate, lte: toDate },
-      },
-    })
+    // conversiones — filtrar por links resueltos o por workspace entero
+    let conversionCount = 0
+    if (targetLinkIds.length) {
+      conversionCount = await prisma.conversion.count({
+        where: {
+          linkId: { in: targetLinkIds },
+          convertedAt: { gte: fromDate, lte: toDate },
+        },
+      })
+    } else if (!linkId && !campaignId && !creatorId) {
+      const wsCreatorIds = await prisma.creator.findMany({
+        where: { workspaceId: member.workspaceId },
+        select: { id: true },
+      }).then((cs) => cs.map((c) => c.id))
+      conversionCount = await prisma.conversion.count({
+        where: {
+          creatorId: { in: wsCreatorIds },
+          convertedAt: { gte: fromDate, lte: toDate },
+        },
+      })
+    }
+
+    // Filter info for breadcrumb
+    const [linkInfo, campaignInfo, creatorInfo] = await Promise.all([
+      linkId
+        ? prisma.link.findUnique({
+            where: { id: linkId },
+            select: { slug: true, creator: { select: { name: true } } },
+          })
+        : null,
+      campaignId
+        ? prisma.campaign.findUnique({ where: { id: campaignId }, select: { name: true } })
+        : null,
+      creatorId
+        ? prisma.creator.findUnique({ where: { id: creatorId }, select: { name: true } })
+        : null,
+    ])
 
     return NextResponse.json({
       stats,
@@ -131,6 +167,11 @@ export async function GET(request: NextRequest) {
       sources,
       conversions: conversionCount,
       isMock: false,
+      filterInfo: {
+        linkSlug: linkInfo?.slug ?? null,
+        campaignName: campaignInfo?.name ?? null,
+        creatorName: creatorInfo?.name ?? null,
+      },
     })
   } catch (err) {
     console.error("[Analytics] Error:", err)

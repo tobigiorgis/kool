@@ -1,14 +1,21 @@
 "use client"
 
-import { useEffect, useState, useCallback } from "react"
+import { useEffect, useState, useCallback, Suspense } from "react"
+import { useSearchParams } from "next/navigation"
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  BarChart, Bar, Cell, PieChart, Pie, Legend,
+  PieChart, Pie, Cell,
 } from "recharts"
-import { TrendingUp, MousePointerClick, Users, ShoppingCart, Globe, Smartphone, Wifi } from "lucide-react"
+import { TrendingUp, MousePointerClick, Users, ShoppingCart, Globe, Smartphone, Wifi, X } from "lucide-react"
 import { formatNumber } from "@/lib/utils"
 
 type Period = "7d" | "30d" | "90d"
+
+interface FilterInfo {
+  linkSlug: string | null
+  campaignName: string | null
+  creatorName: string | null
+}
 
 interface AnalyticsData {
   stats: { clicks: number; unique_clicks: number }
@@ -18,6 +25,7 @@ interface AnalyticsData {
   sources: { source: string; clicks: number; percentage: number }[]
   conversions: number
   isMock: boolean
+  filterInfo: FilterInfo
 }
 
 const DEVICE_COLORS: Record<string, string> = {
@@ -44,21 +52,40 @@ const PERIOD_LABELS: Record<Period, string> = {
 }
 
 export default function AnalyticsPage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-sm text-gray-400">Cargando...</div>}>
+      <AnalyticsContent />
+    </Suspense>
+  )
+}
+
+function AnalyticsContent() {
+  const searchParams = useSearchParams()
+  const linkId = searchParams.get("linkId")
+  const campaignId = searchParams.get("campaignId")
+  const creatorId = searchParams.get("creatorId")
+
   const [period, setPeriod] = useState<Period>("30d")
   const [data, setData] = useState<AnalyticsData | null>(null)
   const [loading, setLoading] = useState(true)
 
+  const buildApiUrl = useCallback((p: string) => {
+    const params = new URLSearchParams({ period: p })
+    if (linkId) params.set("linkId", linkId)
+    if (campaignId) params.set("campaignId", campaignId)
+    if (creatorId) params.set("creatorId", creatorId)
+    return `/api/analytics?${params.toString()}`
+  }, [linkId, campaignId, creatorId])
+
   const fetchData = useCallback(async () => {
     setLoading(true)
     try {
-      const res = await fetch(`/api/analytics?period=${period}`)
-      if (res.ok) {
-        setData(await res.json())
-      }
+      const res = await fetch(buildApiUrl(period))
+      if (res.ok) setData(await res.json())
     } finally {
       setLoading(false)
     }
-  }, [period])
+  }, [period, buildApiUrl])
 
   useEffect(() => { fetchData() }, [fetchData])
 
@@ -67,10 +94,26 @@ export default function AnalyticsPage() {
       ? ((data.conversions / data.stats.clicks) * 100).toFixed(1)
       : "0.0"
 
-  // Format date label
-  const formatDate = (d: string) => {
-    const date = new Date(d)
-    return date.toLocaleDateString("es-AR", { day: "numeric", month: "short" })
+  const formatDate = (d: string) =>
+    new Date(d).toLocaleDateString("es-AR", { day: "numeric", month: "short" })
+
+  const hasFilter = !!(linkId || campaignId || creatorId)
+
+  const filterLabel = data?.filterInfo
+    ? (data.filterInfo.linkSlug
+        ? `kool.link/${data.filterInfo.linkSlug}`
+        : data.filterInfo.campaignName
+        ? data.filterInfo.campaignName
+        : data.filterInfo.creatorName
+        ? data.filterInfo.creatorName
+        : "")
+    : ""
+
+  const getTitle = () => {
+    if (linkId) return "Analytics · Link"
+    if (campaignId) return "Analytics · Campaña"
+    if (creatorId) return "Analytics · Creator"
+    return "Analytics"
   }
 
   return (
@@ -78,10 +121,23 @@ export default function AnalyticsPage() {
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-2xl font-semibold text-gray-900">Analytics</h1>
-          <p className="text-sm text-gray-500 mt-1">
-            Estadísticas de clicks y conversiones
-          </p>
+          {hasFilter && (
+            <div className="flex items-center gap-2 mb-2">
+              <a href="/dashboard/analytics" className="text-xs text-gray-400 hover:text-gray-600 transition-colors">
+                Analytics
+              </a>
+              <span className="text-xs text-gray-300">/</span>
+              <span className="text-xs text-gray-700 font-medium">{filterLabel}</span>
+              <a
+                href="/dashboard/analytics"
+                className="ml-1 flex items-center gap-0.5 text-xs text-gray-400 hover:text-red-400 transition-colors"
+              >
+                <X size={11} />
+              </a>
+            </div>
+          )}
+          <h1 className="text-2xl font-semibold text-gray-900">{getTitle()}</h1>
+          <p className="text-sm text-gray-500 mt-1">Estadísticas de clicks y conversiones</p>
         </div>
 
         {/* Period selector */}
@@ -171,23 +227,8 @@ export default function AnalyticsPage() {
                 ]}
                 contentStyle={{ borderRadius: 8, border: "1px solid #e5e7eb", fontSize: 12 }}
               />
-              <Line
-                type="monotone"
-                dataKey="clicks"
-                stroke="#00C46A"
-                strokeWidth={2}
-                dot={false}
-                activeDot={{ r: 4 }}
-              />
-              <Line
-                type="monotone"
-                dataKey="unique_clicks"
-                stroke="#3b82f6"
-                strokeWidth={2}
-                dot={false}
-                activeDot={{ r: 4 }}
-                strokeDasharray="4 2"
-              />
+              <Line type="monotone" dataKey="clicks" stroke="#00C46A" strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
+              <Line type="monotone" dataKey="unique_clicks" stroke="#3b82f6" strokeWidth={2} dot={false} activeDot={{ r: 4 }} strokeDasharray="4 2" />
             </LineChart>
           </ResponsiveContainer>
         )}
@@ -197,7 +238,7 @@ export default function AnalyticsPage() {
             <span className="text-xs text-gray-500">Clics totales</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <div className="w-3 h-0.5 bg-blue-400 rounded border-dashed" style={{ borderBottom: "2px dashed #3b82f6", height: 0 }} />
+            <div className="w-3 h-0.5 bg-blue-400 rounded" />
             <span className="text-xs text-gray-500">Clics únicos</span>
           </div>
         </div>
@@ -215,25 +256,23 @@ export default function AnalyticsPage() {
             <Skeleton />
           ) : (
             <div className="space-y-2.5">
-              {(data?.countries ?? []).map(({ country, clicks }, i) => {
+              {(data?.countries ?? []).map(({ country, clicks }) => {
                 const max = data?.countries[0]?.clicks || 1
                 return (
                   <div key={country}>
                     <div className="flex items-center justify-between mb-1">
-                      <span className="text-xs text-gray-700">
-                        {COUNTRY_NAMES[country] ?? country}
-                      </span>
+                      <span className="text-xs text-gray-700">{COUNTRY_NAMES[country] ?? country}</span>
                       <span className="text-xs font-medium text-gray-900">{clicks.toLocaleString()}</span>
                     </div>
                     <div className="h-1.5 bg-gray-100 rounded-full">
-                      <div
-                        className="h-1.5 rounded-full bg-brand-400"
-                        style={{ width: `${(clicks / max) * 100}%` }}
-                      />
+                      <div className="h-1.5 rounded-full bg-brand-400" style={{ width: `${(clicks / max) * 100}%` }} />
                     </div>
                   </div>
                 )
               })}
+              {!loading && (data?.countries ?? []).length === 0 && (
+                <p className="text-xs text-gray-400">Sin datos para el período.</p>
+              )}
             </div>
           )}
         </div>
@@ -274,15 +313,15 @@ export default function AnalyticsPage() {
                 {(data?.devices ?? []).map(({ device, percentage }) => (
                   <div key={device} className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <div
-                        className="w-2 h-2 rounded-full"
-                        style={{ background: DEVICE_COLORS[device] ?? "#9ca3af" }}
-                      />
+                      <div className="w-2 h-2 rounded-full" style={{ background: DEVICE_COLORS[device] ?? "#9ca3af" }} />
                       <span className="text-xs text-gray-600 capitalize">{device}</span>
                     </div>
                     <span className="text-xs font-medium text-gray-900">{percentage}%</span>
                   </div>
                 ))}
+                {!loading && (data?.devices ?? []).length === 0 && (
+                  <p className="text-xs text-gray-400">Sin datos para el período.</p>
+                )}
               </div>
             </>
           )}
@@ -307,14 +346,14 @@ export default function AnalyticsPage() {
                   <div className="h-1.5 bg-gray-100 rounded-full">
                     <div
                       className="h-1.5 rounded-full"
-                      style={{
-                        width: `${percentage}%`,
-                        background: SOURCE_COLORS[source] ?? "#9ca3af",
-                      }}
+                      style={{ width: `${percentage}%`, background: SOURCE_COLORS[source] ?? "#9ca3af" }}
                     />
                   </div>
                 </div>
               ))}
+              {!loading && (data?.sources ?? []).length === 0 && (
+                <p className="text-xs text-gray-400">Sin datos para el período.</p>
+              )}
             </div>
           )}
         </div>

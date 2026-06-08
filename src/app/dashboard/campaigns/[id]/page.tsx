@@ -6,7 +6,7 @@ import {
   ArrowLeft, MousePointerClick, ShoppingCart, DollarSign, TrendingUp,
   Users, Link2, X, RefreshCw, UserPlus, Trash2, RefreshCcw, Package,
   FileText, Plus, Paperclip, ExternalLink, Upload, CheckCircle2,
-  XCircle, ChevronDown, ChevronUp, Copy, Check, Instagram, Search, Gift, Minus,
+  XCircle, ChevronDown, ChevronUp, Copy, Check, Instagram, Search, Gift, Minus, BarChart2,
 } from "lucide-react"
 import { formatNumber, formatCurrency, formatDate, generateDiscountCode } from "@/lib/utils"
 
@@ -32,6 +32,9 @@ interface CampaignLink {
   destination: string
   discountCode: string | null
   creator: { name: string } | null
+  clicks?: number
+  sales?: number
+  revenue?: number
 }
 
 interface BriefingAsset {
@@ -155,7 +158,7 @@ const STATUS_CONFIG: Record<string, { label: string; style: string }> = {
 
 const STATUS_ORDER: ("PRE_LAUNCH" | "RUNNING" | "COMPLETED")[] = ["PRE_LAUNCH", "RUNNING", "COMPLETED"]
 
-type Tab = "overview" | "creators" | "links" | "gifting" | "briefings" | "applications"
+type Tab = "overview" | "creators" | "links" | "gifting" | "briefings" | "applications" | "analytics"
 
 export default function CampaignDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -333,6 +336,7 @@ export default function CampaignDetailPage() {
                   label: `Aplicaciones${applications.filter((a) => a.status === "PENDING").length > 0 ? ` · ${applications.filter((a) => a.status === "PENDING").length} pendientes` : ""}`,
                 }]
               : []),
+            { key: "analytics" as Tab, label: "Analytics" },
           ]).map((t) => (
             <button
               key={t.key}
@@ -363,7 +367,7 @@ export default function CampaignDetailPage() {
       )}
 
       {tab === "links" && (
-        <LinksTab campaign={campaign} />
+        <LinksTab links={campaign.links} campaignId={campaign.id} />
       )}
 
       {tab === "gifting" && (
@@ -380,6 +384,10 @@ export default function CampaignDetailPage() {
           campaign={campaign}
           onCreateBriefing={() => setShowCreateBriefing(true)}
         />
+      )}
+
+      {tab === "analytics" && (
+        <CampaignAnalyticsTab campaign={campaign} analytics={analytics} />
       )}
 
       {tab === "applications" && campaign.slug && (
@@ -598,14 +606,22 @@ function CreatorsTab({ campaign, onAdd, onRemove }: {
   )
 }
 
-function LinksTab({ campaign }: { campaign: CampaignDetail }) {
+function LinksTab({ links, campaignId }: { links: CampaignLink[]; campaignId: string }) {
   return (
     <div>
-      <p className="text-[13px] text-gray-500 mb-4">
-        {campaign.links.length} link{campaign.links.length !== 1 ? "s" : ""} en esta campaña
-      </p>
+      <div className="flex items-center justify-between mb-4">
+        <p className="text-[13px] text-gray-500">
+          {links.length} link{links.length !== 1 ? "s" : ""} en esta campaña
+        </p>
+        <a
+          href={`/dashboard/analytics?campaignId=${campaignId}`}
+          className="text-[12px] text-brand-600 hover:text-brand-700 transition-colors"
+        >
+          Ver analytics de la campaña →
+        </a>
+      </div>
 
-      {campaign.links.length === 0 ? (
+      {links.length === 0 ? (
         <div className="bg-white rounded-xl border border-gray-100 p-10 text-center">
           <Link2 size={28} className="mx-auto text-gray-300 mb-3" />
           <p className="text-sm text-gray-500">
@@ -613,33 +629,67 @@ function LinksTab({ campaign }: { campaign: CampaignDetail }) {
           </p>
         </div>
       ) : (
-        <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
+        <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
           <table className="w-full">
             <thead>
-              <tr className="border-b border-gray-100 bg-gray-50">
-                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500">Link</th>
-                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500">Creator</th>
-                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500">Código</th>
+              <tr className="border-b border-gray-100">
+                <th className="text-left px-5 py-3 text-[11px] font-medium text-gray-400 uppercase tracking-wider">Link</th>
+                <th className="text-left px-5 py-3 text-[11px] font-medium text-gray-400 uppercase tracking-wider">Creator</th>
+                <th className="text-left px-5 py-3 text-[11px] font-medium text-gray-400 uppercase tracking-wider">Código</th>
+                <th className="text-right px-5 py-3 text-[11px] font-medium text-gray-400 uppercase tracking-wider">Clicks</th>
+                <th className="text-right px-5 py-3 text-[11px] font-medium text-gray-400 uppercase tracking-wider">Sales</th>
+                <th className="text-right px-5 py-3 text-[11px] font-medium text-gray-400 uppercase tracking-wider">Revenue</th>
+                <th className="px-5 py-3" />
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
-              {campaign.links.map((link) => (
-                <tr key={link.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4">
-                    <p className="text-sm font-medium text-gray-900">kool.link/{link.slug}</p>
-                    <p className="text-xs text-gray-400 truncate max-w-[250px]">{link.destination}</p>
+              {links.map((link) => (
+                <tr key={link.id} className="hover:bg-gray-50/50 transition-colors">
+                  <td className="px-5 py-3.5">
+                    <div className="flex items-center gap-2">
+                      <Link2 size={13} className="text-rose-400 flex-shrink-0" />
+                      <span className="text-[13px] font-medium text-rose-500">kool.link/{link.slug}</span>
+                    </div>
+                    <p className="text-xs text-gray-400 truncate max-w-[220px] mt-0.5 ml-5">{link.destination}</p>
                   </td>
-                  <td className="px-6 py-4 text-sm text-gray-700">
+                  <td className="px-5 py-3.5 text-[13px] text-gray-700">
                     {link.creator?.name ?? "—"}
                   </td>
-                  <td className="px-6 py-4">
+                  <td className="px-5 py-3.5">
                     {link.discountCode ? (
-                      <span className="font-mono text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded">
+                      <span className="font-mono text-xs bg-gray-50 text-gray-700 px-2 py-0.5 rounded">
                         {link.discountCode}
                       </span>
                     ) : (
-                      <span className="text-xs text-gray-400">—</span>
+                      <span className="text-xs text-gray-300">—</span>
                     )}
+                  </td>
+                  <td className="px-5 py-3.5 text-right text-[13px] text-gray-900">
+                    {(link.clicks ?? 0).toLocaleString()}
+                  </td>
+                  <td className="px-5 py-3.5 text-right text-[13px] text-gray-900">
+                    {(link.sales ?? 0).toLocaleString()}
+                  </td>
+                  <td className="px-5 py-3.5 text-right text-[13px] text-gray-900">
+                    {formatCurrency(link.revenue ?? 0)}
+                  </td>
+                  <td className="px-5 py-3.5">
+                    <div className="flex items-center justify-end gap-1">
+                      <button
+                        onClick={() => navigator.clipboard.writeText(`https://kool.link/${link.slug}`)}
+                        className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                        title="Copiar link"
+                      >
+                        <Copy size={13} />
+                      </button>
+                      <a
+                        href={`/dashboard/analytics?linkId=${link.id}`}
+                        className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                        title="Ver analytics"
+                      >
+                        <BarChart2 size={13} />
+                      </a>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -647,6 +697,85 @@ function LinksTab({ campaign }: { campaign: CampaignDetail }) {
           </table>
         </div>
       )}
+    </div>
+  )
+}
+
+function CampaignAnalyticsTab({
+  campaign,
+  analytics,
+}: {
+  campaign: CampaignDetail
+  analytics: Analytics
+}) {
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-5">
+        <h3 className="text-[13px] font-semibold text-gray-900">Analytics de la campaña</h3>
+        <a
+          href={`/dashboard/analytics?campaignId=${campaign.id}`}
+          className="text-[12px] text-brand-600 hover:text-brand-700 transition-colors"
+        >
+          Ver analytics completo →
+        </a>
+      </div>
+
+      {/* Metric tiles */}
+      <div className="grid grid-cols-4 gap-3 mb-6">
+        <div className="bg-white rounded-xl border border-gray-100 p-4">
+          <p className="text-[11px] text-gray-400 uppercase tracking-wider mb-1">Clicks</p>
+          <p className="text-xl font-semibold text-gray-900">{analytics.clicks.toLocaleString()}</p>
+        </div>
+        <div className="bg-white rounded-xl border border-gray-100 p-4">
+          <p className="text-[11px] text-gray-400 uppercase tracking-wider mb-1">Conversions</p>
+          <p className="text-xl font-semibold text-gray-900">{analytics.conversions.toLocaleString()}</p>
+        </div>
+        <div className="bg-white rounded-xl border border-gray-100 p-4">
+          <p className="text-[11px] text-gray-400 uppercase tracking-wider mb-1">Revenue</p>
+          <p className="text-xl font-semibold text-gray-900">{formatCurrency(analytics.revenue)}</p>
+        </div>
+        <div className="bg-brand-50 rounded-xl border border-brand-100 p-4">
+          <p className="text-[11px] text-brand-500 uppercase tracking-wider mb-1">Commissions</p>
+          <p className="text-xl font-semibold text-brand-700">{formatCurrency(analytics.commissions)}</p>
+        </div>
+      </div>
+
+      {/* Creators in campaign */}
+      <div className="bg-white rounded-2xl border border-gray-100 p-5">
+        <h4 className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-3">
+          Creators en la campaña
+        </h4>
+        {campaign.creators.length === 0 ? (
+          <p className="text-sm text-gray-400 py-4 text-center">No hay creators en esta campaña.</p>
+        ) : (
+          <div className="space-y-1">
+            {campaign.creators.map((cc) => {
+              const initials = cc.creator.name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()
+              return (
+                <div key={cc.id} className="flex items-center justify-between py-2.5 border-b border-gray-50 last:border-0">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-7 h-7 rounded-full bg-rose-50 flex items-center justify-center flex-shrink-0">
+                      <span className="text-[10px] font-semibold text-rose-400">{initials}</span>
+                    </div>
+                    <span className="text-[13px] text-gray-900">{cc.creator.name}</span>
+                    {cc.discountCode && (
+                      <span className="text-[11px] font-mono text-gray-400 bg-gray-50 px-1.5 py-0.5 rounded">
+                        {cc.discountCode}
+                      </span>
+                    )}
+                  </div>
+                  <a
+                    href={`/dashboard/analytics?creatorId=${cc.creator.id}`}
+                    className="text-[11px] text-gray-400 hover:text-brand-600 transition-colors"
+                  >
+                    Ver analytics →
+                  </a>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
     </div>
   )
 }
