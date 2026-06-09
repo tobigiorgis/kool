@@ -26,11 +26,16 @@ export async function GET() {
       province: true,
       country: true,
       zipCode: true,
+      bankAlias: true,
+      shippingAddress: true,
+      shippingCity: true,
+      shippingProvince: true,
+      shippingZipCode: true,
     },
   })
 
   if (!creator) return NextResponse.json({ error: "Not found" }, { status: 404 })
-  return NextResponse.json({ creator })
+  return NextResponse.json(creator)
 }
 
 // PATCH — actualiza datos del creator
@@ -46,6 +51,7 @@ export async function PATCH(request: NextRequest) {
     "instagram", "tiktok", "youtube", "twitter",
     "niche", "audienceSize",
     "address", "city", "province", "country", "zipCode",
+    "bankAlias", "shippingAddress", "shippingCity", "shippingProvince", "shippingZipCode",
   ] as const
 
   const data: Record<string, unknown> = {}
