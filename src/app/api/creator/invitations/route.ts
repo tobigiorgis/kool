@@ -16,7 +16,7 @@ export async function GET() {
         include: { workspace: true },
       },
     },
-    orderBy: { createdAt: "desc" },
+    orderBy: { sentAt: "desc" },
   })
 
   // Find CampaignCreator entries to get per-creator commission/discount
