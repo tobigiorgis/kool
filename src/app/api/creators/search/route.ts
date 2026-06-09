@@ -16,6 +16,8 @@ export async function GET(request: NextRequest) {
   const creatorsRaw = await prisma.creator.findMany({
     where: {
       OR: [
+        { firstName: { contains: q, mode: "insensitive" } },
+        { lastName: { contains: q, mode: "insensitive" } },
         { name: { contains: q, mode: "insensitive" } },
         { email: { contains: q, mode: "insensitive" } },
         { instagram: { contains: q, mode: "insensitive" } },
@@ -38,9 +40,10 @@ export async function GET(request: NextRequest) {
     creators: creatorsRaw.map((c) => ({
       id: c.id,
       name: c.name,
+      firstName: c.firstName,
+      lastName: c.lastName,
       email: c.email,
       instagram: c.instagram,
-      commissionPct: c.commissionPct,
       alreadyInCampaign: inCampaignSet.has(c.id),
     })),
   })

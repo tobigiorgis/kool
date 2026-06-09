@@ -440,7 +440,6 @@ export default function CampaignDetailPage() {
         <AddCreatorsModal
           campaignId={campaign.id}
           workspaceId={campaign.workspaceId}
-          existingCreatorIds={campaign.creators.map((cc) => cc.creator.id)}
           onClose={() => setShowAddCreators(false)}
           onAdded={loadData}
         />
@@ -1207,181 +1206,313 @@ function GiftingTab({ orders, loading, campaign, onGiftingCreated }: {
   )
 }
 
-function AddCreatorsModal({ campaignId, workspaceId, existingCreatorIds, onClose, onAdded }: {
+interface CreatorSearchResult {
+  id: string
+  name: string
+  firstName: string | null
+  lastName: string | null
+  email: string
+  instagram: string | null
+  alreadyInCampaign: boolean
+}
+
+function AddCreatorsModal({ campaignId, workspaceId, onClose, onAdded }: {
   campaignId: string
   workspaceId: string
-  existingCreatorIds: string[]
   onClose: () => void
   onAdded: () => void
 }) {
-  const [form, setForm] = useState({
-    firstName: "",
-    lastName: "",
-    email: "",
-    commissionPct: "10",
-    discountCode: "",
-  })
-  const [submitting, setSubmitting] = useState(false)
-  const [error, setError] = useState("")
-  const [sent, setSent] = useState(false)
+  const [mode, setMode] = useState<"search" | "invite">("search")
+  const [query, setQuery] = useState("")
+  const [results, setResults] = useState<CreatorSearchResult[]>([])
+  const [selected, setSelected] = useState<CreatorSearchResult | null>(null)
+  const [searching, setSearching] = useState(false)
 
-  const update = (field: keyof typeof form, value: string) =>
-    setForm((f) => ({ ...f, [field]: value }))
+  const [firstName, setFirstName] = useState("")
+  const [lastName, setLastName] = useState("")
+  const [email, setEmail] = useState("")
 
-  // Auto-generate discount code when first name changes
-  const handleFirstNameBlur = () => {
-    if (form.firstName && !form.discountCode) {
-      update("discountCode", generateDiscountCode(form.firstName, parseInt(form.commissionPct) || 10))
+  const [commissionPct, setCommissionPct] = useState("10")
+  const [discountCode, setDiscountCode] = useState("")
+  const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    if (mode !== "search" || !query || query.length < 2) {
+      setResults([])
+      return
     }
+    const timeout = setTimeout(async () => {
+      setSearching(true)
+      try {
+        const res = await fetch(
+          `/api/creators/search?q=${encodeURIComponent(query)}&campaignId=${campaignId}&workspaceId=${workspaceId}`
+        )
+        const data = await res.json()
+        setResults(data.creators || [])
+      } finally {
+        setSearching(false)
+      }
+    }, 300)
+    return () => clearTimeout(timeout)
+  }, [query, mode, campaignId, workspaceId])
+
+  const handleSelectCreator = (creator: CreatorSearchResult) => {
+    setSelected(creator)
+    const name = creator.firstName || creator.name?.split(" ")[0] || ""
+    const code = name.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 8) + commissionPct
+    setDiscountCode(code)
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setSubmitting(true)
-    setError("")
+  const handleSubmit = async () => {
+    setLoading(true)
     try {
-      const res = await fetch(`/api/campaigns/${campaignId}/creators`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          firstName: form.firstName,
-          lastName: form.lastName,
-          email: form.email,
-          commissionPct: parseFloat(form.commissionPct),
-          discountCode: form.discountCode || undefined,
-        }),
-      })
-      const data = await res.json()
-      if (!res.ok) { setError(data.error ?? "Error al enviar"); return }
-      setSent(true)
+      if (mode === "search" && selected) {
+        await fetch(`/api/campaigns/${campaignId}/creators`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            creatorId: selected.id,
+            commissionPct: parseFloat(commissionPct),
+            discountCode,
+          }),
+        })
+      } else {
+        await fetch(`/api/campaigns/${campaignId}/creators`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            firstName,
+            lastName,
+            email,
+            commissionPct: parseFloat(commissionPct),
+            discountCode,
+          }),
+        })
+      }
       onAdded()
+      onClose()
+    } catch (err) {
+      console.error(err)
     } finally {
-      setSubmitting(false)
+      setLoading(false)
     }
   }
-
-  const inputCls = "w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400"
 
   return (
     <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md">
-        <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100">
-          <h2 className="text-base font-semibold text-gray-900">Invitar creator</h2>
-          <button onClick={onClose} className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg">
-            <X size={16} />
-          </button>
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+        <div className="px-6 py-5 border-b border-gray-100">
+          <h2 className="text-base font-semibold text-gray-900">Agregar creator</h2>
         </div>
 
-        {sent ? (
-          <div className="p-8 text-center">
-            <div className="w-12 h-12 rounded-full bg-brand-50 flex items-center justify-center mx-auto mb-4">
-              <Check size={20} className="text-brand-500" />
-            </div>
-            <p className="text-sm font-semibold text-gray-900 mb-1">¡Invitación enviada!</p>
-            <p className="text-xs text-gray-400 mb-5">
-              Le llegará un email a <strong>{form.email}</strong> con instrucciones para activar su cuenta.
-            </p>
-            <button onClick={onClose} className="px-5 py-2 text-sm font-medium bg-gray-900 text-white rounded-lg hover:bg-gray-800">
-              Listo
+        <div className="p-6 space-y-4">
+          {/* Toggle */}
+          <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1 text-xs">
+            <button
+              type="button"
+              onClick={() => { setMode("search"); setSelected(null) }}
+              className={`flex-1 px-3 py-1.5 rounded-md transition-colors ${
+                mode === "search" ? "bg-white shadow-sm text-gray-900 font-medium" : "text-gray-500 hover:text-gray-700"
+              }`}
+            >
+              Buscar existente
+            </button>
+            <button
+              type="button"
+              onClick={() => { setMode("invite"); setSelected(null); setQuery("") }}
+              className={`flex-1 px-3 py-1.5 rounded-md transition-colors ${
+                mode === "invite" ? "bg-white shadow-sm text-gray-900 font-medium" : "text-gray-500 hover:text-gray-700"
+              }`}
+            >
+              Invitar nuevo
             </button>
           </div>
-        ) : (
-          <form onSubmit={handleSubmit}>
-            <div className="p-6 space-y-4">
+
+          {/* Search mode — no selection yet */}
+          {mode === "search" && !selected && (
+            <div>
+              <div className="relative">
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                <input
+                  type="text"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="Buscar por nombre, email o @instagram..."
+                  autoFocus
+                  className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400"
+                />
+              </div>
+
+              {results.length > 0 && (
+                <div className="mt-2 border border-gray-100 rounded-lg overflow-hidden max-h-48 overflow-y-auto">
+                  {results.map((creator) => (
+                    <button
+                      key={creator.id}
+                      onClick={() => handleSelectCreator(creator)}
+                      disabled={creator.alreadyInCampaign}
+                      className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-50 transition-colors border-b border-gray-50 last:border-0 ${
+                        creator.alreadyInCampaign ? "opacity-40 cursor-not-allowed" : ""
+                      }`}
+                    >
+                      <div className="w-8 h-8 rounded-full bg-rose-50 flex items-center justify-center text-rose-400 text-xs font-semibold flex-shrink-0">
+                        {(creator.firstName?.[0] || creator.name?.[0] || "?")}
+                        {creator.lastName?.[0] || ""}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-gray-900">
+                          {creator.firstName ? `${creator.firstName} ${creator.lastName || ""}` : creator.name}
+                        </p>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <span className="text-xs text-gray-400">{creator.email}</span>
+                          {creator.instagram && (
+                            <span className="text-xs text-gray-400">@{creator.instagram}</span>
+                          )}
+                        </div>
+                      </div>
+                      {creator.alreadyInCampaign && (
+                        <span className="text-[10px] text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">Ya está</span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {query.length >= 2 && !searching && results.length === 0 && (
+                <div className="mt-3 text-center py-4">
+                  <p className="text-xs text-gray-400 mb-2">No se encontraron creators con &ldquo;{query}&rdquo;</p>
+                  <button
+                    type="button"
+                    onClick={() => setMode("invite")}
+                    className="text-xs text-brand-600 hover:text-brand-700 font-medium"
+                  >
+                    Invitar creator nuevo →
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Creator selected */}
+          {mode === "search" && selected && (
+            <div className="flex items-center gap-3 p-3 bg-brand-50 rounded-lg border border-brand-100">
+              <div className="w-9 h-9 rounded-full bg-brand-100 flex items-center justify-center text-brand-700 text-sm font-semibold flex-shrink-0">
+                {(selected.firstName?.[0] || selected.name?.[0] || "?")}
+                {selected.lastName?.[0] || ""}
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-medium text-gray-900">
+                  {selected.firstName ? `${selected.firstName} ${selected.lastName || ""}` : selected.name}
+                </p>
+                <p className="text-xs text-gray-500">{selected.email}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => { setSelected(null); setQuery("") }}
+                className="text-xs text-gray-400 hover:text-gray-600"
+              >
+                Cambiar
+              </button>
+            </div>
+          )}
+
+          {/* Invite mode fields */}
+          {mode === "invite" && (
+            <div className="space-y-3">
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-1.5">Nombre *</label>
                   <input
                     type="text"
-                    required
-                    value={form.firstName}
-                    onChange={(e) => update("firstName", e.target.value)}
-                    onBlur={handleFirstNameBlur}
+                    value={firstName}
+                    onChange={(e) => {
+                      setFirstName(e.target.value)
+                      const code = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 8) + commissionPct
+                      setDiscountCode(code)
+                    }}
                     placeholder="Camila"
-                    className={inputCls}
+                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400"
                   />
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-1.5">Apellido *</label>
                   <input
                     type="text"
-                    required
-                    value={form.lastName}
-                    onChange={(e) => update("lastName", e.target.value)}
+                    value={lastName}
+                    onChange={(e) => setLastName(e.target.value)}
                     placeholder="García"
-                    className={inputCls}
+                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400"
                   />
                 </div>
               </div>
-
               <div>
                 <label className="block text-xs font-medium text-gray-700 mb-1.5">Email *</label>
                 <input
                   type="email"
-                  required
-                  value={form.email}
-                  onChange={(e) => update("email", e.target.value)}
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                   placeholder="camila@ejemplo.com"
-                  className={inputCls}
+                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400"
                 />
               </div>
+            </div>
+          )}
 
+          {/* Common fields — commission + discount */}
+          {(selected || mode === "invite") && (
+            <div className="space-y-3 pt-2 border-t border-gray-100">
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-1.5">Comisión (%)</label>
                   <input
                     type="number"
-                    min="1" max="50"
-                    value={form.commissionPct}
-                    onChange={(e) => update("commissionPct", e.target.value)}
-                    className={inputCls}
+                    value={commissionPct}
+                    onChange={(e) => setCommissionPct(e.target.value)}
+                    min="1"
+                    max="50"
+                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400"
                   />
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-1.5">Código de descuento</label>
-                  <div className="flex gap-1">
-                    <input
-                      type="text"
-                      value={form.discountCode}
-                      onChange={(e) => update("discountCode", e.target.value.toUpperCase())}
-                      placeholder="CAMILA10"
-                      className="flex-1 px-3 py-2 text-sm font-mono border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => update("discountCode", generateDiscountCode(form.firstName || "creator", parseInt(form.commissionPct) || 10))}
-                      title="Regenerar"
-                      className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg flex-shrink-0"
-                    >
-                      <RefreshCcw size={14} />
-                    </button>
-                  </div>
+                  <input
+                    type="text"
+                    value={discountCode}
+                    onChange={(e) => setDiscountCode(e.target.value.toUpperCase())}
+                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400 font-mono"
+                  />
                 </div>
               </div>
-
-              {error && (
-                <p className="text-xs text-red-600 bg-red-50 px-3 py-2 rounded-lg">{error}</p>
-              )}
+              <p className="text-xs text-gray-400">La comisión y el código aplican solo para esta campaña.</p>
             </div>
+          )}
+        </div>
 
-            <div className="px-6 py-4 border-t border-gray-100 flex gap-3">
-              <button
-                type="button"
-                onClick={onClose}
-                className="flex-1 px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50"
-              >
-                Cancelar
-              </button>
-              <button
-                type="submit"
-                disabled={submitting || !form.firstName || !form.lastName || !form.email}
-                className="flex-1 px-4 py-2 text-sm font-medium bg-gray-900 text-white rounded-lg hover:bg-gray-800 disabled:opacity-50"
-              >
-                {submitting ? "Enviando..." : "Enviar invitación"}
-              </button>
-            </div>
-          </form>
-        )}
+        <div className="px-6 py-4 border-t border-gray-100 flex gap-3">
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex-1 px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50"
+          >
+            Cancelar
+          </button>
+          <button
+            type="button"
+            onClick={handleSubmit}
+            disabled={
+              loading ||
+              (mode === "search" && !selected) ||
+              (mode === "invite" && (!firstName || !email)) ||
+              !commissionPct
+            }
+            className="flex-1 px-4 py-2 text-sm font-medium bg-brand-400 text-white rounded-lg hover:bg-brand-500 disabled:opacity-50"
+          >
+            {loading
+              ? "Agregando..."
+              : mode === "search"
+              ? "Agregar a la campaña"
+              : "Enviar invitación"}
+          </button>
+        </div>
       </div>
     </div>
   )
