@@ -529,15 +529,24 @@ function CreateGiftingModal({
             <div className="flex-1 overflow-auto flex flex-col min-h-0">
               {/* Search */}
               <div className="px-6 py-3 border-b border-gray-100">
-                <div className="relative">
-                  <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                  <input
-                    type="text"
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    placeholder="Buscar producto..."
-                    className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-gray-300"
-                  />
+                <div className="flex items-center gap-2">
+                  <div className="relative flex-1">
+                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                    <input
+                      type="text"
+                      value={search}
+                      onChange={(e) => setSearch(e.target.value)}
+                      placeholder="Buscar producto..."
+                      className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-gray-300"
+                    />
+                  </div>
+                  <button
+                    onClick={loadProducts}
+                    disabled={productsLoading}
+                    className="text-xs text-gray-400 hover:text-gray-600 disabled:opacity-40 whitespace-nowrap"
+                  >
+                    Actualizar
+                  </button>
                 </div>
               </div>
 

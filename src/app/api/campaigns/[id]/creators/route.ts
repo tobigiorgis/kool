@@ -63,6 +63,11 @@ export async function POST(
   try {
     const body = await request.json()
 
+    // Normalize: support both single creatorId and creatorIds array
+    if (body.creatorId && !body.creatorIds && !body.email) {
+      body.creatorIds = [body.creatorId]
+    }
+
     const campaign = await prisma.campaign.findUnique({
       where: { id: campaignId },
       include: { workspace: { select: { name: true } } },
@@ -222,6 +227,12 @@ export async function POST(
             ...(data.commissionPct !== undefined && { commissionPct: data.commissionPct }),
             ...(data.discountCode !== undefined && { discountCode: data.discountCode }),
           },
+        })
+
+        await prisma.campaignInvite.upsert({
+          where: { campaignId_creatorId: { campaignId, creatorId } },
+          create: { campaignId, creatorId, status: "PENDING", sentAt: new Date() },
+          update: { status: "PENDING", sentAt: new Date() },
         })
 
         if (data.destination) {
