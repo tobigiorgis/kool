@@ -1384,13 +1384,21 @@ function ConnectProductModal({ dropId, dropProduct, workspaceId, onClose, onSave
   const [search, setSearch] = useState("")
   const [connecting, setConnecting] = useState<number | null>(null)
 
-  useEffect(() => {
-    fetch(`/api/tiendanube/products?workspaceId=${workspaceId}`)
-      .then((r) => r.json())
-      .then((d) => { if (d.error) setTnError(d.error); else setTnProducts(d.products || []) })
-      .catch(() => setTnError("Error al cargar productos"))
-      .finally(() => setLoadingTn(false))
-  }, [workspaceId])
+  const fetchProducts = async () => {
+    setLoadingTn(true)
+    setTnError(null)
+    try {
+      const r = await fetch(`/api/tiendanube/products?workspaceId=${workspaceId}`, { cache: "no-store" })
+      const d = await r.json()
+      if (d.error) setTnError(d.error); else setTnProducts(d.products || [])
+    } catch {
+      setTnError("Error al cargar productos")
+    } finally {
+      setLoadingTn(false)
+    }
+  }
+
+  useEffect(() => { fetchProducts() }, [workspaceId])
 
   const productName = (p: TiendanubeProduct) =>
     typeof p.name === "object" ? (p.name as any).es || Object.values(p.name as any)[0] : p.name
@@ -1446,10 +1454,16 @@ function ConnectProductModal({ dropId, dropProduct, workspaceId, onClose, onSave
         )}
 
         <div className="p-4 border-b border-gray-100 flex-shrink-0">
-          <div className="relative">
-            <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-            <input type="text" placeholder="Buscar producto de Tiendanube..." value={search} onChange={(e) => setSearch(e.target.value)} autoFocus
-              className="w-full pl-8 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C46A]/30 focus:border-[#00C46A]" />
+          <div className="flex items-center gap-2">
+            <div className="relative flex-1">
+              <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              <input type="text" placeholder="Buscar producto de Tiendanube..." value={search} onChange={(e) => setSearch(e.target.value)} autoFocus
+                className="w-full pl-8 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C46A]/30 focus:border-[#00C46A]" />
+            </div>
+            <button type="button" onClick={fetchProducts} disabled={loadingTn}
+              className="text-xs text-gray-400 hover:text-gray-600 disabled:opacity-40 whitespace-nowrap">
+              {loadingTn ? "Cargando..." : "↻ Actualizar"}
+            </button>
           </div>
         </div>
 
