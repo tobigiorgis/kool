@@ -1,55 +1,77 @@
 // public/scripts/kool-checkout.js
-// Script de checkout para Kool usando NubeSDK de Tiendanube
-// Documentación: https://tiendanube.github.io/nube-sdk/
+// Script de CHECKOUT para Kool — NubeSDK.
+// Docs: https://dev.nuvemshop.com.br/en/docs/applications/nube-sdk/
+//
+// ⚠️ El checkout nuevo corre en Web Worker SANDBOX: NO hay document, window,
+// cookies ni localStorage. Por eso NO leemos cookies (eso rompía antes).
+//
+// Estrategia:
+//   1) Si el storefront (kool-tracker.js) ya aplicó el cupón, `cart.coupon` lo
+//      trae → no hacemos nada.
+//   2) Si no, recuperamos el código de la URL (state.location.queries) o del
+//      asyncLocalStorage (lo dejó el tracker; el storage es scoped a la app,
+//      compartido entre storefront y checkout) y lo aplicamos con coupon:add.
 
-((app) => {
-  // Leer el código guardado en cookie
-  function getSavedRef() {
-    try {
-      var match = document.cookie.match(/(^|;\s*)kool_ref=([^;]+)/)
-      if (match) return match[2]
-      return localStorage.getItem('kool_ref') || null
-    } catch (e) {
-      return null
-    }
+export function App(nube) {
+  var KEY = "kool_ref"
+  var COUPON_RE = /^[A-Za-z0-9_-]{2,40}$/
+
+  var browser = nube.getBrowserAPIs()
+  var store = browser && browser.asyncLocalStorage
+
+  function clean(v) {
+    if (!v) return null
+    v = String(v).trim()
+    return COUPON_RE.test(v) ? v : null
   }
 
-  app.on("checkout:ready", (state, helpers) => {
-    const code = getSavedRef()
-    if (!code) {
-      console.log("[Kool Checkout] No saved ref found")
-      return
-    }
+  function refFromQueries(q) {
+    if (!q) return null
+    return clean(q.coupon || q.ref || q.kool_ref || q.utm_campaign)
+  }
 
-    console.log("[Kool Checkout] Found code:", code)
+  function appliedCoupon(cart) {
+    var c = cart && cart.coupon
+    if (!c) return null
+    return clean(typeof c === "string" ? c : c.code)
+  }
 
-    // Aplicar cupón usando NubeSDK
-    // El método exacto depende de la versión del SDK
-    if (helpers && helpers.cart && helpers.cart.applyCoupon) {
-      helpers.cart.applyCoupon(code)
-        .then(() => console.log("[Kool Checkout] Coupon applied:", code))
-        .catch((err) => console.error("[Kool Checkout] Error applying coupon:", err))
-    } else if (helpers && helpers.applyCoupon) {
-      helpers.applyCoupon(code)
-        .then(() => console.log("[Kool Checkout] Coupon applied:", code))
-        .catch((err) => console.error("[Kool Checkout] Error applying coupon:", err))
-    }
-  })
-
-  // También intentar en cada cambio de paso del checkout
-  app.on("checkout:step:change", (state, helpers) => {
-    const code = getSavedRef()
+  function apply(code) {
     if (!code) return
+    nube.send("coupon:add", function () {
+      return { cart: { coupon: { code: code } } }
+    })
+    console.log("[Kool Checkout] coupon:add →", code)
+  }
 
-    // Verificar si ya hay un cupón aplicado
-    if (state.cart && state.cart.coupon === code) {
-      console.log("[Kool Checkout] Coupon already applied:", code)
+  function ensure() {
+    var state = nube.getState()
+    if (!state || !state.cart) return
+
+    // 1) ya aplicado → listo
+    if (appliedCoupon(state.cart)) {
+      console.log("[Kool Checkout] cupón ya aplicado:", appliedCoupon(state.cart))
       return
     }
+    // 2) en la URL del checkout
+    var fromUrl = refFromQueries(state.location && state.location.queries)
+    if (fromUrl) { apply(fromUrl); return }
+    // 3) lo que dejó el tracker en el storage
+    if (!store) { console.log("[Kool Checkout] sin código (cart/URL)"); return }
+    store.getItem(KEY).then(function (saved) {
+      var code = clean(saved)
+      if (code) apply(code)
+      else console.log("[Kool Checkout] sin código (cart/URL/storage)")
+    }).catch(function () {})
+  }
 
-    if (helpers && helpers.cart && helpers.cart.applyCoupon) {
-      helpers.cart.applyCoupon(code)
-    }
+  nube.on("checkout:ready", function () { try { ensure() } catch (e) {} })
+  nube.on("cart:update", function () { try { ensure() } catch (e) {} })
+
+  nube.on("coupon:add:success", function (state) {
+    console.log("[Kool Checkout] aplicado:", appliedCoupon(state.cart))
   })
-
-})(NubeSDK)
+  nube.on("coupon:add:fail", function () {
+    console.warn("[Kool Checkout] coupon:add falló")
+  })
+}

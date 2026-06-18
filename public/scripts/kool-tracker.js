@@ -1,218 +1,77 @@
-;(function () {
-  "use strict"
+// public/scripts/kool-tracker.js
+// Script de STOREFRONT para Kool — NubeSDK.
+// Docs: https://dev.nuvemshop.com.br/en/docs/applications/nube-sdk/
+//
+// ⚠️ Corre en un Web Worker SANDBOX: NO hay document, window, cookies ni
+// localStorage. Todo es vía el modelo de eventos/estado del SDK.
+//
+// Qué hace: captura el código del creator desde la URL (?ref / ?utm_campaign /
+// ?coupon), lo persiste en asyncLocalStorage (scoped a la app, 30 días) y lo
+// aplica como cupón del carrito. Una vez aplicado, vive en `cart.coupon` y
+// sobrevive solo al checkout (que también es sandbox) → la venta se atribuye.
 
-  var KOOL_API_URL = "https://kool-beta.vercel.app"
-  var STORAGE_KEY = "kool_ref"
-  var COOKIE_NAME = "kool_ref"
-  var EXPIRY_DAYS = 30
+export function App(nube) {
+  var KEY = "kool_ref"
+  var TTL = 30 * 24 * 60 * 60 // 30 días, en segundos
+  var COUPON_RE = /^[A-Za-z0-9_-]{2,40}$/
 
-  function getRefFromUrl() {
-    try {
-      var params = new URLSearchParams(window.location.search)
-      return params.get("ref") || params.get("utm_campaign") || params.get("coupon")
-    } catch (e) { return null }
+  var browser = nube.getBrowserAPIs()
+  var store = browser && browser.asyncLocalStorage
+
+  function clean(v) {
+    if (!v) return null
+    v = String(v).trim()
+    return COUPON_RE.test(v) ? v : null
   }
 
-  // Guardar en cookie con dominio padre para que sobreviva al checkout
-  function saveRef(code) {
-    try {
-      var expiry = new Date()
-      expiry.setDate(expiry.getDate() + EXPIRY_DAYS)
-
-      // Detectar dominio padre
-      var host = window.location.hostname
-      var parts = host.split(".")
-      var parentDomain = parts.length >= 2 ? "." + parts.slice(-2).join(".") : host
-
-      document.cookie = COOKIE_NAME + "=" + code +
-        "; expires=" + expiry.toUTCString() +
-        "; path=/; domain=" + parentDomain + "; SameSite=Lax"
-
-      // Backup en localStorage
-      localStorage.setItem(STORAGE_KEY, code)
-      localStorage.setItem(STORAGE_KEY + "_expiry", expiry.getTime().toString())
-
-      console.log("[Kool] Saved ref:", code, "domain:", parentDomain)
-    } catch (e) {
-      console.error("[Kool] Error saving ref:", e)
-    }
+  // Lee el código de los query params de la URL (sandbox-safe vía el SDK).
+  function refFromQueries(q) {
+    if (!q) return null
+    return clean(q.coupon || q.ref || q.kool_ref || q.utm_campaign)
   }
 
-  function getSavedRef() {
-    try {
-      // 1. Intentar cookie
-      var match = document.cookie.match(new RegExp("(^|;\\s*)" + COOKIE_NAME + "=([^;]+)"))
-      if (match) return match[2]
-
-      // 2. Fallback localStorage
-      var expiry = parseInt(localStorage.getItem(STORAGE_KEY + "_expiry") || "0")
-      if (Date.now() > expiry) {
-        localStorage.removeItem(STORAGE_KEY)
-        return null
-      }
-      return localStorage.getItem(STORAGE_KEY)
-    } catch (e) { return null }
+  // Código de cupón ya aplicado en el carrito, si lo hay.
+  function appliedCoupon(cart) {
+    var c = cart && cart.coupon
+    if (!c) return null
+    return clean(typeof c === "string" ? c : c.code)
   }
 
-  // Modificar todos los links internos para incluir el cupón
-  function injectCouponInLinks(code) {
-    try {
-      var links = document.querySelectorAll("a[href]")
-      var host = window.location.hostname
-
-      for (var i = 0; i < links.length; i++) {
-        var link = links[i]
-        var href = link.getAttribute("href")
-        if (!href) continue
-
-        // Solo links internos (mismo dominio o relativos)
-        var isInternal = href.startsWith("/") ||
-          href.indexOf(host) !== -1 ||
-          href.indexOf("tiendanube.com") !== -1 ||
-          href.indexOf("mitiendanube.com") !== -1
-
-        if (!isInternal) continue
-        if (href.indexOf("coupon=") !== -1) continue
-
-        var separator = href.indexOf("?") !== -1 ? "&" : "?"
-        link.setAttribute("href", href + separator + "coupon=" + encodeURIComponent(code))
-      }
-    } catch (e) {
-      console.error("[Kool] Error injecting in links:", e)
-    }
+  function applyIfNeeded(state, code) {
+    if (!code || !state || !state.cart) return
+    if (appliedCoupon(state.cart) === code) return // ya está
+    nube.send("coupon:add", function () {
+      return { cart: { coupon: { code: code } } }
+    })
+    console.log("[Kool] coupon:add →", code)
   }
 
-  // Interceptar formularios de "agregar al carrito"
-  function interceptAddToCartForms(code) {
-    try {
-      var forms = document.querySelectorAll('form[action*="cart"], form[action*="carrito"], form.js-form-cart')
-      for (var i = 0; i < forms.length; i++) {
-        var form = forms[i]
-
-        // Agregar campo oculto si no existe
-        if (form.querySelector('input[name="coupon"]')) continue
-
-        var input = document.createElement("input")
-        input.type = "hidden"
-        input.name = "coupon"
-        input.value = code
-        form.appendChild(input)
-      }
-    } catch (e) {
-      console.error("[Kool] Error intercepting forms:", e)
-    }
-  }
-
-  // Aplicar cupón directamente si encontramos el input (checkout)
-  function applyCouponInCheckout(code) {
-    var selectors = [
-      'input[name="discount_coupon"]',
-      'input[name="coupon"]',
-      'input[id*="coupon"]',
-      'input[id*="discount"]',
-      'input[placeholder*="cupón"]',
-      'input[placeholder*="cupon"]',
-      'input[placeholder*="descuento"]',
-      'input[placeholder*="código"]',
-      '.js-coupon-input',
-      '#coupon_code',
-    ]
-
-    for (var i = 0; i < selectors.length; i++) {
-      var input = document.querySelector(selectors[i])
-      if (!input) continue
-
-      console.log("[Kool] Found coupon input, applying:", code)
-
-      try {
-        var setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value").set
-        setter.call(input, code)
-      } catch(e) {
-        input.value = code
-      }
-
-      input.dispatchEvent(new Event("input", { bubbles: true }))
-      input.dispatchEvent(new Event("change", { bubbles: true }))
-
-      // Click submit
-      setTimeout(function() {
-        var btnSelectors = [
-          'button[data-coupon-submit]',
-          '.js-coupon-submit',
-          'form[action*="coupon"] button[type="submit"]',
-          'form[action*="discount"] button[type="submit"]',
-          '.coupon-form button',
-        ]
-        for (var j = 0; j < btnSelectors.length; j++) {
-          var btn = document.querySelector(btnSelectors[j])
-          if (btn) { btn.click(); break }
-        }
-      }, 400)
-
-      return true
-    }
-    return false
-  }
-
-  function init() {
-    var refFromUrl = getRefFromUrl()
-    if (refFromUrl) {
-      console.log("[Kool] Ref from URL:", refFromUrl)
-      saveRef(refFromUrl)
-    }
-
-    var code = refFromUrl || getSavedRef()
-    if (!code) {
-      console.log("[Kool] No active code")
+  // Resuelve el código: prioridad URL (y lo persiste); si no, storage previo.
+  function resolve(state, cb) {
+    var fromUrl = refFromQueries(state.location && state.location.queries)
+    if (fromUrl) {
+      if (store) store.setItem(KEY, fromUrl, TTL).catch(function () {})
+      cb(fromUrl)
       return
     }
-
-    console.log("[Kool] Active code:", code)
-
-    // Estrategia 1: inyectar en links
-    injectCouponInLinks(code)
-
-    // Estrategia 2: interceptar forms de carrito
-    interceptAddToCartForms(code)
-
-    // Estrategia 3: si estamos en checkout, aplicar directamente
-    var isCheckout =
-      window.location.pathname.indexOf("/checkout") !== -1 ||
-      window.location.pathname.indexOf("/carrito") !== -1 ||
-      window.location.hostname.indexOf("checkout") !== -1
-
-    if (isCheckout) {
-      applyCouponInCheckout(code)
-
-      // Observar cambios del DOM
-      if (window.MutationObserver) {
-        var observer = new MutationObserver(function() {
-          if (applyCouponInCheckout(code)) {
-            observer.disconnect()
-          }
-        })
-        observer.observe(document.body, { childList: true, subtree: true })
-        setTimeout(function() { observer.disconnect() }, 15000)
-      }
-    }
+    if (!store) return cb(null)
+    store.getItem(KEY).then(function (saved) { cb(clean(saved)) }).catch(function () { cb(null) })
   }
 
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", init)
-  } else {
-    init()
+  function handle() {
+    var state = nube.getState()
+    resolve(state, function (code) { applyIfNeeded(state, code) })
   }
 
-  // Re-ejecutar si cambia la URL (SPA)
-  var lastUrl = window.location.href
-  setInterval(function() {
-    if (window.location.href !== lastUrl) {
-      lastUrl = window.location.href
-      var code = getSavedRef()
-      if (code) {
-        injectCouponInLinks(code)
-        interceptAddToCartForms(code)
-      }
-    }
-  }, 1500)
-})()
+  // Arranque + cuando cambia el carrito (agregan productos) + navegación.
+  try { handle() } catch (e) {}
+  nube.on("cart:update", function () { try { handle() } catch (e) {} })
+  nube.on("location:updated", function () { try { handle() } catch (e) {} })
+
+  nube.on("coupon:add:success", function (state) {
+    console.log("[Kool] cupón aplicado:", appliedCoupon(state.cart))
+  })
+  nube.on("coupon:add:fail", function () {
+    console.warn("[Kool] coupon:add falló (cupón inválido o sin carrito todavía)")
+  })
+}
