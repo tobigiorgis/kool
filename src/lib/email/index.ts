@@ -99,13 +99,17 @@ export async function sendCreatorInvite({
     <h1>¡Te invitaron al programa de ${brandName}! 🎉</h1>
     <p>Hola ${creatorName},</p>
     <p><strong>${brandName}</strong> te invitó a unirte a su programa de creators en Kool.</p>
-    ${discountCode ? `
+    ${
+      discountCode
+        ? `
     <p>Tu código de descuento exclusivo para compartir con tu comunidad:</p>
     <div style="text-align:center; margin: 20px 0;">
       <span class="pill">${discountCode}</span>
     </div>
     <p style="color:#6b7280; font-size:13px; text-align:center;">Tus seguidores obtienen un descuento, vos ganás <strong>${commissionPct}%</strong> de comisión por cada venta.</p>
-    ` : `<p>Vas a ganar <strong>${commissionPct}%</strong> de comisión por cada venta que generes.</p>`}
+    `
+        : `<p>Vas a ganar <strong>${commissionPct}%</strong> de comisión por cada venta que generes.</p>`
+    }
     <hr class="divider">
     <p>Completá tu perfil para empezar:</p>
     <a href="${onboardingUrl}" class="btn">Activar mi cuenta →</a>
@@ -147,10 +151,14 @@ export async function sendBriefing({
     <h1>${campaignName}</h1>
     ${creatorName ? `<p>Hola ${creatorName},</p>` : ""}
     <p>A continuación encontrás el brief de campaña de <strong>${brandName}</strong>:</p>
-    ${startDate && endDate ? `
+    ${
+      startDate && endDate
+        ? `
     <p style="background:#f3f4f6; padding: 12px 16px; border-radius:8px; font-size:13px;">
       📅 <strong>Fechas:</strong> ${startDate} — ${endDate}
-    </p>` : ""}
+    </p>`
+        : ""
+    }
     <hr class="divider">
     ${briefingHtml}
     <hr class="divider">
@@ -186,9 +194,7 @@ export async function sendGiftingNotification({
   trackingNumber?: string
   notes?: string
 }) {
-  const productsList = products
-    .map((p) => `<li>${p.quantity}x ${p.name}</li>`)
-    .join("")
+  const productsList = products.map((p) => `<li>${p.quantity}x ${p.name}</li>`).join("")
 
   const html = baseTemplate(
     `
@@ -199,11 +205,15 @@ export async function sendGiftingNotification({
       ${productsList}
     </ul>
     ${notes ? `<p style="background:#f0fdf4; padding:12px 16px; border-radius:8px; font-size:13px; color:#166534;">💬 ${notes}</p>` : ""}
-    ${trackingNumber ? `
+    ${
+      trackingNumber
+        ? `
     <p>Número de seguimiento:</p>
     <div style="text-align:center; margin: 12px 0;">
       <span class="pill">${trackingNumber}</span>
-    </div>` : "<p style='color:#6b7280; font-size:13px;'>Te avisaremos cuando tengamos el número de seguimiento.</p>"}
+    </div>`
+        : "<p style='color:#6b7280; font-size:13px;'>Te avisaremos cuando tengamos el número de seguimiento.</p>"
+    }
     <hr class="divider">
     <p style="color:#6b7280; font-size:13px;">Cuando recibas el paquete, confirmá la recepción desde tu panel de Kool.</p>
     `,
@@ -378,11 +388,15 @@ export async function sendCampaignInviteExisting({
     <h1>Te invitaron a una nueva campaña 🚀</h1>
     <p>Hola ${creatorName},</p>
     <p><strong>${brandName}</strong> te invitó a participar en su campaña <strong>${campaignName}</strong>.</p>
-    ${discountCode ? `
+    ${
+      discountCode
+        ? `
     <p>Tu código de descuento exclusivo para esta campaña:</p>
     <div style="text-align:center; margin: 20px 0;">
       <span class="pill">${discountCode}</span>
-    </div>` : ""}
+    </div>`
+        : ""
+    }
     ${commissionPct ? `<p style="color:#6b7280; font-size:13px; text-align:center;">Ganás <strong>${commissionPct}%</strong> de comisión por cada venta que generes.</p>` : ""}
     <hr class="divider">
     <p>Aceptá o decliná la invitación desde tu panel:</p>
@@ -424,11 +438,15 @@ export async function sendCampaignInviteNew({
     <h1>¡${brandName} quiere trabajar con vos! 🎉</h1>
     <p>Hola ${creatorName},</p>
     <p><strong>${brandName}</strong> te invitó a ser parte de su programa de creators en Kool y participar en la campaña <strong>${campaignName}</strong>.</p>
-    ${discountCode ? `
+    ${
+      discountCode
+        ? `
     <p>Tu código de descuento exclusivo para compartir con tu comunidad:</p>
     <div style="text-align:center; margin: 20px 0;">
       <span class="pill">${discountCode}</span>
-    </div>` : ""}
+    </div>`
+        : ""
+    }
     ${commissionPct ? `<p style="color:#6b7280; font-size:13px; text-align:center;">Tus seguidores obtienen un descuento, vos ganás <strong>${commissionPct}%</strong> de comisión por cada venta.</p>` : ""}
     <hr class="divider">
     <p>Completá tu perfil para activar tu cuenta y empezar a ganar:</p>
@@ -489,6 +507,147 @@ export async function sendCommissionApproved({
   return sendEmail({
     to,
     subject: `Comisión aprobada de ${brandName}: ${formatted}`,
+    html,
+  })
+}
+
+// ─── Bienvenida (signup / onboarding completado) ─
+
+export async function sendWelcomeCreator({
+  to,
+  creatorName,
+  brandName,
+  discountCode,
+  commissionPct,
+  dashboardUrl,
+}: {
+  to: string
+  creatorName: string
+  brandName: string
+  discountCode?: string
+  commissionPct?: number
+  dashboardUrl: string
+}) {
+  const html = baseTemplate(
+    `
+    <h1>¡Bienvenido/a a Kool, ${creatorName}! 👋</h1>
+    <p>Tu cuenta ya está activa. Desde acá vas a poder gestionar tus links, ver tus métricas y seguir tus comisiones con <strong>${brandName}</strong>.</p>
+    ${
+      discountCode
+        ? `
+    <p>Tu código de descuento para compartir con tu comunidad:</p>
+    <div style="text-align:center; margin: 20px 0;">
+      <span class="pill">${discountCode}</span>
+    </div>`
+        : ""
+    }
+    ${commissionPct ? `<p style="color:#6b7280; font-size:13px; text-align:center;">Ganás <strong>${commissionPct}%</strong> de comisión por cada venta que generes.</p>` : ""}
+    <hr class="divider">
+    <p>Entrá a tu panel para empezar:</p>
+    <p style="text-align:center;">
+      <a href="${dashboardUrl}" class="btn">Ir a mi panel →</a>
+    </p>
+    `,
+    brandName
+  )
+
+  return sendEmail({
+    to,
+    subject: `¡Bienvenido/a a Kool! Tu cuenta está activa`,
+    html,
+  })
+}
+
+// ─── Venta generada (conversión registrada) ──────
+
+export async function sendSaleGenerated({
+  to,
+  creatorName,
+  brandName,
+  orderAmount,
+  commissionAmount,
+  currency,
+  dashboardUrl,
+}: {
+  to: string
+  creatorName: string
+  brandName: string
+  orderAmount: number
+  commissionAmount: number
+  currency: string
+  dashboardUrl: string
+}) {
+  const fmt = (n: number) =>
+    new Intl.NumberFormat("es-AR", {
+      style: "currency",
+      currency,
+      minimumFractionDigits: 0,
+    }).format(n)
+
+  const html = baseTemplate(
+    `
+    <h1>¡Generaste una venta! 🎉</h1>
+    <p>Hola ${creatorName},</p>
+    <p>Alguien compró en <strong>${brandName}</strong> usando tu link o código. ¡Felicitaciones!</p>
+    <div style="text-align:center; margin: 24px 0;">
+      <div style="font-size: 36px; font-weight: 700; color: #00C46A;">${fmt(commissionAmount)}</div>
+      <div style="color:#6b7280; font-size:13px; margin-top:4px;">comisión generada · pendiente de aprobación</div>
+    </div>
+    <p style="background:#f9fafb; padding: 12px 16px; border-radius:8px; font-size:13px; color:#6b7280; text-align:center;">
+      Venta de ${fmt(orderAmount)} · ${currency}
+    </p>
+    <hr class="divider">
+    <p style="text-align:center;">
+      <a href="${dashboardUrl}" class="btn">Ver mis comisiones →</a>
+    </p>
+    `,
+    brandName
+  )
+
+  return sendEmail({
+    to,
+    subject: `¡Generaste una venta en ${brandName}! 🎉`,
+    html,
+  })
+}
+
+// ─── Bounty alcanzado (objetivo logrado) ──────────
+
+export async function sendBountyAchieved({
+  to,
+  creatorName,
+  brandName,
+  bountyName,
+  reward,
+  dashboardUrl,
+}: {
+  to: string
+  creatorName: string
+  brandName: string
+  bountyName: string
+  reward: string
+  dashboardUrl: string
+}) {
+  const html = baseTemplate(
+    `
+    <h1>¡Desbloqueaste una recompensa! 🏆</h1>
+    <p>Hola ${creatorName},</p>
+    <p>¡Felicitaciones! Alcanzaste el objetivo <strong>${bountyName}</strong> de <strong>${brandName}</strong>.</p>
+    <div style="text-align:center; margin: 24px 0;">
+      <div style="font-size: 22px; font-weight: 700; color: #00C46A;">${reward}</div>
+      <div style="color:#6b7280; font-size:13px; margin-top:4px;">tu recompensa · la marca coordinará la entrega</div>
+    </div>
+    <hr class="divider">
+    <p style="text-align:center;">
+      <a href="${dashboardUrl}" class="btn">Ver mis objetivos →</a>
+    </p>
+    `,
+    brandName
+  )
+
+  return sendEmail({
+    to,
+    subject: `🏆 ¡Desbloqueaste una recompensa en ${brandName}!`,
     html,
   })
 }

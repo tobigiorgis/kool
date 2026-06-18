@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@clerk/nextjs/server"
 import { prisma } from "@/lib/prisma"
 import { decrypt } from "@/lib/utils/crypto"
+import { getTiendanubeScripts, getTiendanubeWebhooks } from "@/lib/tiendanube"
 
 export async function GET(request: NextRequest) {
   const { userId } = await auth()
@@ -17,27 +18,15 @@ export async function GET(request: NextRequest) {
 
   const accessToken = decrypt(connection.accessToken)
 
-  const scriptsRes = await fetch(
-    `https://api.tiendanube.com/2025-03/${connection.storeId}/scripts`,
-    {
-      headers: {
-        Authentication: `bearer ${accessToken}`,
-        "User-Agent": "Kool (hola@kool.link)",
-      },
-    }
-  )
-  const scripts = await scriptsRes.json()
-
-  const webhooksRes = await fetch(
-    `https://api.tiendanube.com/2025-03/${connection.storeId}/webhooks`,
-    {
-      headers: {
-        Authentication: `bearer ${accessToken}`,
-        "User-Agent": "Kool (hola@kool.link)",
-      },
-    }
-  )
-  const webhooks = await webhooksRes.json()
+  // Usa el cliente compartido (Authorization: Bearer) en vez de fetch ad-hoc
+  const [scripts, webhooks] = await Promise.all([
+    getTiendanubeScripts(connection.storeId, accessToken).catch((e) => ({
+      error: e instanceof Error ? e.message : String(e),
+    })),
+    getTiendanubeWebhooks(connection.storeId, accessToken).catch((e) => ({
+      error: e instanceof Error ? e.message : String(e),
+    })),
+  ])
 
   return NextResponse.json({ scripts, webhooks, storeId: connection.storeId })
 }

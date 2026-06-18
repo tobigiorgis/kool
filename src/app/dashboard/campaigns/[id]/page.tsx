@@ -3,13 +3,39 @@
 import { useState, useEffect, useCallback, useRef } from "react"
 import { useParams, useRouter } from "next/navigation"
 import {
-  ArrowLeft, MousePointerClick, ShoppingCart, DollarSign, TrendingUp,
-  Users, Link2, X, RefreshCw, UserPlus, Trash2, RefreshCcw, Package,
-  FileText, Plus, Paperclip, ExternalLink, Upload, CheckCircle2,
-  XCircle, ChevronDown, ChevronUp, Copy, Check, Instagram, Search, Gift, Minus, BarChart2,
+  ArrowLeft,
+  MousePointerClick,
+  ShoppingCart,
+  DollarSign,
+  TrendingUp,
+  Users,
+  Link2,
+  X,
+  RefreshCw,
+  UserPlus,
+  Trash2,
+  RefreshCcw,
+  Package,
+  FileText,
+  Plus,
+  Paperclip,
+  ExternalLink,
+  Upload,
+  CheckCircle2,
+  XCircle,
+  ChevronDown,
+  ChevronUp,
+  Copy,
+  Check,
+  Instagram,
+  Search,
+  Gift,
+  Minus,
+  BarChart2,
 } from "lucide-react"
 import { Area, AreaChart, ResponsiveContainer, XAxis, YAxis, Tooltip } from "recharts"
 import { formatNumber, formatCurrency, formatDate, generateDiscountCode } from "@/lib/utils"
+import BountiesTab from "./BountiesTab"
 
 interface CampaignCreator {
   id: string
@@ -158,9 +184,21 @@ const STATUS_CONFIG: Record<string, { label: string; style: string }> = {
   COMPLETED: { label: "Completada", style: "bg-gray-100 text-gray-500" },
 }
 
-const STATUS_ORDER: ("PRE_LAUNCH" | "RUNNING" | "COMPLETED")[] = ["PRE_LAUNCH", "RUNNING", "COMPLETED"]
+const STATUS_ORDER: ("PRE_LAUNCH" | "RUNNING" | "COMPLETED")[] = [
+  "PRE_LAUNCH",
+  "RUNNING",
+  "COMPLETED",
+]
 
-type Tab = "overview" | "creators" | "links" | "gifting" | "briefings" | "applications" | "analytics"
+type Tab =
+  | "overview"
+  | "creators"
+  | "links"
+  | "gifting"
+  | "bounties"
+  | "briefings"
+  | "applications"
+  | "analytics"
 
 export default function CampaignDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -176,7 +214,9 @@ export default function CampaignDetailPage() {
   const [giftingLoading, setGiftingLoading] = useState(false)
   const [applications, setApplications] = useState<Application[]>([])
   const [applicationsLoading, setApplicationsLoading] = useState(false)
-  const [applicationsFilter, setApplicationsFilter] = useState<"ALL" | "PENDING" | "ACCEPTED" | "REJECTED">("ALL")
+  const [applicationsFilter, setApplicationsFilter] = useState<
+    "ALL" | "PENDING" | "ACCEPTED" | "REJECTED"
+  >("ALL")
 
   const loadData = useCallback(async () => {
     setLoading(true)
@@ -191,7 +231,9 @@ export default function CampaignDetailPage() {
     }
   }, [id])
 
-  useEffect(() => { loadData() }, [loadData])
+  useEffect(() => {
+    loadData()
+  }, [loadData])
 
   const loadGifting = useCallback(() => {
     setGiftingLoading(true)
@@ -224,23 +266,29 @@ export default function CampaignDetailPage() {
     if (tab === "applications" || tab === "overview") loadApplications()
   }, [tab, loadApplications])
 
-  const handleAcceptApplication = useCallback(async (applicationId: string) => {
-    await fetch(`/api/campaigns/${id}/applications/${applicationId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: "ACCEPTED" }),
-    })
-    loadApplications()
-  }, [id, loadApplications])
+  const handleAcceptApplication = useCallback(
+    async (applicationId: string) => {
+      await fetch(`/api/campaigns/${id}/applications/${applicationId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "ACCEPTED" }),
+      })
+      loadApplications()
+    },
+    [id, loadApplications]
+  )
 
-  const handleRejectApplication = useCallback(async (applicationId: string) => {
-    await fetch(`/api/campaigns/${id}/applications/${applicationId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: "REJECTED" }),
-    })
-    loadApplications()
-  }, [id, loadApplications])
+  const handleRejectApplication = useCallback(
+    async (applicationId: string) => {
+      await fetch(`/api/campaigns/${id}/applications/${applicationId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "REJECTED" }),
+      })
+      loadApplications()
+    },
+    [id, loadApplications]
+  )
 
   const updateStatus = async (status: string) => {
     setStatusUpdating(true)
@@ -252,7 +300,7 @@ export default function CampaignDetailPage() {
       })
       if (res.ok) {
         const data = await res.json()
-        setCampaign((c) => c ? { ...c, status: data.campaign.status } : c)
+        setCampaign((c) => (c ? { ...c, status: data.campaign.status } : c))
       }
     } finally {
       setStatusUpdating(false)
@@ -341,28 +389,40 @@ export default function CampaignDetailPage() {
       {/* Metrics */}
       <div className="grid grid-cols-4 gap-4 mb-8">
         <MetricCard icon={MousePointerClick} label="Clics" value={formatNumber(analytics.clicks)} />
-        <MetricCard icon={ShoppingCart} label="Conversiones" value={analytics.conversions.toString()} />
+        <MetricCard
+          icon={ShoppingCart}
+          label="Conversiones"
+          value={analytics.conversions.toString()}
+        />
         <MetricCard icon={TrendingUp} label="Revenue" value={formatCurrency(analytics.revenue)} />
-        <MetricCard icon={DollarSign} label="Comisiones" value={formatCurrency(analytics.commissions)} accent />
+        <MetricCard
+          icon={DollarSign}
+          label="Comisiones"
+          value={formatCurrency(analytics.commissions)}
+          accent
+        />
       </div>
 
       {/* Tabs */}
       <div className="border-b border-gray-100 mb-6">
         <div className="flex gap-6">
-          {([
+          {[
             { key: "overview" as Tab, label: "Overview" },
             { key: "creators" as Tab, label: `Creators (${campaign.creators.length})` },
             { key: "links" as Tab, label: `Links (${campaign.links.length})` },
             { key: "gifting" as Tab, label: `Gifting (${giftingOrders.length})` },
+            { key: "bounties" as Tab, label: "Bounties" },
             { key: "briefings" as Tab, label: `Briefings (${campaign.briefings.length})` },
             ...(campaign.slug
-              ? [{
-                  key: "applications" as Tab,
-                  label: `Aplicaciones${applications.filter((a) => a.status === "PENDING").length > 0 ? ` · ${applications.filter((a) => a.status === "PENDING").length} pendientes` : ""}`,
-                }]
+              ? [
+                  {
+                    key: "applications" as Tab,
+                    label: `Aplicaciones${applications.filter((a) => a.status === "PENDING").length > 0 ? ` · ${applications.filter((a) => a.status === "PENDING").length} pendientes` : ""}`,
+                  },
+                ]
               : []),
             { key: "analytics" as Tab, label: "Analytics" },
-          ]).map((t) => (
+          ].map((t) => (
             <button
               key={t.key}
               onClick={() => setTab(t.key)}
@@ -401,29 +461,27 @@ export default function CampaignDetailPage() {
         />
       )}
 
-      {tab === "links" && (
-        <LinksTab links={campaign.links} campaignId={campaign.id} />
-      )}
+      {tab === "links" && <LinksTab links={campaign.links} campaignId={campaign.id} />}
 
       {tab === "gifting" && (
         <GiftingTab
           orders={giftingOrders}
           loading={giftingLoading}
           campaign={campaign}
-          onGiftingCreated={() => { setGiftingOrders([]); loadGifting() }}
+          onGiftingCreated={() => {
+            setGiftingOrders([])
+            loadGifting()
+          }}
         />
       )}
+
+      {tab === "bounties" && <BountiesTab campaignId={campaign.id} />}
 
       {tab === "briefings" && (
-        <BriefingsTab
-          campaign={campaign}
-          onCreateBriefing={() => setShowCreateBriefing(true)}
-        />
+        <BriefingsTab campaign={campaign} onCreateBriefing={() => setShowCreateBriefing(true)} />
       )}
 
-      {tab === "analytics" && (
-        <CampaignAnalyticsTab campaign={campaign} analytics={analytics} />
-      )}
+      {tab === "analytics" && <CampaignAnalyticsTab campaign={campaign} analytics={analytics} />}
 
       {tab === "applications" && campaign.slug && (
         <ApplicationsTab
@@ -456,7 +514,12 @@ export default function CampaignDetailPage() {
   )
 }
 
-function MetricCard({ icon: Icon, label, value, accent }: {
+function MetricCard({
+  icon: Icon,
+  label,
+  value,
+  accent,
+}: {
   icon: React.ElementType
   label: string
   value: string
@@ -466,9 +529,13 @@ function MetricCard({ icon: Icon, label, value, accent }: {
     <div className="bg-white rounded-xl border border-gray-100 p-5">
       <div className="flex items-center gap-2 mb-2">
         <Icon size={14} className={accent ? "text-brand-500" : "text-gray-400"} />
-        <span className="text-[11px] font-medium text-gray-400 uppercase tracking-wide">{label}</span>
+        <span className="text-[11px] font-medium text-gray-400 uppercase tracking-wide">
+          {label}
+        </span>
       </div>
-      <p className={`text-2xl font-semibold tracking-tight ${accent ? "text-brand-500" : "text-gray-900"}`}>
+      <p
+        className={`text-2xl font-semibold tracking-tight ${accent ? "text-brand-500" : "text-gray-900"}`}
+      >
         {value}
       </p>
     </div>
@@ -620,8 +687,22 @@ function OverviewTab({
                       name === "clicks" ? "Clicks" : "Ventas",
                     ]}
                   />
-                  <Area type="monotone" dataKey="clicks" stroke="#FB7185" strokeWidth={1.5} fill="url(#clicksGrad)" dot={false} />
-                  <Area type="monotone" dataKey="sales" stroke="#00C46A" strokeWidth={1.5} fill="url(#salesGrad)" dot={false} />
+                  <Area
+                    type="monotone"
+                    dataKey="clicks"
+                    stroke="#FB7185"
+                    strokeWidth={1.5}
+                    fill="url(#clicksGrad)"
+                    dot={false}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="sales"
+                    stroke="#00C46A"
+                    strokeWidth={1.5}
+                    fill="url(#salesGrad)"
+                    dot={false}
+                  />
                 </AreaChart>
               </ResponsiveContainer>
             )}
@@ -643,7 +724,11 @@ function OverviewTab({
           {topCreators.length > 0 ? (
             <div className="space-y-3">
               {topCreators.map((cc, i) => {
-                const initials = cc.creator.name.split(" ").map((n) => n[0]).join("").slice(0, 2)
+                const initials = cc.creator.name
+                  .split(" ")
+                  .map((n) => n[0])
+                  .join("")
+                  .slice(0, 2)
                 return (
                   <div key={cc.id} className="flex items-center gap-3">
                     <span className="text-xs font-medium text-gray-300 w-4 shrink-0">{i + 1}</span>
@@ -651,7 +736,9 @@ function OverviewTab({
                       <span className="text-[10px] font-semibold text-rose-400">{initials}</span>
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-900 truncate">{cc.creator.name}</p>
+                      <p className="text-sm font-medium text-gray-900 truncate">
+                        {cc.creator.name}
+                      </p>
                       <p className="text-xs text-gray-400">{cc.totalSales} ventas</p>
                     </div>
                     <span className="text-sm font-semibold text-gray-900 shrink-0">
@@ -690,17 +777,23 @@ function OverviewTab({
                   <FileText size={14} className="text-blue-500" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-900 truncate">{latestBriefing.subject}</p>
+                  <p className="text-sm font-medium text-gray-900 truncate">
+                    {latestBriefing.subject}
+                  </p>
                   <div className="flex items-center gap-3 mt-1.5">
-                    <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${
-                      latestBriefing.status === "SENT"
-                        ? "bg-brand-50 text-brand-600"
-                        : "bg-amber-50 text-amber-600"
-                    }`}>
+                    <span
+                      className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${
+                        latestBriefing.status === "SENT"
+                          ? "bg-brand-50 text-brand-600"
+                          : "bg-amber-50 text-amber-600"
+                      }`}
+                    >
                       {latestBriefing.status === "SENT" ? "Enviado" : "Borrador"}
                     </span>
                     {latestBriefing.sentAt && (
-                      <span className="text-xs text-gray-400">{formatDate(latestBriefing.sentAt)}</span>
+                      <span className="text-xs text-gray-400">
+                        {formatDate(latestBriefing.sentAt)}
+                      </span>
                     )}
                     <span className="text-xs text-gray-400">
                       {latestBriefing._count.recipients} destinatarios
@@ -747,15 +840,24 @@ function OverviewTab({
                     .join(", ")}
                 </p>
                 <div className="flex items-center gap-3 mt-2">
-                  <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${
-                    latestGifting.status === "CONFIRMED" ? "bg-brand-50 text-brand-600" :
-                    latestGifting.status === "SENT" ? "bg-purple-50 text-purple-600" :
-                    latestGifting.status === "PROCESSING" ? "bg-blue-50 text-blue-600" :
-                    "bg-amber-50 text-amber-600"
-                  }`}>
-                    {latestGifting.status === "CONFIRMED" ? "Confirmado" :
-                     latestGifting.status === "SENT" ? "Enviado" :
-                     latestGifting.status === "PROCESSING" ? "Procesando" : "Pendiente"}
+                  <span
+                    className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${
+                      latestGifting.status === "CONFIRMED"
+                        ? "bg-brand-50 text-brand-600"
+                        : latestGifting.status === "SENT"
+                          ? "bg-purple-50 text-purple-600"
+                          : latestGifting.status === "PROCESSING"
+                            ? "bg-blue-50 text-blue-600"
+                            : "bg-amber-50 text-amber-600"
+                    }`}
+                  >
+                    {latestGifting.status === "CONFIRMED"
+                      ? "Confirmado"
+                      : latestGifting.status === "SENT"
+                        ? "Enviado"
+                        : latestGifting.status === "PROCESSING"
+                          ? "Procesando"
+                          : "Pendiente"}
                   </span>
                   <span className="text-xs text-gray-900 font-medium">
                     {formatCurrency(latestGifting.totalValue || 0)}
@@ -809,7 +911,11 @@ function OverviewTab({
                   <div className="flex items-center gap-3">
                     <div className="w-8 h-8 rounded-full bg-rose-50 flex items-center justify-center shrink-0">
                       <span className="text-[10px] font-semibold text-rose-400">
-                        {app.name.split(" ").map((n) => n[0]).join("").slice(0, 2)}
+                        {app.name
+                          .split(" ")
+                          .map((n) => n[0])
+                          .join("")
+                          .slice(0, 2)}
                       </span>
                     </div>
                     <div>
@@ -852,7 +958,11 @@ function OverviewTab({
   )
 }
 
-function CreatorsTab({ campaign, onAdd, onRemove }: {
+function CreatorsTab({
+  campaign,
+  onAdd,
+  onRemove,
+}: {
   campaign: CampaignDetail
   onAdd: () => void
   onRemove: (id: string) => void
@@ -861,7 +971,8 @@ function CreatorsTab({ campaign, onAdd, onRemove }: {
     <div>
       <div className="flex items-center justify-between mb-4">
         <p className="text-[13px] text-gray-500">
-          {campaign.creators.length} creator{campaign.creators.length !== 1 ? "s" : ""} en esta campaña
+          {campaign.creators.length} creator{campaign.creators.length !== 1 ? "s" : ""} en esta
+          campaña
         </p>
         <button
           onClick={onAdd}
@@ -897,7 +1008,11 @@ function CreatorsTab({ campaign, onAdd, onRemove }: {
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-3">
                       <div className="w-8 h-8 rounded-full bg-brand-100 flex items-center justify-center text-brand-700 text-xs font-semibold">
-                        {cc.creator.name.split(" ").map((n) => n[0]).join("").slice(0, 2)}
+                        {cc.creator.name
+                          .split(" ")
+                          .map((n) => n[0])
+                          .join("")
+                          .slice(0, 2)}
                       </div>
                       <div>
                         <p className="text-sm font-medium text-gray-900">{cc.creator.name}</p>
@@ -959,12 +1074,24 @@ function LinksTab({ links, campaignId }: { links: CampaignLink[]; campaignId: st
           <table className="w-full">
             <thead>
               <tr className="border-b border-gray-100">
-                <th className="text-left px-5 py-3 text-[11px] font-medium text-gray-400 uppercase tracking-wider">Link</th>
-                <th className="text-left px-5 py-3 text-[11px] font-medium text-gray-400 uppercase tracking-wider">Creator</th>
-                <th className="text-left px-5 py-3 text-[11px] font-medium text-gray-400 uppercase tracking-wider">Código</th>
-                <th className="text-right px-5 py-3 text-[11px] font-medium text-gray-400 uppercase tracking-wider">Clicks</th>
-                <th className="text-right px-5 py-3 text-[11px] font-medium text-gray-400 uppercase tracking-wider">Sales</th>
-                <th className="text-right px-5 py-3 text-[11px] font-medium text-gray-400 uppercase tracking-wider">Revenue</th>
+                <th className="text-left px-5 py-3 text-[11px] font-medium text-gray-400 uppercase tracking-wider">
+                  Link
+                </th>
+                <th className="text-left px-5 py-3 text-[11px] font-medium text-gray-400 uppercase tracking-wider">
+                  Creator
+                </th>
+                <th className="text-left px-5 py-3 text-[11px] font-medium text-gray-400 uppercase tracking-wider">
+                  Código
+                </th>
+                <th className="text-right px-5 py-3 text-[11px] font-medium text-gray-400 uppercase tracking-wider">
+                  Clicks
+                </th>
+                <th className="text-right px-5 py-3 text-[11px] font-medium text-gray-400 uppercase tracking-wider">
+                  Sales
+                </th>
+                <th className="text-right px-5 py-3 text-[11px] font-medium text-gray-400 uppercase tracking-wider">
+                  Revenue
+                </th>
                 <th className="px-5 py-3" />
               </tr>
             </thead>
@@ -974,9 +1101,13 @@ function LinksTab({ links, campaignId }: { links: CampaignLink[]; campaignId: st
                   <td className="px-5 py-3.5">
                     <div className="flex items-center gap-2">
                       <Link2 size={13} className="text-rose-400 flex-shrink-0" />
-                      <span className="text-[13px] font-medium text-rose-500">kool.link/{link.slug}</span>
+                      <span className="text-[13px] font-medium text-rose-500">
+                        kool.link/{link.slug}
+                      </span>
                     </div>
-                    <p className="text-xs text-gray-400 truncate max-w-[220px] mt-0.5 ml-5">{link.destination}</p>
+                    <p className="text-xs text-gray-400 truncate max-w-[220px] mt-0.5 ml-5">
+                      {link.destination}
+                    </p>
                   </td>
                   <td className="px-5 py-3.5 text-[13px] text-gray-700">
                     {link.creator?.name ?? "—"}
@@ -1002,7 +1133,9 @@ function LinksTab({ links, campaignId }: { links: CampaignLink[]; campaignId: st
                   <td className="px-5 py-3.5">
                     <div className="flex items-center justify-end gap-1">
                       <button
-                        onClick={() => navigator.clipboard.writeText(`https://kool.link/${link.slug}`)}
+                        onClick={() =>
+                          navigator.clipboard.writeText(`https://kool.link/${link.slug}`)
+                        }
                         className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
                         title="Copiar link"
                       >
@@ -1054,7 +1187,9 @@ function CampaignAnalyticsTab({
         </div>
         <div className="bg-white rounded-xl border border-gray-100 p-4">
           <p className="text-[11px] text-gray-400 uppercase tracking-wider mb-1">Conversions</p>
-          <p className="text-xl font-semibold text-gray-900">{analytics.conversions.toLocaleString()}</p>
+          <p className="text-xl font-semibold text-gray-900">
+            {analytics.conversions.toLocaleString()}
+          </p>
         </div>
         <div className="bg-white rounded-xl border border-gray-100 p-4">
           <p className="text-[11px] text-gray-400 uppercase tracking-wider mb-1">Revenue</p>
@@ -1062,7 +1197,9 @@ function CampaignAnalyticsTab({
         </div>
         <div className="bg-brand-50 rounded-xl border border-brand-100 p-4">
           <p className="text-[11px] text-brand-500 uppercase tracking-wider mb-1">Commissions</p>
-          <p className="text-xl font-semibold text-brand-700">{formatCurrency(analytics.commissions)}</p>
+          <p className="text-xl font-semibold text-brand-700">
+            {formatCurrency(analytics.commissions)}
+          </p>
         </div>
       </div>
 
@@ -1076,9 +1213,17 @@ function CampaignAnalyticsTab({
         ) : (
           <div className="space-y-1">
             {campaign.creators.map((cc) => {
-              const initials = cc.creator.name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()
+              const initials = cc.creator.name
+                .split(" ")
+                .map((n) => n[0])
+                .join("")
+                .slice(0, 2)
+                .toUpperCase()
               return (
-                <div key={cc.id} className="flex items-center justify-between py-2.5 border-b border-gray-50 last:border-0">
+                <div
+                  key={cc.id}
+                  className="flex items-center justify-between py-2.5 border-b border-gray-50 last:border-0"
+                >
                   <div className="flex items-center gap-2.5">
                     <div className="w-7 h-7 rounded-full bg-rose-50 flex items-center justify-center flex-shrink-0">
                       <span className="text-[10px] font-semibold text-rose-400">{initials}</span>
@@ -1112,15 +1257,20 @@ interface CreatorConfig {
 }
 
 const GIFTING_STATUS: Record<string, { label: string; style: string }> = {
-  PENDING:    { label: "Pendiente",  style: "bg-yellow-100 text-yellow-700" },
+  PENDING: { label: "Pendiente", style: "bg-yellow-100 text-yellow-700" },
   PROCESSING: { label: "Procesando", style: "bg-blue-100 text-blue-700" },
-  SENT:       { label: "Enviado",    style: "bg-purple-100 text-purple-700" },
-  DELIVERED:  { label: "Entregado",  style: "bg-brand-100 text-brand-700" },
-  CONFIRMED:  { label: "Confirmado", style: "bg-green-100 text-green-700" },
-  CANCELLED:  { label: "Cancelado",  style: "bg-red-100 text-red-600" },
+  SENT: { label: "Enviado", style: "bg-purple-100 text-purple-700" },
+  DELIVERED: { label: "Entregado", style: "bg-brand-100 text-brand-700" },
+  CONFIRMED: { label: "Confirmado", style: "bg-green-100 text-green-700" },
+  CANCELLED: { label: "Cancelado", style: "bg-red-100 text-red-600" },
 }
 
-function GiftingTab({ orders, loading, campaign, onGiftingCreated }: {
+function GiftingTab({
+  orders,
+  loading,
+  campaign,
+  onGiftingCreated,
+}: {
   orders: GiftingOrder[]
   loading: boolean
   campaign: CampaignDetail
@@ -1156,7 +1306,10 @@ function GiftingTab({ orders, loading, campaign, onGiftingCreated }: {
         <div className="bg-white rounded-xl border border-gray-100 p-10 text-center">
           <Package size={28} className="mx-auto text-gray-300 mb-3" />
           <p className="text-sm text-gray-500">No hay gifting registrado en esta campaña.</p>
-          <button onClick={() => setShowCreate(true)} className="text-sm font-medium text-brand-600 hover:underline mt-2">
+          <button
+            onClick={() => setShowCreate(true)}
+            className="text-sm font-medium text-brand-600 hover:underline mt-2"
+          >
             Crear primer gifting
           </button>
         </div>
@@ -1168,7 +1321,10 @@ function GiftingTab({ orders, loading, campaign, onGiftingCreated }: {
               ? (order.products as { name: string; quantity: number }[])
               : []
             return (
-              <div key={order.id} className="bg-white rounded-xl border border-gray-100 p-4 flex items-center justify-between gap-4">
+              <div
+                key={order.id}
+                className="bg-white rounded-xl border border-gray-100 p-4 flex items-center justify-between gap-4"
+              >
                 <div className="flex items-center gap-3">
                   <div className="w-9 h-9 rounded-xl bg-brand-50 flex items-center justify-center flex-shrink-0">
                     <Package size={15} className="text-brand-500" />
@@ -1176,7 +1332,9 @@ function GiftingTab({ orders, loading, campaign, onGiftingCreated }: {
                   <div>
                     <div className="flex items-center gap-2">
                       <p className="text-sm font-medium text-gray-900">{order.creator.name}</p>
-                      <span className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${cfg.style}`}>
+                      <span
+                        className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${cfg.style}`}
+                      >
                         {cfg.label}
                       </span>
                     </div>
@@ -1186,8 +1344,12 @@ function GiftingTab({ orders, loading, campaign, onGiftingCreated }: {
                   </div>
                 </div>
                 <div className="text-right flex-shrink-0">
-                  <p className="text-sm font-semibold text-gray-900">{formatCurrency(order.totalValue)}</p>
-                  <p className="text-xs text-gray-400">{new Date(order.createdAt).toLocaleDateString("es-AR")}</p>
+                  <p className="text-sm font-semibold text-gray-900">
+                    {formatCurrency(order.totalValue)}
+                  </p>
+                  <p className="text-xs text-gray-400">
+                    {new Date(order.createdAt).toLocaleDateString("es-AR")}
+                  </p>
                 </div>
               </div>
             )
@@ -1199,7 +1361,10 @@ function GiftingTab({ orders, loading, campaign, onGiftingCreated }: {
         <CreateCampaignGiftingModal
           campaign={campaign}
           onClose={() => setShowCreate(false)}
-          onCreated={() => { setShowCreate(false); onGiftingCreated() }}
+          onCreated={() => {
+            setShowCreate(false)
+            onGiftingCreated()
+          }}
         />
       )}
     </div>
@@ -1216,7 +1381,12 @@ interface CreatorSearchResult {
   alreadyInCampaign: boolean
 }
 
-function AddCreatorsModal({ campaignId, workspaceId, onClose, onAdded }: {
+function AddCreatorsModal({
+  campaignId,
+  workspaceId,
+  onClose,
+  onAdded,
+}: {
   campaignId: string
   workspaceId: string
   onClose: () => void
@@ -1259,7 +1429,11 @@ function AddCreatorsModal({ campaignId, workspaceId, onClose, onAdded }: {
   const handleSelectCreator = (creator: CreatorSearchResult) => {
     setSelected(creator)
     const name = creator.firstName || creator.name?.split(" ")[0] || ""
-    const code = name.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 8) + commissionPct
+    const code =
+      name
+        .toUpperCase()
+        .replace(/[^A-Z0-9]/g, "")
+        .slice(0, 8) + commissionPct
     setDiscountCode(code)
   }
 
@@ -1310,18 +1484,29 @@ function AddCreatorsModal({ campaignId, workspaceId, onClose, onAdded }: {
           <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1 text-xs">
             <button
               type="button"
-              onClick={() => { setMode("search"); setSelected(null) }}
+              onClick={() => {
+                setMode("search")
+                setSelected(null)
+              }}
               className={`flex-1 px-3 py-1.5 rounded-md transition-colors ${
-                mode === "search" ? "bg-white shadow-sm text-gray-900 font-medium" : "text-gray-500 hover:text-gray-700"
+                mode === "search"
+                  ? "bg-white shadow-sm text-gray-900 font-medium"
+                  : "text-gray-500 hover:text-gray-700"
               }`}
             >
               Buscar existente
             </button>
             <button
               type="button"
-              onClick={() => { setMode("invite"); setSelected(null); setQuery("") }}
+              onClick={() => {
+                setMode("invite")
+                setSelected(null)
+                setQuery("")
+              }}
               className={`flex-1 px-3 py-1.5 rounded-md transition-colors ${
-                mode === "invite" ? "bg-white shadow-sm text-gray-900 font-medium" : "text-gray-500 hover:text-gray-700"
+                mode === "invite"
+                  ? "bg-white shadow-sm text-gray-900 font-medium"
+                  : "text-gray-500 hover:text-gray-700"
               }`}
             >
               Invitar nuevo
@@ -1332,7 +1517,10 @@ function AddCreatorsModal({ campaignId, workspaceId, onClose, onAdded }: {
           {mode === "search" && !selected && (
             <div>
               <div className="relative">
-                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                <Search
+                  size={14}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+                />
                 <input
                   type="text"
                   value={query}
@@ -1355,12 +1543,14 @@ function AddCreatorsModal({ campaignId, workspaceId, onClose, onAdded }: {
                       }`}
                     >
                       <div className="w-8 h-8 rounded-full bg-rose-50 flex items-center justify-center text-rose-400 text-xs font-semibold flex-shrink-0">
-                        {(creator.firstName?.[0] || creator.name?.[0] || "?")}
+                        {creator.firstName?.[0] || creator.name?.[0] || "?"}
                         {creator.lastName?.[0] || ""}
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-gray-900">
-                          {creator.firstName ? `${creator.firstName} ${creator.lastName || ""}` : creator.name}
+                          {creator.firstName
+                            ? `${creator.firstName} ${creator.lastName || ""}`
+                            : creator.name}
                         </p>
                         <div className="flex items-center gap-2 mt-0.5">
                           <span className="text-xs text-gray-400">{creator.email}</span>
@@ -1370,7 +1560,9 @@ function AddCreatorsModal({ campaignId, workspaceId, onClose, onAdded }: {
                         </div>
                       </div>
                       {creator.alreadyInCampaign && (
-                        <span className="text-[10px] text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">Ya está</span>
+                        <span className="text-[10px] text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
+                          Ya está
+                        </span>
                       )}
                     </button>
                   ))}
@@ -1379,7 +1571,9 @@ function AddCreatorsModal({ campaignId, workspaceId, onClose, onAdded }: {
 
               {query.length >= 2 && !searching && results.length === 0 && (
                 <div className="mt-3 text-center py-4">
-                  <p className="text-xs text-gray-400 mb-2">No se encontraron creators con &ldquo;{query}&rdquo;</p>
+                  <p className="text-xs text-gray-400 mb-2">
+                    No se encontraron creators con &ldquo;{query}&rdquo;
+                  </p>
                   <button
                     type="button"
                     onClick={() => setMode("invite")}
@@ -1396,18 +1590,23 @@ function AddCreatorsModal({ campaignId, workspaceId, onClose, onAdded }: {
           {mode === "search" && selected && (
             <div className="flex items-center gap-3 p-3 bg-brand-50 rounded-lg border border-brand-100">
               <div className="w-9 h-9 rounded-full bg-brand-100 flex items-center justify-center text-brand-700 text-sm font-semibold flex-shrink-0">
-                {(selected.firstName?.[0] || selected.name?.[0] || "?")}
+                {selected.firstName?.[0] || selected.name?.[0] || "?"}
                 {selected.lastName?.[0] || ""}
               </div>
               <div className="flex-1">
                 <p className="text-sm font-medium text-gray-900">
-                  {selected.firstName ? `${selected.firstName} ${selected.lastName || ""}` : selected.name}
+                  {selected.firstName
+                    ? `${selected.firstName} ${selected.lastName || ""}`
+                    : selected.name}
                 </p>
                 <p className="text-xs text-gray-500">{selected.email}</p>
               </div>
               <button
                 type="button"
-                onClick={() => { setSelected(null); setQuery("") }}
+                onClick={() => {
+                  setSelected(null)
+                  setQuery("")
+                }}
                 className="text-xs text-gray-400 hover:text-gray-600"
               >
                 Cambiar
@@ -1426,7 +1625,11 @@ function AddCreatorsModal({ campaignId, workspaceId, onClose, onAdded }: {
                     value={firstName}
                     onChange={(e) => {
                       setFirstName(e.target.value)
-                      const code = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 8) + commissionPct
+                      const code =
+                        e.target.value
+                          .toUpperCase()
+                          .replace(/[^A-Z0-9]/g, "")
+                          .slice(0, 8) + commissionPct
                       setDiscountCode(code)
                     }}
                     placeholder="Camila"
@@ -1434,7 +1637,9 @@ function AddCreatorsModal({ campaignId, workspaceId, onClose, onAdded }: {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1.5">Apellido *</label>
+                  <label className="block text-xs font-medium text-gray-700 mb-1.5">
+                    Apellido *
+                  </label>
                   <input
                     type="text"
                     value={lastName}
@@ -1462,7 +1667,9 @@ function AddCreatorsModal({ campaignId, workspaceId, onClose, onAdded }: {
             <div className="space-y-3 pt-2 border-t border-gray-100">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1.5">Comisión (%)</label>
+                  <label className="block text-xs font-medium text-gray-700 mb-1.5">
+                    Comisión (%)
+                  </label>
                   <input
                     type="number"
                     value={commissionPct}
@@ -1473,7 +1680,9 @@ function AddCreatorsModal({ campaignId, workspaceId, onClose, onAdded }: {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1.5">Código de descuento</label>
+                  <label className="block text-xs font-medium text-gray-700 mb-1.5">
+                    Código de descuento
+                  </label>
                   <input
                     type="text"
                     value={discountCode}
@@ -1482,7 +1691,9 @@ function AddCreatorsModal({ campaignId, workspaceId, onClose, onAdded }: {
                   />
                 </div>
               </div>
-              <p className="text-xs text-gray-400">La comisión y el código aplican solo para esta campaña.</p>
+              <p className="text-xs text-gray-400">
+                La comisión y el código aplican solo para esta campaña.
+              </p>
             </div>
           )}
         </div>
@@ -1509,8 +1720,8 @@ function AddCreatorsModal({ campaignId, workspaceId, onClose, onAdded }: {
             {loading
               ? "Agregando..."
               : mode === "search"
-              ? "Agregar a la campaña"
-              : "Enviar invitación"}
+                ? "Agregar a la campaña"
+                : "Enviar invitación"}
           </button>
         </div>
       </div>
@@ -1536,7 +1747,9 @@ function CreateCampaignGiftingModal({
   onCreated: () => void
 }) {
   const [step, setStep] = useState<"creator" | "products" | "confirm">("creator")
-  const [selectedCreators, setSelectedCreators] = useState<{ id: string; name: string; address: string | null; city: string | null }[]>([])
+  const [selectedCreators, setSelectedCreators] = useState<
+    { id: string; name: string; address: string | null; city: string | null }[]
+  >([])
   const [products, setProducts] = useState<TiendanubeProduct[]>([])
   const [productsLoading, setProductsLoading] = useState(false)
   const [selected, setSelected] = useState<SelectedProduct[]>([])
@@ -1571,25 +1784,30 @@ function CreateCampaignGiftingModal({
   const addVariant = (product: TiendanubeProduct, variant: TiendanubeVariant) => {
     const existing = selected.find((s) => s.variantId === variant.id)
     if (existing) {
-      setSelected((prev) => prev.map((s) => s.variantId === variant.id ? { ...s, quantity: s.quantity + 1 } : s))
+      setSelected((prev) =>
+        prev.map((s) => (s.variantId === variant.id ? { ...s, quantity: s.quantity + 1 } : s))
+      )
     } else {
       const name = productName(product)
-      const variantName = product.variants.length > 1 ? (variant.sku || `Variante ${variant.id}`) : ""
-      setSelected((prev) => [...prev, {
-        variantId: variant.id,
-        productId: product.id,
-        name,
-        variantName,
-        price: parseFloat(variant.price) || 0,
-        quantity: 1,
-      }])
+      const variantName = product.variants.length > 1 ? variant.sku || `Variante ${variant.id}` : ""
+      setSelected((prev) => [
+        ...prev,
+        {
+          variantId: variant.id,
+          productId: product.id,
+          name,
+          variantName,
+          price: parseFloat(variant.price) || 0,
+          quantity: 1,
+        },
+      ])
     }
   }
 
   const updateQty = (variantId: number, delta: number) => {
     setSelected((prev) =>
       prev
-        .map((s) => s.variantId === variantId ? { ...s, quantity: s.quantity + delta } : s)
+        .map((s) => (s.variantId === variantId ? { ...s, quantity: s.quantity + delta } : s))
         .filter((s) => s.quantity > 0)
     )
   }
@@ -1630,7 +1848,10 @@ function CreateCampaignGiftingModal({
       )
 
       const failed = results.find((r) => r.error)
-      if (failed) { setError(failed.error); return }
+      if (failed) {
+        setError(failed.error)
+        return
+      }
       onCreated()
     } catch {
       setError("Error de conexión")
@@ -1639,7 +1860,7 @@ function CreateCampaignGiftingModal({
     }
   }
 
-  const toggleCreator = (c: typeof campaignCreators[0]) => {
+  const toggleCreator = (c: (typeof campaignCreators)[0]) => {
     setSelectedCreators((prev) =>
       prev.some((s) => s.id === c.id) ? prev.filter((s) => s.id !== c.id) : [...prev, c]
     )
@@ -1648,7 +1869,6 @@ function CreateCampaignGiftingModal({
   return (
     <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[85vh] flex flex-col">
-
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100">
           <div>
@@ -1656,17 +1876,23 @@ function CreateCampaignGiftingModal({
             <div className="flex items-center gap-2 mt-1">
               {(["creator", "products", "confirm"] as const).map((s, i) => (
                 <div key={s} className="flex items-center gap-2">
-                  <span className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${
-                    step === s ? "bg-gray-900 text-white" : "bg-gray-100 text-gray-400"
-                  }`}>
-                    {i + 1}. {s === "creator" ? "Creator" : s === "products" ? "Productos" : "Confirmar"}
+                  <span
+                    className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${
+                      step === s ? "bg-gray-900 text-white" : "bg-gray-100 text-gray-400"
+                    }`}
+                  >
+                    {i + 1}.{" "}
+                    {s === "creator" ? "Creator" : s === "products" ? "Productos" : "Confirmar"}
                   </span>
                   {i < 2 && <span className="text-gray-200 text-xs">›</span>}
                 </div>
               ))}
             </div>
           </div>
-          <button onClick={onClose} className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg">
+          <button
+            onClick={onClose}
+            className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg"
+          >
             <X size={16} />
           </button>
         </div>
@@ -1689,20 +1915,34 @@ function CreateCampaignGiftingModal({
                         key={c.id}
                         onClick={() => toggleCreator(c)}
                         className={`w-full flex items-center gap-3 p-3 border rounded-xl text-left transition-colors ${
-                          isSelected ? "border-gray-900 bg-gray-50" : "border-gray-200 hover:border-gray-300"
+                          isSelected
+                            ? "border-gray-900 bg-gray-50"
+                            : "border-gray-200 hover:border-gray-300"
                         }`}
                       >
-                        <div className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 ${
-                          isSelected ? "bg-gray-900 border-gray-900" : "border-gray-300"
-                        }`}>
+                        <div
+                          className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 ${
+                            isSelected ? "bg-gray-900 border-gray-900" : "border-gray-300"
+                          }`}
+                        >
                           {isSelected && (
                             <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
-                              <path d="M1 4L3.5 6.5L9 1" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                              <path
+                                d="M1 4L3.5 6.5L9 1"
+                                stroke="white"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                              />
                             </svg>
                           )}
                         </div>
                         <div className="w-8 h-8 rounded-full bg-brand-100 flex items-center justify-center text-brand-700 text-xs font-semibold flex-shrink-0">
-                          {c.name.split(" ").map((n) => n[0]).join("").slice(0, 2)}
+                          {c.name
+                            .split(" ")
+                            .map((n) => n[0])
+                            .join("")
+                            .slice(0, 2)}
                         </div>
                         <p className="text-sm font-medium text-gray-900">{c.name}</p>
                       </button>
@@ -1734,7 +1974,10 @@ function CreateCampaignGiftingModal({
             <div className="flex-1 overflow-auto flex flex-col min-h-0">
               <div className="px-6 py-3 border-b border-gray-100">
                 <div className="relative">
-                  <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <Search
+                    size={14}
+                    className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+                  />
                   <input
                     type="text"
                     value={search}
@@ -1752,39 +1995,62 @@ function CreateCampaignGiftingModal({
                       <RefreshCw size={18} className="animate-spin text-gray-400" />
                     </div>
                   ) : filteredProducts.length === 0 ? (
-                    <p className="text-sm text-gray-400 text-center py-8">No se encontraron productos.</p>
+                    <p className="text-sm text-gray-400 text-center py-8">
+                      No se encontraron productos.
+                    </p>
                   ) : (
                     filteredProducts.map((product) => (
                       <div key={product.id} className="border border-gray-100 rounded-xl p-3">
                         <div className="flex items-center gap-3 mb-2">
                           {product.images[0] ? (
                             // eslint-disable-next-line @next/next/no-img-element
-                            <img src={product.images[0].src} alt="" className="w-10 h-10 rounded-lg object-cover flex-shrink-0 bg-gray-100" />
+                            <img
+                              src={product.images[0].src}
+                              alt=""
+                              className="w-10 h-10 rounded-lg object-cover flex-shrink-0 bg-gray-100"
+                            />
                           ) : (
                             <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
                               <Package size={14} className="text-gray-400" />
                             </div>
                           )}
-                          <p className="text-sm font-medium text-gray-900">{productName(product)}</p>
+                          <p className="text-sm font-medium text-gray-900">
+                            {productName(product)}
+                          </p>
                         </div>
                         <div className="space-y-1.5 pl-13">
                           {product.variants.map((variant) => {
                             const inCart = selected.find((s) => s.variantId === variant.id)
                             return (
-                              <div key={variant.id} className="flex items-center justify-between gap-2">
+                              <div
+                                key={variant.id}
+                                className="flex items-center justify-between gap-2"
+                              >
                                 <div className="min-w-0">
                                   {product.variants.length > 1 && (
-                                    <span className="text-xs text-gray-500">{variant.sku || `Var. ${variant.id}`}</span>
+                                    <span className="text-xs text-gray-500">
+                                      {variant.sku || `Var. ${variant.id}`}
+                                    </span>
                                   )}
-                                  <span className="text-xs text-gray-400 ml-1">${parseFloat(variant.price).toLocaleString("es-AR")}</span>
+                                  <span className="text-xs text-gray-400 ml-1">
+                                    ${parseFloat(variant.price).toLocaleString("es-AR")}
+                                  </span>
                                 </div>
                                 {inCart ? (
                                   <div className="flex items-center gap-1 flex-shrink-0">
-                                    <button onClick={() => updateQty(variant.id, -1)} className="w-6 h-6 flex items-center justify-center rounded-md hover:bg-gray-100">
+                                    <button
+                                      onClick={() => updateQty(variant.id, -1)}
+                                      className="w-6 h-6 flex items-center justify-center rounded-md hover:bg-gray-100"
+                                    >
                                       <Minus size={12} />
                                     </button>
-                                    <span className="text-sm font-medium w-5 text-center">{inCart.quantity}</span>
-                                    <button onClick={() => addVariant(product, variant)} className="w-6 h-6 flex items-center justify-center rounded-md hover:bg-gray-100">
+                                    <span className="text-sm font-medium w-5 text-center">
+                                      {inCart.quantity}
+                                    </span>
+                                    <button
+                                      onClick={() => addVariant(product, variant)}
+                                      className="w-6 h-6 flex items-center justify-center rounded-md hover:bg-gray-100"
+                                    >
                                       <Plus size={12} />
                                     </button>
                                   </div>
@@ -1807,24 +2073,33 @@ function CreateCampaignGiftingModal({
 
                 {selected.length > 0 && (
                   <div className="w-52 border-l border-gray-100 p-4 flex flex-col gap-2 overflow-auto">
-                    <p className="text-[11px] font-medium text-gray-400 uppercase tracking-wide">Seleccionados</p>
+                    <p className="text-[11px] font-medium text-gray-400 uppercase tracking-wide">
+                      Seleccionados
+                    </p>
                     {selected.map((p) => (
                       <div key={p.variantId} className="text-xs">
                         <p className="font-medium text-gray-800 leading-tight">{p.name}</p>
                         {p.variantName && <p className="text-gray-400">{p.variantName}</p>}
-                        <p className="text-gray-500">{p.quantity}x ${p.price.toLocaleString("es-AR")}</p>
+                        <p className="text-gray-500">
+                          {p.quantity}x ${p.price.toLocaleString("es-AR")}
+                        </p>
                       </div>
                     ))}
                     <div className="mt-auto pt-2 border-t border-gray-100">
                       <p className="text-[11px] text-gray-400">Valor total</p>
-                      <p className="text-sm font-semibold text-gray-900">${totalValue.toLocaleString("es-AR")}</p>
+                      <p className="text-sm font-semibold text-gray-900">
+                        ${totalValue.toLocaleString("es-AR")}
+                      </p>
                     </div>
                   </div>
                 )}
               </div>
             </div>
             <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-between">
-              <button onClick={() => setStep("creator")} className="text-sm text-gray-500 hover:text-gray-700">
+              <button
+                onClick={() => setStep("creator")}
+                className="text-sm text-gray-500 hover:text-gray-700"
+              >
                 ← Volver
               </button>
               <button
@@ -1844,22 +2119,31 @@ function CreateCampaignGiftingModal({
             <div className="flex-1 overflow-auto p-6 space-y-4">
               <div className="border border-gray-100 rounded-xl p-4">
                 <p className="text-[11px] font-medium text-gray-400 uppercase tracking-wide mb-2">
-                  {selectedCreators.length === 1 ? "Creator" : `${selectedCreators.length} Creators`}
+                  {selectedCreators.length === 1
+                    ? "Creator"
+                    : `${selectedCreators.length} Creators`}
                 </p>
                 {selectedCreators.map((c) => (
-                  <p key={c.id} className="text-sm font-medium text-gray-900">{c.name}</p>
+                  <p key={c.id} className="text-sm font-medium text-gray-900">
+                    {c.name}
+                  </p>
                 ))}
               </div>
 
               <div className="border border-gray-100 rounded-xl p-4">
-                <p className="text-[11px] font-medium text-gray-400 uppercase tracking-wide mb-2">Productos</p>
+                <p className="text-[11px] font-medium text-gray-400 uppercase tracking-wide mb-2">
+                  Productos
+                </p>
                 <div className="space-y-2">
                   {selected.map((p) => (
                     <div key={p.variantId} className="flex justify-between text-sm">
                       <span className="text-gray-700">
-                        {p.quantity}x {p.name}{p.variantName ? ` - ${p.variantName}` : ""}
+                        {p.quantity}x {p.name}
+                        {p.variantName ? ` - ${p.variantName}` : ""}
                       </span>
-                      <span className="text-gray-500 flex-shrink-0 ml-3">${(p.price * p.quantity).toLocaleString("es-AR")}</span>
+                      <span className="text-gray-500 flex-shrink-0 ml-3">
+                        ${(p.price * p.quantity).toLocaleString("es-AR")}
+                      </span>
                     </div>
                   ))}
                   <div className="pt-2 border-t border-gray-100 flex justify-between text-sm font-medium">
@@ -1870,7 +2154,9 @@ function CreateCampaignGiftingModal({
               </div>
 
               <div className="border border-gray-100 rounded-xl p-4">
-                <p className="text-[11px] font-medium text-gray-400 uppercase tracking-wide mb-1">Campaña</p>
+                <p className="text-[11px] font-medium text-gray-400 uppercase tracking-wide mb-1">
+                  Campaña
+                </p>
                 <p className="text-sm font-medium text-gray-900">{campaign.name}</p>
               </div>
 
@@ -1890,7 +2176,10 @@ function CreateCampaignGiftingModal({
               {error && <p className="text-xs text-red-600 bg-red-50 p-3 rounded-lg">{error}</p>}
             </div>
             <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-between">
-              <button onClick={() => setStep("products")} className="text-sm text-gray-500 hover:text-gray-700">
+              <button
+                onClick={() => setStep("products")}
+                className="text-sm text-gray-500 hover:text-gray-700"
+              >
                 ← Volver
               </button>
               <button
@@ -1942,7 +2231,10 @@ function BriefingsTab({
         <div className="bg-white rounded-xl border border-gray-100 p-10 text-center">
           <FileText size={28} className="mx-auto text-gray-300 mb-3" />
           <p className="text-sm text-gray-500 mb-3">No hay briefings en esta campaña.</p>
-          <button onClick={onCreateBriefing} className="text-sm font-medium text-brand-600 hover:underline">
+          <button
+            onClick={onCreateBriefing}
+            className="text-sm font-medium text-brand-600 hover:underline"
+          >
             Crear primer briefing
           </button>
         </div>
@@ -1956,15 +2248,27 @@ function BriefingsTab({
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 mb-1">
                       <FileText size={14} className="text-gray-400 flex-shrink-0" />
-                      <span className="text-[15px] font-semibold text-gray-900 truncate">{b.subject}</span>
-                      <span className={`text-[11px] px-2 py-0.5 rounded-full font-medium flex-shrink-0 ${
-                        b.status === "SENT" ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"
-                      }`}>
-                        {b.status === "SENT" ? "Enviado" : b.status === "DRAFT" ? "Borrador" : b.status}
+                      <span className="text-[15px] font-semibold text-gray-900 truncate">
+                        {b.subject}
+                      </span>
+                      <span
+                        className={`text-[11px] px-2 py-0.5 rounded-full font-medium flex-shrink-0 ${
+                          b.status === "SENT"
+                            ? "bg-green-100 text-green-700"
+                            : "bg-gray-100 text-gray-500"
+                        }`}
+                      >
+                        {b.status === "SENT"
+                          ? "Enviado"
+                          : b.status === "DRAFT"
+                            ? "Borrador"
+                            : b.status}
                       </span>
                     </div>
                     <div className="flex items-center gap-3 text-[12px] text-gray-400 mt-1">
-                      <span>{b._count.recipients} destinatario{b._count.recipients !== 1 ? "s" : ""}</span>
+                      <span>
+                        {b._count.recipients} destinatario{b._count.recipients !== 1 ? "s" : ""}
+                      </span>
                       {b.sentAt && <span>Enviado {formatDate(b.sentAt)}</span>}
                       {!b.sentAt && b.createdAt && <span>Creado {formatDate(b.createdAt)}</span>}
                     </div>
@@ -2094,12 +2398,19 @@ function CreateBriefingModal({
               Se enviará a los {creatorCount} creator{creatorCount !== 1 ? "s" : ""} de la campaña.
             </p>
           </div>
-          <button onClick={onClose} className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg">
+          <button
+            onClick={onClose}
+            className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg"
+          >
             <X size={16} />
           </button>
         </div>
 
-        <form id="briefing-form" onSubmit={handleSubmit} className="flex-1 overflow-auto p-6 space-y-4">
+        <form
+          id="briefing-form"
+          onSubmit={handleSubmit}
+          className="flex-1 overflow-auto p-6 space-y-4"
+        >
           <div>
             <label className="block text-xs font-medium text-gray-700 mb-1.5">Asunto *</label>
             <input
@@ -2126,10 +2437,15 @@ function CreateBriefingModal({
 
           {/* File upload */}
           <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1.5">Documentos adjuntos</label>
+            <label className="block text-xs font-medium text-gray-700 mb-1.5">
+              Documentos adjuntos
+            </label>
             <div className="space-y-2">
               {assets.map((asset, i) => (
-                <div key={i} className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2 gap-2">
+                <div
+                  key={i}
+                  className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2 gap-2"
+                >
                   <div className="flex items-center gap-2 min-w-0">
                     <Paperclip size={13} className="text-gray-400 flex-shrink-0" />
                     <span className="text-[13px] text-gray-700 truncate">{asset.name}</span>
@@ -2189,7 +2505,9 @@ function CreateBriefingModal({
               type="submit"
               form="briefing-form"
               disabled={submitting || !form.subject || !form.body}
-              onClick={() => { sendIntentRef.current = false }}
+              onClick={() => {
+                sendIntentRef.current = false
+              }}
               className="px-4 py-2 text-[13px] text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50"
             >
               {submitting ? "Guardando..." : "Guardar borrador"}
@@ -2198,10 +2516,14 @@ function CreateBriefingModal({
               type="submit"
               form="briefing-form"
               disabled={submitting || !form.subject || !form.body || creatorCount === 0}
-              onClick={() => { sendIntentRef.current = true }}
+              onClick={() => {
+                sendIntentRef.current = true
+              }}
               className="px-4 py-2 text-[13px] font-medium bg-gray-900 text-white rounded-lg hover:bg-gray-800 disabled:opacity-50"
             >
-              {submitting ? "Enviando..." : `Enviar a ${creatorCount} creator${creatorCount !== 1 ? "s" : ""}`}
+              {submitting
+                ? "Enviando..."
+                : `Enviar a ${creatorCount} creator${creatorCount !== 1 ? "s" : ""}`}
             </button>
           </div>
         </div>
@@ -2215,9 +2537,9 @@ function CreateBriefingModal({
 // ─────────────────────────────────────────────
 
 const APP_STATUS = {
-  PENDING:  { label: "Pendiente",  style: "bg-amber-100 text-amber-700" },
-  ACCEPTED: { label: "Aceptado",   style: "bg-green-100 text-green-700" },
-  REJECTED: { label: "Rechazado",  style: "bg-red-100 text-red-600" },
+  PENDING: { label: "Pendiente", style: "bg-amber-100 text-amber-700" },
+  ACCEPTED: { label: "Aceptado", style: "bg-green-100 text-green-700" },
+  REJECTED: { label: "Rechazado", style: "bg-red-100 text-red-600" },
 }
 
 function ApplicationsTab({
@@ -2244,8 +2566,8 @@ function ApplicationsTab({
   const filtered = filter === "ALL" ? applications : applications.filter((a) => a.status === filter)
 
   const counts = {
-    ALL:      applications.length,
-    PENDING:  applications.filter((a) => a.status === "PENDING").length,
+    ALL: applications.length,
+    PENDING: applications.filter((a) => a.status === "PENDING").length,
     ACCEPTED: applications.filter((a) => a.status === "ACCEPTED").length,
     REJECTED: applications.filter((a) => a.status === "REJECTED").length,
   }
@@ -2283,13 +2605,19 @@ function ApplicationsTab({
             key={f}
             onClick={() => onFilterChange(f)}
             className={`px-3 py-1.5 text-[12px] font-medium rounded-lg transition-colors ${
-              filter === f
-                ? "bg-gray-900 text-white"
-                : "text-gray-500 hover:bg-gray-100"
+              filter === f ? "bg-gray-900 text-white" : "text-gray-500 hover:bg-gray-100"
             }`}
           >
-            {f === "ALL" ? "Todos" : f === "PENDING" ? "Pendientes" : f === "ACCEPTED" ? "Aceptados" : "Rechazados"}
-            <span className={`ml-1.5 text-[11px] ${filter === f ? "text-white/60" : "text-gray-400"}`}>
+            {f === "ALL"
+              ? "Todos"
+              : f === "PENDING"
+                ? "Pendientes"
+                : f === "ACCEPTED"
+                  ? "Aceptados"
+                  : "Rechazados"}
+            <span
+              className={`ml-1.5 text-[11px] ${filter === f ? "text-white/60" : "text-gray-400"}`}
+            >
               {counts[f]}
             </span>
           </button>
@@ -2309,7 +2637,9 @@ function ApplicationsTab({
         <div className="bg-white rounded-xl border border-gray-100 p-10 text-center">
           <Users size={28} className="mx-auto text-gray-300 mb-3" />
           <p className="text-sm text-gray-500">
-            {filter === "ALL" ? "Todavía no hay aplicaciones." : `No hay aplicaciones ${filter === "PENDING" ? "pendientes" : filter === "ACCEPTED" ? "aceptadas" : "rechazadas"}.`}
+            {filter === "ALL"
+              ? "Todavía no hay aplicaciones."
+              : `No hay aplicaciones ${filter === "PENDING" ? "pendientes" : filter === "ACCEPTED" ? "aceptadas" : "rechazadas"}.`}
           </p>
         </div>
       ) : (
@@ -2317,10 +2647,18 @@ function ApplicationsTab({
           {filtered.map((app) => {
             const isExpanded = expandedId === app.id
             const cfg = APP_STATUS[app.status]
-            const initials = app.name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()
+            const initials = app.name
+              .split(" ")
+              .map((n) => n[0])
+              .join("")
+              .slice(0, 2)
+              .toUpperCase()
 
             return (
-              <div key={app.id} className="bg-white rounded-xl border border-gray-100 overflow-hidden">
+              <div
+                key={app.id}
+                className="bg-white rounded-xl border border-gray-100 overflow-hidden"
+              >
                 <div className="p-4 flex items-center gap-3">
                   {/* Avatar */}
                   <div className="w-9 h-9 rounded-full bg-brand-100 flex items-center justify-center text-brand-700 text-xs font-semibold flex-shrink-0">
@@ -2331,7 +2669,9 @@ function ApplicationsTab({
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 mb-0.5">
                       <span className="text-sm font-medium text-gray-900">{app.name}</span>
-                      <span className={`text-[11px] px-1.5 py-0.5 rounded-full font-medium ${cfg.style}`}>
+                      <span
+                        className={`text-[11px] px-1.5 py-0.5 rounded-full font-medium ${cfg.style}`}
+                      >
                         {cfg.label}
                       </span>
                     </div>
@@ -2440,7 +2780,8 @@ function ApplicationsTab({
                     )}
                     {app.notes && (
                       <div className="mt-3 bg-gray-50 rounded-lg px-3 py-2 text-[12px] text-gray-600">
-                        <span className="font-medium text-gray-500">Notas: </span>{app.notes}
+                        <span className="font-medium text-gray-500">Notas: </span>
+                        {app.notes}
                       </div>
                     )}
                   </div>
@@ -2499,16 +2840,26 @@ function ConfirmApplicationModal({
           <h2 className="text-base font-semibold text-gray-900">
             {isAccept ? "Aceptar aplicación" : "Rechazar aplicación"}
           </h2>
-          <button onClick={onClose} className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg">
+          <button
+            onClick={onClose}
+            className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg"
+          >
             <X size={16} />
           </button>
         </div>
         <div className="p-6 space-y-4">
           <p className="text-[13px] text-gray-600">
-            {isAccept
-              ? <>¿Aceptar a <strong>{application.name}</strong>? Se le enviará un email para unirse al programa.</>
-              : <>¿Rechazar a <strong>{application.name}</strong>? Se le enviará un email notificando la decisión.</>
-            }
+            {isAccept ? (
+              <>
+                ¿Aceptar a <strong>{application.name}</strong>? Se le enviará un email para unirse
+                al programa.
+              </>
+            ) : (
+              <>
+                ¿Rechazar a <strong>{application.name}</strong>? Se le enviará un email notificando
+                la decisión.
+              </>
+            )}
           </p>
 
           <div>
@@ -2519,7 +2870,9 @@ function ConfirmApplicationModal({
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               rows={2}
-              placeholder={isAccept ? "Motivo de aceptación, observaciones..." : "Motivo del rechazo..."}
+              placeholder={
+                isAccept ? "Motivo de aceptación, observaciones..." : "Motivo del rechazo..."
+              }
               className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400 resize-none"
             />
           </div>

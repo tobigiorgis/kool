@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { auth, currentUser } from "@clerk/nextjs/server"
 import { prisma } from "@/lib/prisma"
+import { sendWelcomeCreator } from "@/lib/email"
 import { z } from "zod"
 
 // GET /api/onboarding/creator?token=INVITE_TOKEN
@@ -90,6 +91,7 @@ export async function POST(request: NextRequest) {
     // Update creator profile
     const updated = await prisma.creator.update({
       where: { id: creator.id },
+      include: { workspace: { select: { name: true } } },
       data: {
         userId,
         status: "ACTIVE",
@@ -102,10 +104,16 @@ export async function POST(request: NextRequest) {
         ...(data.city !== undefined && { city: data.city || null }),
         ...(data.province !== undefined && { province: data.province || null }),
         ...(data.niches && { niches: data.niches }),
-        ...(data.shippingAddress !== undefined && { shippingAddress: data.shippingAddress || null }),
+        ...(data.shippingAddress !== undefined && {
+          shippingAddress: data.shippingAddress || null,
+        }),
         ...(data.shippingCity !== undefined && { shippingCity: data.shippingCity || null }),
-        ...(data.shippingProvince !== undefined && { shippingProvince: data.shippingProvince || null }),
-        ...(data.shippingZipCode !== undefined && { shippingZipCode: data.shippingZipCode || null }),
+        ...(data.shippingProvince !== undefined && {
+          shippingProvince: data.shippingProvince || null,
+        }),
+        ...(data.shippingZipCode !== undefined && {
+          shippingZipCode: data.shippingZipCode || null,
+        }),
         ...(data.bankAlias !== undefined && { bankAlias: data.bankAlias || null }),
         ...(data.avatar !== undefined && { avatar: data.avatar || null }),
       },
@@ -121,6 +129,18 @@ export async function POST(request: NextRequest) {
       where: { creatorId: creator.id, status: "INVITED" },
       data: { status: "ACCEPTED" },
     })
+
+    // Email de bienvenida (fire-and-forget — no bloquea la respuesta)
+    if (updated.email) {
+      void sendWelcomeCreator({
+        to: updated.email,
+        creatorName: updated.firstName || updated.name || "creator",
+        brandName: updated.workspace?.name || "tu marca",
+        discountCode: updated.discountCode || undefined,
+        commissionPct: updated.commissionPct ?? undefined,
+        dashboardUrl: `${process.env.NEXT_PUBLIC_APP_URL}/creator`,
+      })
+    }
 
     return NextResponse.json({ ok: true, creatorId: updated.id })
   } catch (error) {
