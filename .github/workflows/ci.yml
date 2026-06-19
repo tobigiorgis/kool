@@ -11,7 +11,7 @@ concurrency:
 
 jobs:
   quality:
-    name: Lint · Typecheck
+    name: Lint · Typecheck · Test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -23,7 +23,7 @@ jobs:
       - run: npx prisma generate
       - run: npm run lint
       - run: npm run typecheck
-      # - run: npm run test   # enabled in Fase 5 (Vitest)
+      - run: npm run test
 
   build:
     name: Build
