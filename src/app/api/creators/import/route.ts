@@ -3,16 +3,20 @@ import { auth } from "@clerk/nextjs/server"
 import { prisma } from "@/lib/prisma"
 import { generateDiscountCode } from "@/lib/utils"
 import { sendCreatorInvite } from "@/lib/email"
+import { handleError } from "@/lib/api/response"
+import { env } from "@/lib/env"
 import { z } from "zod"
 
 const ImportSchema = z.object({
   workspaceId: z.string(),
-  creators: z.array(z.object({
-    email: z.string().email(),
-    name: z.string().min(1),
-    instagram: z.string().optional(),
-    commissionPct: z.number().min(1).max(50).default(10),
-  })),
+  creators: z.array(
+    z.object({
+      email: z.string().email(),
+      name: z.string().min(1),
+      instagram: z.string().optional(),
+      commissionPct: z.number().min(1).max(50).default(10),
+    })
+  ),
 })
 
 export async function POST(request: NextRequest) {
@@ -47,9 +51,9 @@ export async function POST(request: NextRequest) {
     const usersByEmail = new Map(existingUsers.map((u) => [u.email.toLowerCase(), u]))
 
     const results = {
-      imported: 0,   // ya tenían cuenta → ACTIVE directo
-      invited: 0,    // sin cuenta → PENDING + email
-      skipped: 0,    // ya estaban en este workspace
+      imported: 0, // ya tenían cuenta → ACTIVE directo
+      invited: 0, // sin cuenta → PENDING + email
+      skipped: 0, // ya estaban en este workspace
       errors: [] as { email: string; reason: string }[],
     }
 
@@ -95,7 +99,7 @@ export async function POST(request: NextRequest) {
             },
           })
 
-          const onboardingUrl = `${process.env.NEXT_PUBLIC_APP_URL}/onboarding/creator?token=${creator.id}`
+          const onboardingUrl = `${env.NEXT_PUBLIC_APP_URL}/onboarding/creator?token=${creator.id}`
           await sendCreatorInvite({
             to: email,
             creatorName: row.name,
@@ -114,10 +118,6 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ ok: true, ...results })
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: "Datos inválidos", details: error.errors }, { status: 400 })
-    }
-    console.error("[Creators Import] Error:", error)
-    return NextResponse.json({ error: "Error al importar" }, { status: 500 })
+    return handleError("[Creators Import] POST", error)
   }
 }

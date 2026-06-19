@@ -9,11 +9,10 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { UAParser } from "ua-parser-js"
 import { createHash } from "crypto"
+import { env } from "@/lib/env"
+import { logger } from "@/lib/logger"
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ slug: string }> }
-) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params
 
   try {
@@ -23,11 +22,11 @@ export async function GET(
     })
 
     if (!link || link.archived) {
-      return NextResponse.redirect(new URL("/", process.env.NEXT_PUBLIC_APP_URL!))
+      return NextResponse.redirect(new URL("/", env.NEXT_PUBLIC_APP_URL))
     }
 
     if (link.expiresAt && link.expiresAt < new Date()) {
-      return NextResponse.redirect(new URL("/", process.env.NEXT_PUBLIC_APP_URL!))
+      return NextResponse.redirect(new URL("/", env.NEXT_PUBLIC_APP_URL))
     }
 
     const destinationUrl = buildDestinationUrl(link)
@@ -43,18 +42,18 @@ export async function GET(
         data: {
           linkId: link.id,
           country: request.headers.get("x-vercel-ip-country") || undefined,
-          city:    request.headers.get("x-vercel-ip-city") || undefined,
-          region:  request.headers.get("x-vercel-ip-country-region") || undefined,
-          device:  ua.getDevice().type || "desktop",
-          os:      ua.getOS().name || undefined,
+          city: request.headers.get("x-vercel-ip-city") || undefined,
+          region: request.headers.get("x-vercel-ip-country-region") || undefined,
+          device: ua.getDevice().type || "desktop",
+          os: ua.getOS().name || undefined,
           browser: ua.getBrowser().name || undefined,
           referer: referer || undefined,
-          source:  detectSource(referer),
+          source: detectSource(referer),
           ipHash,
         },
       })
     } catch (e) {
-      console.error("[Click] Error saving:", e)
+      logger.error("[Click] Error saving", e)
     }
 
     return NextResponse.redirect(destinationUrl, {
@@ -65,8 +64,8 @@ export async function GET(
       },
     })
   } catch (error) {
-    console.error("[Redirect] Error:", error)
-    return NextResponse.redirect(new URL("/", process.env.NEXT_PUBLIC_APP_URL!))
+    logger.error("[Redirect] Error", error)
+    return NextResponse.redirect(new URL("/", env.NEXT_PUBLIC_APP_URL))
   }
 }
 
@@ -81,10 +80,10 @@ function buildDestinationUrl(link: {
 }): string {
   try {
     const url = new URL(link.destination)
-    if (link.utmSource)   url.searchParams.set("utm_source", link.utmSource)
-    if (link.utmMedium)   url.searchParams.set("utm_medium", link.utmMedium)
+    if (link.utmSource) url.searchParams.set("utm_source", link.utmSource)
+    if (link.utmMedium) url.searchParams.set("utm_medium", link.utmMedium)
     if (link.utmCampaign) url.searchParams.set("utm_campaign", link.utmCampaign)
-    if (link.utmContent)  url.searchParams.set("utm_content", link.utmContent)
+    if (link.utmContent) url.searchParams.set("utm_content", link.utmContent)
     const code = link.discountCode || link.creator?.discountCode
     if (code) {
       url.searchParams.set("ref", code)
@@ -99,12 +98,12 @@ function buildDestinationUrl(link: {
 function detectSource(referer: string): string {
   if (!referer) return "direct"
   if (referer.includes("instagram.com")) return "instagram"
-  if (referer.includes("tiktok.com"))    return "tiktok"
-  if (referer.includes("youtube.com"))   return "youtube"
+  if (referer.includes("tiktok.com")) return "tiktok"
+  if (referer.includes("youtube.com")) return "youtube"
   if (referer.includes("twitter.com") || referer.includes("x.com")) return "twitter"
   if (referer.includes("facebook.com")) return "facebook"
   if (referer.includes("whatsapp.com")) return "whatsapp"
   if (referer.includes("t.me") || referer.includes("telegram")) return "telegram"
-  if (referer.includes("google.com"))   return "google"
+  if (referer.includes("google.com")) return "google"
   return "other"
 }

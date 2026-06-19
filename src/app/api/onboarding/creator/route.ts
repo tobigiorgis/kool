@@ -2,34 +2,40 @@ import { NextRequest, NextResponse } from "next/server"
 import { auth, currentUser } from "@clerk/nextjs/server"
 import { prisma } from "@/lib/prisma"
 import { sendWelcomeCreator } from "@/lib/email"
+import { handleError } from "@/lib/api/response"
+import { env } from "@/lib/env"
 import { z } from "zod"
 
 // GET /api/onboarding/creator?token=INVITE_TOKEN
 // Returns creator info to pre-fill the form (public)
 export async function GET(request: NextRequest) {
-  const token = request.nextUrl.searchParams.get("token")
-  if (!token) return NextResponse.json({ error: "Token requerido" }, { status: 400 })
+  try {
+    const token = request.nextUrl.searchParams.get("token")
+    if (!token) return NextResponse.json({ error: "Token requerido" }, { status: 400 })
 
-  const creator = await prisma.creator.findUnique({
-    where: { inviteToken: token },
-    select: {
-      id: true,
-      name: true,
-      firstName: true,
-      lastName: true,
-      email: true,
-      instagram: true,
-      tiktok: true,
-      discountCode: true,
-      commissionPct: true,
-      status: true,
-      workspace: { select: { name: true, brandLogo: true } },
-    },
-  })
+    const creator = await prisma.creator.findUnique({
+      where: { inviteToken: token },
+      select: {
+        id: true,
+        name: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        instagram: true,
+        tiktok: true,
+        discountCode: true,
+        commissionPct: true,
+        status: true,
+        workspace: { select: { name: true, brandLogo: true } },
+      },
+    })
 
-  if (!creator) return NextResponse.json({ error: "Link inválido o expirado" }, { status: 404 })
+    if (!creator) return NextResponse.json({ error: "Link inválido o expirado" }, { status: 404 })
 
-  return NextResponse.json({ creator })
+    return NextResponse.json({ creator })
+  } catch (error) {
+    return handleError("[Onboarding] GET", error)
+  }
 }
 
 const OnboardingSchema = z.object({
@@ -138,16 +144,12 @@ export async function POST(request: NextRequest) {
         brandName: updated.workspace?.name || "tu marca",
         discountCode: updated.discountCode || undefined,
         commissionPct: updated.commissionPct ?? undefined,
-        dashboardUrl: `${process.env.NEXT_PUBLIC_APP_URL}/creator`,
+        dashboardUrl: `${env.NEXT_PUBLIC_APP_URL}/creator`,
       })
     }
 
     return NextResponse.json({ ok: true, creatorId: updated.id })
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: "Datos inválidos", details: error.errors }, { status: 400 })
-    }
-    console.error("[Onboarding] Error:", error)
-    return NextResponse.json({ error: "Error al guardar" }, { status: 500 })
+    return handleError("[Onboarding] POST", error)
   }
 }
