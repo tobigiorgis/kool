@@ -1,54 +1,74 @@
 import { NextRequest, NextResponse } from "next/server"
-import { auth } from "@clerk/nextjs/server"
+import { z } from "zod"
+import { ProductionType, LocalStage, ImportStage } from "@prisma/client"
 import { prisma } from "@/lib/prisma"
+import { requireWorkspace } from "@/lib/api/workspace"
+import { notFound, handleError } from "@/lib/api/response"
 
-async function getWorkspaceId(userId: string) {
-  const member = await prisma.workspaceMember.findFirst({
-    where: { userId },
-    select: { workspaceId: true },
-  })
-  return member?.workspaceId ?? null
-}
+const UpdateProductSchema = z.object({
+  productionStage: z.string().optional(),
+  importStage: z.string().optional(),
+  name: z.string().optional(),
+  sku: z.string().nullish(),
+  image: z.string().nullish(),
+  price: z.coerce.number().optional(),
+  unitCost: z.coerce.number().optional(),
+  initialStock: z.coerce.number().optional(),
+  productionType: z.string().optional(),
+  tiendanubeProductId: z.string().nullish(),
+  tiendanubeVariantId: z.string().nullish(),
+})
 
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string; productId: string }> }
 ) {
-  const { userId } = await auth()
-  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  try {
+    const ws = await requireWorkspace()
+    if (ws.error) return ws.error
+    const { workspaceId } = ws
 
-  const workspaceId = await getWorkspaceId(userId)
-  if (!workspaceId) return NextResponse.json({ error: "No workspace" }, { status: 404 })
+    const { id, productId } = await params
 
-  const { id, productId } = await params
+    // Verificar que el producto pertenece a un drop de este workspace
+    const product = await prisma.dropProduct.findFirst({
+      where: { id: productId, drop: { id, workspaceId } },
+    })
+    if (!product) return notFound()
 
-  // Verificar que el producto pertenece a un drop de este workspace
-  const product = await prisma.dropProduct.findFirst({
-    where: { id: productId, drop: { id, workspaceId } },
-  })
-  if (!product) return NextResponse.json({ error: "Not found" }, { status: 404 })
+    const body = await request.json()
+    const data = UpdateProductSchema.parse(body)
 
-  const body = await request.json()
+    const updated = await prisma.dropProduct.update({
+      where: { id: productId },
+      data: {
+        // Etapas de producción
+        ...(data.productionStage !== undefined && {
+          productionStage: data.productionStage as LocalStage,
+        }),
+        ...(data.importStage !== undefined && { importStage: data.importStage as ImportStage }),
+        // Datos del producto
+        ...(data.name !== undefined && { name: data.name }),
+        ...(data.sku !== undefined && { sku: data.sku }),
+        ...(data.image !== undefined && { image: data.image }),
+        ...(data.price !== undefined && { price: Number(data.price) }),
+        ...(data.unitCost !== undefined && { unitCost: Number(data.unitCost) }),
+        ...(data.initialStock !== undefined && { initialStock: Number(data.initialStock) }),
+        ...(data.productionType !== undefined && {
+          productionType: data.productionType as ProductionType,
+        }),
+        // TN connection
+        ...(data.tiendanubeProductId !== undefined && {
+          tiendanubeProductId: data.tiendanubeProductId,
+        }),
+        ...(data.tiendanubeVariantId !== undefined && {
+          tiendanubeVariantId: data.tiendanubeVariantId,
+        }),
+      },
+    })
 
-  const updated = await prisma.dropProduct.update({
-    where: { id: productId },
-    data: {
-      // Etapas de producción
-      ...(body.productionStage !== undefined && { productionStage: body.productionStage }),
-      ...(body.importStage !== undefined && { importStage: body.importStage }),
-      // Datos del producto
-      ...(body.name !== undefined && { name: body.name }),
-      ...(body.sku !== undefined && { sku: body.sku }),
-      ...(body.image !== undefined && { image: body.image }),
-      ...(body.price !== undefined && { price: Number(body.price) }),
-      ...(body.unitCost !== undefined && { unitCost: Number(body.unitCost) }),
-      ...(body.initialStock !== undefined && { initialStock: Number(body.initialStock) }),
-      ...(body.productionType !== undefined && { productionType: body.productionType }),
-      // TN connection
-      ...(body.tiendanubeProductId !== undefined && { tiendanubeProductId: body.tiendanubeProductId }),
-      ...(body.tiendanubeVariantId !== undefined && { tiendanubeVariantId: body.tiendanubeVariantId }),
-    },
-  })
-
-  return NextResponse.json({ product: updated })
+    return NextResponse.json({ product: updated })
+  } catch (error) {
+    return handleError("[Drops] PATCH /api/drops/[id]/products/[productId]", error)
+  }
 }

@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@clerk/nextjs/server"
 import { prisma } from "@/lib/prisma"
 import { sendCreatorInvite } from "@/lib/email"
+import { handleError } from "@/lib/api/response"
+import { env } from "@/lib/env"
 import { z } from "zod"
 
 const InviteCreatorSchema = z.object({
@@ -44,7 +46,7 @@ export async function POST(request: NextRequest) {
 
     // Enviar email de invitación
     const workspace = await prisma.workspace.findUnique({ where: { id: data.workspaceId } })
-    const onboardingUrl = `${process.env.NEXT_PUBLIC_APP_URL}/onboarding/creator?token=${creator.id}`
+    const onboardingUrl = `${env.NEXT_PUBLIC_APP_URL}/onboarding/creator?token=${creator.id}`
 
     await sendCreatorInvite({
       to: data.email,
@@ -57,90 +59,90 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ ok: true, creator })
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: "Datos inválidos", details: error.errors }, { status: 400 })
-    }
-    console.error("[Creator] Invite error:", error)
-    return NextResponse.json({ error: "Error al invitar creator" }, { status: 500 })
+    return handleError("[Creators] POST", error)
   }
 }
 
 export async function GET(request: NextRequest) {
-  const { userId } = await auth()
-  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  try {
+    const { userId } = await auth()
+    if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-  const workspaceId = request.nextUrl.searchParams.get("workspaceId")
-  if (!workspaceId) return NextResponse.json({ error: "Missing workspaceId" }, { status: 400 })
+    const workspaceId = request.nextUrl.searchParams.get("workspaceId")
+    if (!workspaceId) return NextResponse.json({ error: "Missing workspaceId" }, { status: 400 })
 
-  const creators = await prisma.creator.findMany({
-    where: { workspaceId },
-    include: {
-      links: {
-        where: { archived: false },
-        select: {
-          id: true,
-          slug: true,
-          destination: true,
-          conversions: { select: { orderAmount: true } },
+    const creators = await prisma.creator.findMany({
+      where: { workspaceId },
+      include: {
+        links: {
+          where: { archived: false },
+          select: {
+            id: true,
+            slug: true,
+            destination: true,
+            conversions: { select: { orderAmount: true } },
+          },
+        },
+        commissions: {
+          select: {
+            id: true,
+            amount: true,
+            orderAmount: true,
+            percentage: true,
+            status: true,
+            createdAt: true,
+          },
+          orderBy: { createdAt: "desc" },
+        },
+        conversions: {
+          select: { orderAmount: true },
+        },
+        campaigns: {
+          include: {
+            campaign: { select: { id: true, name: true, formStatus: true } },
+          },
         },
       },
-      commissions: {
-        select: {
-          id: true,
-          amount: true,
-          orderAmount: true,
-          percentage: true,
-          status: true,
-          createdAt: true,
-        },
-        orderBy: { createdAt: "desc" },
-      },
-      conversions: {
-        select: { orderAmount: true },
-      },
-      campaigns: {
-        include: {
-          campaign: { select: { id: true, name: true, formStatus: true } },
-        },
-      },
-    },
-    orderBy: { createdAt: "desc" },
-  })
+      orderBy: { createdAt: "desc" },
+    })
 
-  const enriched = creators.map((c) => {
-    const totalSales = c.conversions.length
-    const totalRevenue = c.conversions.reduce((s, cv) => s + cv.orderAmount, 0)
-    const totalCommissions = c.commissions.reduce((s, cm) => s + cm.amount, 0)
-    const pendingCommissions = c.commissions
-      .filter((cm) => cm.status === "PENDING")
-      .reduce((s, cm) => s + cm.amount, 0)
-    const approvedCommissions = c.commissions
-      .filter((cm) => cm.status === "APPROVED")
-      .reduce((s, cm) => s + cm.amount, 0)
-    const paidCommissions = c.commissions
-      .filter((cm) => cm.status === "PAID")
-      .reduce((s, cm) => s + cm.amount, 0)
+    const enriched = creators.map((c) => {
+      const totalSales = c.conversions.length
+      const totalRevenue = c.conversions.reduce((s, cv) => s + cv.orderAmount, 0)
+      const totalCommissions = c.commissions.reduce((s, cm) => s + cm.amount, 0)
+      const pendingCommissions = c.commissions
+        .filter((cm) => cm.status === "PENDING")
+        .reduce((s, cm) => s + cm.amount, 0)
+      const approvedCommissions = c.commissions
+        .filter((cm) => cm.status === "APPROVED")
+        .reduce((s, cm) => s + cm.amount, 0)
+      const paidCommissions = c.commissions
+        .filter((cm) => cm.status === "PAID")
+        .reduce((s, cm) => s + cm.amount, 0)
 
-    const links = c.links.map((l) => ({
-      id: l.id,
-      slug: l.slug,
-      destination: l.destination,
-      sales: l.conversions.length,
-      revenue: l.conversions.reduce((s, cv) => s + cv.orderAmount, 0),
-    }))
+      const links = c.links.map((l) => ({
+        id: l.id,
+        slug: l.slug,
+        destination: l.destination,
+        sales: l.conversions.length,
+        revenue: l.conversions.reduce((s, cv) => s + cv.orderAmount, 0),
+      }))
 
-    return {
-      ...c,
-      links,
-      totalClicks: 0, // Tinybird — not available here yet
-      totalSales,
-      totalRevenue,
-      totalCommissions,
-      pendingCommissions,
-      approvedCommissions,
-      paidCommissions,
-    }
-  })
+      return {
+        ...c,
+        links,
+        totalClicks: 0, // Tinybird — not available here yet
+        totalSales,
+        totalRevenue,
+        totalCommissions,
+        pendingCommissions,
+        approvedCommissions,
+        paidCommissions,
+      }
+    })
 
-  return NextResponse.json({ creators: enriched })
+    return NextResponse.json({ creators: enriched })
+  } catch (error) {
+    return handleError("[Creators] GET", error)
+  }
 }

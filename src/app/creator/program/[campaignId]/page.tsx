@@ -2,9 +2,10 @@ import { auth } from "@clerk/nextjs/server"
 import { redirect, notFound } from "next/navigation"
 import { prisma } from "@/lib/prisma"
 import { formatCurrency, formatDate } from "@/lib/utils"
+import { getCampaignProgress, progressForMetric, rewardLabel } from "@/lib/bounties"
 import Link from "next/link"
 import { CopyLinkButton } from "./copy-link-button"
-import { Tag, DollarSign } from "lucide-react"
+import { Tag, DollarSign, Trophy, Check, Gift, Package } from "lucide-react"
 
 export default async function ProgramOverviewPage({
   params,
@@ -45,9 +46,7 @@ export default async function ProgramOverviewPage({
 
   // Aggregate metrics
   const [totalClickCount, commissions] = await Promise.all([
-    linkIds.length
-      ? prisma.click.count({ where: { linkId: { in: linkIds } } })
-      : 0,
+    linkIds.length ? prisma.click.count({ where: { linkId: { in: linkIds } } }) : 0,
     prisma.commission.findMany({
       where: { creatorId: creator.id },
       orderBy: { createdAt: "desc" },
@@ -60,8 +59,12 @@ export default async function ProgramOverviewPage({
 
   const totalEarnings = commissions.reduce((s, c) => s + c.amount, 0)
   const salesCount = commissions.length
-  const pendingEarnings = commissions.filter((c) => c.status === "PENDING").reduce((s, c) => s + c.amount, 0)
-  const paidEarnings = commissions.filter((c) => c.status === "PAID").reduce((s, c) => s + c.amount, 0)
+  const pendingEarnings = commissions
+    .filter((c) => c.status === "PENDING")
+    .reduce((s, c) => s + c.amount, 0)
+  const paidEarnings = commissions
+    .filter((c) => c.status === "PAID")
+    .reduce((s, c) => s + c.amount, 0)
 
   // Monthly earnings for chart (last 6 months)
   const now = new Date()
@@ -78,6 +81,19 @@ export default async function ProgramOverviewPage({
 
   const recentEarnings = commissions.slice(0, 8)
 
+  // Bounties (objetivos con recompensa) de esta campaña + progreso del creator
+  const [bounties, campaignProgress] = await Promise.all([
+    prisma.bounty.findMany({
+      where: { campaignId, status: "ACTIVE" },
+      orderBy: { createdAt: "asc" },
+      include: {
+        tiers: { orderBy: { threshold: "asc" } },
+        achievements: { where: { creatorId: creator.id } },
+      },
+    }),
+    getCampaignProgress(creator.id, campaignId),
+  ])
+
   return (
     <div className="p-8 max-w-5xl mx-auto space-y-5">
       {/* Header card */}
@@ -93,16 +109,22 @@ export default async function ProgramOverviewPage({
             <BrandLogo name={brandName} logo={brandLogo} color={brandColor} size={56} />
           </div>
 
-          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Overview</p>
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">
+            Overview
+          </p>
           <h1 className="text-lg font-semibold text-gray-900 mb-4">{brandName}</h1>
 
           {/* Referral link */}
           {firstLink && (
             <div className="mb-4">
-              <p className="text-[11px] font-medium text-gray-400 uppercase tracking-wide mb-1.5">Referral link</p>
+              <p className="text-[11px] font-medium text-gray-400 uppercase tracking-wide mb-1.5">
+                Referral link
+              </p>
               <div className="flex items-center gap-2 max-w-md">
                 <div className="flex-1 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
-                  <span className="text-[13px] text-gray-700 font-mono">kool.link/{firstLink.slug}</span>
+                  <span className="text-[13px] text-gray-700 font-mono">
+                    kool.link/{firstLink.slug}
+                  </span>
                 </div>
                 <CopyLinkButton value={`https://kool.link/${firstLink.slug}`} />
               </div>
@@ -111,7 +133,9 @@ export default async function ProgramOverviewPage({
 
           {/* Rewards */}
           <div>
-            <p className="text-[11px] font-medium text-gray-400 uppercase tracking-wide mb-1.5">Rewards</p>
+            <p className="text-[11px] font-medium text-gray-400 uppercase tracking-wide mb-1.5">
+              Rewards
+            </p>
             <div className="space-y-1.5">
               <div className="flex items-center gap-2 text-[13px] text-gray-700">
                 <DollarSign size={13} className="text-gray-400" />
@@ -128,6 +152,101 @@ export default async function ProgramOverviewPage({
           </div>
         </div>
       </div>
+
+      {/* Bounties / Objetivos */}
+      {bounties.length > 0 && (
+        <div className="bg-white rounded-2xl border border-gray-200 p-5">
+          <div className="flex items-center gap-2 mb-4">
+            <Trophy size={15} className="text-amber-500" />
+            <p className="text-[13px] font-semibold text-gray-900">Objetivos & recompensas</p>
+          </div>
+          <div className="space-y-5">
+            {bounties.map((b) => {
+              const value = progressForMetric(campaignProgress, b.metric)
+              const achievedTierIds = new Set(b.achievements.map((a) => a.tierId))
+              const fulfilledTierIds = new Set(
+                b.achievements.filter((a) => a.status === "FULFILLED").map((a) => a.tierId)
+              )
+              const fmtThreshold = (t: number) =>
+                b.metric === "REVENUE" ? formatCurrency(t) : `${t} ${t === 1 ? "venta" : "ventas"}`
+              const fmtValue =
+                b.metric === "REVENUE"
+                  ? formatCurrency(value)
+                  : `${value} ${value === 1 ? "venta" : "ventas"}`
+
+              return (
+                <div key={b.id}>
+                  <div className="flex items-center justify-between mb-2.5">
+                    <div>
+                      <p className="text-[13px] font-medium text-gray-900">{b.name}</p>
+                      {b.description && (
+                        <p className="text-[11px] text-gray-400">{b.description}</p>
+                      )}
+                    </div>
+                    <span className="text-[11px] text-gray-400">{fmtValue} acumuladas</span>
+                  </div>
+
+                  <div className="space-y-2">
+                    {b.tiers.map((t) => {
+                      const achieved = achievedTierIds.has(t.id)
+                      const fulfilled = fulfilledTierIds.has(t.id)
+                      const pct = Math.min(100, t.threshold > 0 ? (value / t.threshold) * 100 : 0)
+                      const RewardIco =
+                        t.rewardType === "PRODUCT"
+                          ? Package
+                          : t.rewardType === "CASH"
+                            ? DollarSign
+                            : Gift
+                      return (
+                        <div
+                          key={t.id}
+                          className={`rounded-xl border p-3 ${
+                            achieved
+                              ? "border-amber-200 bg-amber-50/50"
+                              : "border-gray-100 bg-gray-50/40"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between mb-1.5">
+                            <div className="flex items-center gap-1.5">
+                              <RewardIco
+                                size={13}
+                                className={achieved ? "text-amber-500" : "text-gray-400"}
+                              />
+                              <span className="text-[12px] font-medium text-gray-900">
+                                {rewardLabel(t)}
+                              </span>
+                            </div>
+                            {achieved ? (
+                              <span className="flex items-center gap-1 text-[10px] font-semibold text-amber-600 bg-amber-100 px-2 py-0.5 rounded-full">
+                                <Check size={11} /> {fulfilled ? "Entregado" : "¡Logrado!"}
+                              </span>
+                            ) : (
+                              <span className="text-[11px] text-gray-400">
+                                {fmtThreshold(t.threshold)}
+                              </span>
+                            )}
+                          </div>
+                          <div className="h-1.5 rounded-full bg-gray-200 overflow-hidden">
+                            <div
+                              className={`h-full rounded-full ${achieved ? "bg-amber-400" : "bg-violet-400"}`}
+                              style={{ width: `${pct}%` }}
+                            />
+                          </div>
+                          {!achieved && (
+                            <p className="text-[10px] text-gray-400 mt-1">
+                              {fmtValue} de {fmtThreshold(t.threshold)}
+                            </p>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Earnings chart + Payouts */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -147,7 +266,10 @@ export default async function ProgramOverviewPage({
               const pct = (m.amount / max) * 100
               return (
                 <div key={m.label} className="flex-1 flex flex-col items-center gap-1">
-                  <div className="w-full rounded-t-md bg-violet-100 relative" style={{ height: "88px" }}>
+                  <div
+                    className="w-full rounded-t-md bg-violet-100 relative"
+                    style={{ height: "88px" }}
+                  >
                     <div
                       className="absolute bottom-0 w-full rounded-t-md bg-violet-400"
                       style={{ height: `${pct}%` }}
@@ -164,7 +286,10 @@ export default async function ProgramOverviewPage({
         <div className="bg-white rounded-2xl border border-gray-200 p-5">
           <div className="flex items-center justify-between mb-4">
             <p className="text-[13px] font-semibold text-gray-900">Payouts</p>
-            <Link href="/creator/payouts" className="text-xs text-gray-400 hover:text-gray-600 transition-colors">
+            <Link
+              href="/creator/payouts"
+              className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
+            >
               Ver todos →
             </Link>
           </div>
@@ -172,16 +297,23 @@ export default async function ProgramOverviewPage({
           <div className="space-y-0.5 mb-4">
             <div className="flex justify-between items-center py-2 border-b border-gray-50">
               <span className="text-[12px] text-gray-500">Pendiente</span>
-              <span className="text-[13px] font-semibold text-amber-600">{formatCurrency(pendingEarnings)}</span>
+              <span className="text-[13px] font-semibold text-amber-600">
+                {formatCurrency(pendingEarnings)}
+              </span>
             </div>
             <div className="flex justify-between items-center py-2">
               <span className="text-[12px] text-gray-500">Pagado</span>
-              <span className="text-[13px] font-semibold text-green-600">{formatCurrency(paidEarnings)}</span>
+              <span className="text-[13px] font-semibold text-green-600">
+                {formatCurrency(paidEarnings)}
+              </span>
             </div>
           </div>
 
           {commissions.slice(0, 4).map((c) => (
-            <div key={c.id} className="flex items-center justify-between py-2 border-t border-gray-50">
+            <div
+              key={c.id}
+              className="flex items-center justify-between py-2 border-t border-gray-50"
+            >
               <div>
                 <p className="text-[13px] font-medium text-gray-900">{formatCurrency(c.amount)}</p>
                 <p className="text-[11px] text-gray-400">{formatDate(c.createdAt)}</p>
@@ -220,7 +352,10 @@ export default async function ProgramOverviewPage({
               <thead>
                 <tr className="border-b border-gray-100">
                   {["Date", "Link", "Sale Amount", "Earnings", "Status"].map((h) => (
-                    <th key={h} className={`px-5 py-3 text-[11px] font-semibold text-gray-400 uppercase tracking-wider ${h === "Sale Amount" || h === "Earnings" ? "text-right" : "text-left"}`}>
+                    <th
+                      key={h}
+                      className={`px-5 py-3 text-[11px] font-semibold text-gray-400 uppercase tracking-wider ${h === "Sale Amount" || h === "Earnings" ? "text-right" : "text-left"}`}
+                    >
                       {h}
                     </th>
                   ))}
@@ -229,7 +364,9 @@ export default async function ProgramOverviewPage({
               <tbody className="divide-y divide-gray-50">
                 {recentEarnings.map((e) => (
                   <tr key={e.id} className="hover:bg-gray-50/50 transition-colors">
-                    <td className="px-5 py-3 text-[13px] text-gray-500">{formatDate(e.createdAt)}</td>
+                    <td className="px-5 py-3 text-[13px] text-gray-500">
+                      {formatDate(e.createdAt)}
+                    </td>
                     <td className="px-5 py-3 text-[13px] text-gray-700 font-mono">
                       {e.conversion?.link?.slug ? `kool.link/${e.conversion.link.slug}` : "—"}
                     </td>
@@ -253,12 +390,32 @@ export default async function ProgramOverviewPage({
   )
 }
 
-function BrandLogo({ name, logo, color, size }: { name: string; logo: string | null; color: string; size: number }) {
+function BrandLogo({
+  name,
+  logo,
+  color,
+  size,
+}: {
+  name: string
+  logo: string | null
+  color: string
+  size: number
+}) {
   if (logo) {
-    return <img src={logo} className="rounded-2xl object-cover opacity-90" style={{ width: size, height: size }} alt={name} />
+    return (
+      <img
+        src={logo}
+        className="rounded-2xl object-cover opacity-90"
+        style={{ width: size, height: size }}
+        alt={name}
+      />
+    )
   }
   return (
-    <div className="rounded-2xl flex items-center justify-center opacity-90" style={{ width: size, height: size, backgroundColor: color }}>
+    <div
+      className="rounded-2xl flex items-center justify-center opacity-90"
+      style={{ width: size, height: size, backgroundColor: color }}
+    >
       <span className="text-white font-bold" style={{ fontSize: Math.round(size * 0.44) }}>
         {name[0]?.toUpperCase()}
       </span>

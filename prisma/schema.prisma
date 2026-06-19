@@ -123,6 +123,8 @@ model Campaign {
   applications  Application[]
   questions     CampaignQuestion[]
   invites       CampaignInvite[]
+  conversions   Conversion[]
+  bounties      Bounty[]
 
   @@map("campaigns")
 }
@@ -312,6 +314,7 @@ model Creator {
   briefings     BriefingRecipient[]
   applications  Application[]
   invites       CampaignInvite[]
+  bountyAchievements BountyAchievement[]
 
   @@unique([workspaceId, email])
   @@map("creators")
@@ -440,25 +443,28 @@ model Conversion {
   id          String    @id @default(cuid())
   linkId      String?
   creatorId   String?
-  
+  campaignId  String?   // Campaña a la que se atribuye (por código de campaña)
+
   // Orden de la tienda
   orderId     String    // ID de la orden en Tiendanube/Shopify
   platform    Platform  @default(TIENDANUBE)
-  
+
   // Valores
   orderAmount Float     // Valor total de la orden
   currency    String    @default("ARS")
-  
+
   // Timing
   clickedAt   DateTime? // Cuando hizo clic en el link
   convertedAt DateTime  @default(now())
-  
+
   link        Link?     @relation(fields: [linkId], references: [id])
   creator     Creator?  @relation(fields: [creatorId], references: [id])
+  campaign    Campaign? @relation(fields: [campaignId], references: [id])
   commission  Commission?
   dropSales   DropProductSale[]
 
   @@unique([orderId, platform])
+  @@index([creatorId, campaignId])
   @@map("conversions")
 }
 
@@ -492,6 +498,81 @@ model Commission {
   conversion   Conversion       @relation(fields: [conversionId], references: [id])
 
   @@map("commissions")
+}
+
+// ─────────────────────────────────────────────
+// BOUNTIES (objetivos con recompensa)
+// ─────────────────────────────────────────────
+
+model Bounty {
+  id          String       @id @default(cuid())
+  campaignId  String
+
+  name        String       // ej: "Vendé y ganá"
+  description String?
+
+  // Cómo se mide el progreso
+  metric      BountyMetric @default(SALES) // SALES (cantidad) | REVENUE (monto)
+
+  status      BountyStatus @default(ACTIVE)
+
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  campaign     Campaign            @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  tiers        BountyTier[]
+  achievements BountyAchievement[]
+
+  @@index([campaignId])
+  @@map("bounties")
+}
+
+model BountyTier {
+  id          String     @id @default(cuid())
+  bountyId    String
+
+  // Umbral a alcanzar (5 ventas, o 100000 de revenue)
+  threshold   Float
+
+  // Recompensa — la marca elige el tipo
+  rewardType        BountyRewardType @default(CUSTOM) // CASH | PRODUCT | CUSTOM
+  rewardValue       Float?           // monto si CASH
+  rewardProductId   String?          // id de producto Tiendanube si PRODUCT
+  rewardProductName String?          // nombre del producto (display)
+  rewardDescription String?          // texto libre / detalle de la recompensa
+
+  order       Int        @default(0)
+  createdAt   DateTime   @default(now())
+
+  bounty       Bounty              @relation(fields: [bountyId], references: [id], onDelete: Cascade)
+  achievements BountyAchievement[]
+
+  @@index([bountyId])
+  @@map("bounty_tiers")
+}
+
+model BountyAchievement {
+  id            String                  @id @default(cuid())
+  bountyId      String
+  tierId        String
+  creatorId     String
+
+  status        BountyAchievementStatus @default(ACHIEVED) // ACHIEVED | FULFILLED
+  progressValue Float                   // valor de progreso al momento de lograrlo
+
+  achievedAt    DateTime                @default(now())
+  fulfilledAt   DateTime?
+  fulfillmentRef String?                // tracking / referencia de pago / nota
+  notes         String?
+
+  bounty   Bounty     @relation(fields: [bountyId], references: [id], onDelete: Cascade)
+  tier     BountyTier @relation(fields: [tierId], references: [id], onDelete: Cascade)
+  creator  Creator    @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+
+  @@unique([tierId, creatorId])
+  @@index([bountyId])
+  @@index([creatorId])
+  @@map("bounty_achievements")
 }
 
 // ─────────────────────────────────────────────
@@ -580,6 +661,28 @@ enum Platform {
   SHOPIFY
   MERCADOLIBRE  // Solo tracking de clics, sin conversiones
   OTHER
+}
+
+enum BountyMetric {
+  SALES    // cantidad de ventas
+  REVENUE  // monto facturado
+}
+
+enum BountyStatus {
+  ACTIVE
+  PAUSED
+  ENDED
+}
+
+enum BountyRewardType {
+  CASH     // bonus en efectivo
+  PRODUCT  // producto físico
+  CUSTOM   // texto libre
+}
+
+enum BountyAchievementStatus {
+  ACHIEVED  // alcanzó el umbral, pendiente de entrega
+  FULFILLED // recompensa entregada/pagada
 }
 
 enum CampaignStatus {

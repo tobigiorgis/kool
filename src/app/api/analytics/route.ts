@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
-import { auth } from "@clerk/nextjs/server"
 import { prisma } from "@/lib/prisma"
 import { getDateRange } from "@/lib/utils"
+import { requireWorkspace } from "@/lib/api/workspace"
+import { handleError } from "@/lib/api/response"
 
 function buildDayRange(from: string, to: string): string[] {
   const days: string[] = []
@@ -15,20 +16,15 @@ function buildDayRange(from: string, to: string): string[] {
 }
 
 export async function GET(request: NextRequest) {
-  const { userId } = await auth()
-  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  const ws = await requireWorkspace()
+  if (ws.error) return ws.error
+  const { workspaceId } = ws
 
   const sp = request.nextUrl.searchParams
   const period = (sp.get("period") ?? "30d") as "7d" | "30d" | "90d"
   const linkId = sp.get("linkId")
   const campaignId = sp.get("campaignId")
   const creatorId = sp.get("creatorId")
-
-  const member = await prisma.workspaceMember.findFirst({
-    where: { userId },
-    select: { workspaceId: true },
-  })
-  if (!member) return NextResponse.json({ error: "No workspace" }, { status: 404 })
 
   const { from, to } = getDateRange(period)
   const fromDate = new Date(from + "T00:00:00.000Z")
@@ -40,25 +36,25 @@ export async function GET(request: NextRequest) {
 
     if (linkId) {
       const link = await prisma.link.findFirst({
-        where: { id: linkId, workspaceId: member.workspaceId },
+        where: { id: linkId, workspaceId },
         select: { id: true },
       })
       targetLinkIds = link ? [link.id] : []
     } else if (campaignId) {
       const campaignLinks = await prisma.link.findMany({
-        where: { campaignId, workspaceId: member.workspaceId },
+        where: { campaignId, workspaceId },
         select: { id: true },
       })
       targetLinkIds = campaignLinks.map((l) => l.id)
     } else if (creatorId) {
       const creatorLinks = await prisma.link.findMany({
-        where: { creatorId, workspaceId: member.workspaceId },
+        where: { creatorId, workspaceId },
         select: { id: true },
       })
       targetLinkIds = creatorLinks.map((l) => l.id)
     } else {
       const workspaceLinks = await prisma.link.findMany({
-        where: { workspaceId: member.workspaceId },
+        where: { workspaceId },
         select: { id: true },
       })
       targetLinkIds = workspaceLinks.map((l) => l.id)
@@ -131,10 +127,12 @@ export async function GET(request: NextRequest) {
         },
       })
     } else if (!linkId && !campaignId && !creatorId) {
-      const wsCreatorIds = await prisma.creator.findMany({
-        where: { workspaceId: member.workspaceId },
-        select: { id: true },
-      }).then((cs) => cs.map((c) => c.id))
+      const wsCreatorIds = await prisma.creator
+        .findMany({
+          where: { workspaceId },
+          select: { id: true },
+        })
+        .then((cs) => cs.map((c) => c.id))
       conversionCount = await prisma.conversion.count({
         where: {
           creatorId: { in: wsCreatorIds },
@@ -173,8 +171,7 @@ export async function GET(request: NextRequest) {
         creatorName: creatorInfo?.name ?? null,
       },
     })
-  } catch (err) {
-    console.error("[Analytics] Error:", err)
-    return NextResponse.json({ error: "Error al obtener analytics" }, { status: 500 })
+  } catch (error) {
+    return handleError("[Analytics] GET", error)
   }
 }

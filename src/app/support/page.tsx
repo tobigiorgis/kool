@@ -18,12 +18,9 @@ export default function SupportPage() {
         </div>
 
         <h1 className="text-3xl font-semibold text-gray-900 mb-2">Soporte</h1>
-        <p className="text-gray-500 mb-12 text-sm">
-          ¿Necesitás ayuda? Estamos acá para vos.
-        </p>
+        <p className="text-gray-500 mb-12 text-sm">¿Necesitás ayuda? Estamos acá para vos.</p>
 
         <div className="space-y-4">
-
           <a
             href="mailto:hola@kool.link"
             className="flex items-start gap-4 p-5 rounded-xl border border-gray-100 hover:border-gray-200 hover:bg-gray-50 transition-all group"
@@ -50,12 +47,9 @@ export default function SupportPage() {
             </div>
             <div>
               <p className="text-sm font-semibold text-gray-900">WhatsApp</p>
-              <p className="text-sm text-gray-500 mt-0.5">
-                Soporte directo para tiendas activas.
-              </p>
+              <p className="text-sm text-gray-500 mt-0.5">Soporte directo para tiendas activas.</p>
             </div>
           </a>
-
         </div>
 
         <div className="mt-16 pt-8 border-t border-gray-100">
@@ -73,7 +67,7 @@ export default function SupportPage() {
         <p className="mt-12 text-xs text-gray-400">
           ¿Tenés un problema técnico urgente?{" "}
           <a href="mailto:hola@kool.link" className="text-gray-600 underline underline-offset-2">
-            Escribinos con el asunto "Urgente"
+            Escribinos con el asunto &quot;Urgente&quot;
           </a>{" "}
           y lo priorizamos.
         </p>

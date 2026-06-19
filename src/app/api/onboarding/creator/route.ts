@@ -1,34 +1,41 @@
 import { NextRequest, NextResponse } from "next/server"
 import { auth, currentUser } from "@clerk/nextjs/server"
 import { prisma } from "@/lib/prisma"
+import { sendWelcomeCreator } from "@/lib/email"
+import { handleError } from "@/lib/api/response"
+import { env } from "@/lib/env"
 import { z } from "zod"
 
 // GET /api/onboarding/creator?token=INVITE_TOKEN
 // Returns creator info to pre-fill the form (public)
 export async function GET(request: NextRequest) {
-  const token = request.nextUrl.searchParams.get("token")
-  if (!token) return NextResponse.json({ error: "Token requerido" }, { status: 400 })
+  try {
+    const token = request.nextUrl.searchParams.get("token")
+    if (!token) return NextResponse.json({ error: "Token requerido" }, { status: 400 })
 
-  const creator = await prisma.creator.findUnique({
-    where: { inviteToken: token },
-    select: {
-      id: true,
-      name: true,
-      firstName: true,
-      lastName: true,
-      email: true,
-      instagram: true,
-      tiktok: true,
-      discountCode: true,
-      commissionPct: true,
-      status: true,
-      workspace: { select: { name: true, brandLogo: true } },
-    },
-  })
+    const creator = await prisma.creator.findUnique({
+      where: { inviteToken: token },
+      select: {
+        id: true,
+        name: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        instagram: true,
+        tiktok: true,
+        discountCode: true,
+        commissionPct: true,
+        status: true,
+        workspace: { select: { name: true, brandLogo: true } },
+      },
+    })
 
-  if (!creator) return NextResponse.json({ error: "Link inválido o expirado" }, { status: 404 })
+    if (!creator) return NextResponse.json({ error: "Link inválido o expirado" }, { status: 404 })
 
-  return NextResponse.json({ creator })
+    return NextResponse.json({ creator })
+  } catch (error) {
+    return handleError("[Onboarding] GET", error)
+  }
 }
 
 const OnboardingSchema = z.object({
@@ -90,6 +97,7 @@ export async function POST(request: NextRequest) {
     // Update creator profile
     const updated = await prisma.creator.update({
       where: { id: creator.id },
+      include: { workspace: { select: { name: true } } },
       data: {
         userId,
         status: "ACTIVE",
@@ -102,10 +110,16 @@ export async function POST(request: NextRequest) {
         ...(data.city !== undefined && { city: data.city || null }),
         ...(data.province !== undefined && { province: data.province || null }),
         ...(data.niches && { niches: data.niches }),
-        ...(data.shippingAddress !== undefined && { shippingAddress: data.shippingAddress || null }),
+        ...(data.shippingAddress !== undefined && {
+          shippingAddress: data.shippingAddress || null,
+        }),
         ...(data.shippingCity !== undefined && { shippingCity: data.shippingCity || null }),
-        ...(data.shippingProvince !== undefined && { shippingProvince: data.shippingProvince || null }),
-        ...(data.shippingZipCode !== undefined && { shippingZipCode: data.shippingZipCode || null }),
+        ...(data.shippingProvince !== undefined && {
+          shippingProvince: data.shippingProvince || null,
+        }),
+        ...(data.shippingZipCode !== undefined && {
+          shippingZipCode: data.shippingZipCode || null,
+        }),
         ...(data.bankAlias !== undefined && { bankAlias: data.bankAlias || null }),
         ...(data.avatar !== undefined && { avatar: data.avatar || null }),
       },
@@ -122,12 +136,20 @@ export async function POST(request: NextRequest) {
       data: { status: "ACCEPTED" },
     })
 
+    // Email de bienvenida (fire-and-forget — no bloquea la respuesta)
+    if (updated.email) {
+      void sendWelcomeCreator({
+        to: updated.email,
+        creatorName: updated.firstName || updated.name || "creator",
+        brandName: updated.workspace?.name || "tu marca",
+        discountCode: updated.discountCode || undefined,
+        commissionPct: updated.commissionPct ?? undefined,
+        dashboardUrl: `${env.NEXT_PUBLIC_APP_URL}/creator`,
+      })
+    }
+
     return NextResponse.json({ ok: true, creatorId: updated.id })
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: "Datos inválidos", details: error.errors }, { status: 400 })
-    }
-    console.error("[Onboarding] Error:", error)
-    return NextResponse.json({ error: "Error al guardar" }, { status: 500 })
+    return handleError("[Onboarding] POST", error)
   }
 }

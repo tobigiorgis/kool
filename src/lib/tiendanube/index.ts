@@ -3,6 +3,9 @@
  * Maneja OAuth, API client y operaciones core
  */
 
+import { createHmac, timingSafeEqual } from "crypto"
+import { env } from "@/lib/env"
+
 const TIENDANUBE_API = "https://api.tiendanube.com/2025-03"
 const TIENDANUBE_AUTH = "https://www.tiendanube.com/apps"
 
@@ -48,8 +51,8 @@ export interface TiendanubeOrder {
   payment_status: string
   total: string
   currency: string
-  created_at: string  // ISO 8601
-  paid_at?: string    // ISO 8601, disponible cuando payment_status = "paid"
+  created_at: string // ISO 8601
+  paid_at?: string // ISO 8601, disponible cuando payment_status = "paid"
   customer: {
     name: string
     email: string
@@ -137,18 +140,14 @@ export interface CreateOrderPayload {
  * El merchant es redirigido a esta URL para autorizar la app.
  */
 export function getTiendanubeAuthUrl(state: string): string {
-  const clientId = process.env.TIENDANUBE_CLIENT_ID!
+  const clientId = env.TIENDANUBE_CLIENT_ID
   const params = new URLSearchParams({
     client_id: clientId,
     response_type: "code",
-    scope: [
-      "write_orders",
-      "read_orders",
-      "write_coupons",
-      "read_products",
-      "write_scripts",
-    ].join(" "),
-    redirect_uri: process.env.TIENDANUBE_REDIRECT_URI!,
+    scope: ["write_orders", "read_orders", "write_coupons", "read_products", "write_scripts"].join(
+      " "
+    ),
+    redirect_uri: env.TIENDANUBE_REDIRECT_URI,
     state,
   })
 
@@ -159,15 +158,13 @@ export function getTiendanubeAuthUrl(state: string): string {
  * Intercambia el código de autorización por un access_token.
  * Se llama una sola vez durante el callback OAuth.
  */
-export async function exchangeTiendanubeCode(
-  code: string
-): Promise<TiendanubeTokenResponse> {
+export async function exchangeTiendanubeCode(code: string): Promise<TiendanubeTokenResponse> {
   const response = await fetch(`${TIENDANUBE_AUTH}/authorize/token`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      client_id: process.env.TIENDANUBE_CLIENT_ID,
-      client_secret: process.env.TIENDANUBE_CLIENT_SECRET,
+      client_id: env.TIENDANUBE_CLIENT_ID,
+      client_secret: env.TIENDANUBE_CLIENT_SECRET,
       grant_type: "authorization_code",
       code,
     }),
@@ -201,7 +198,7 @@ async function tiendanubeRequest<T>(
   const response = await fetch(url, {
     method,
     headers: {
-      "Authorization": `Bearer ${accessToken}`,
+      Authorization: `Bearer ${accessToken}`,
       "Content-Type": "application/json",
       "User-Agent": "Kool (hola@kool.link)",
     },
@@ -228,9 +225,7 @@ export async function getTiendanubeStore(
   storeId: string,
   accessToken: string
 ): Promise<TiendanubeStore> {
-  return tiendanubeRequest<TiendanubeStore>(
-    storeId, accessToken, "GET", "/store"
-  )
+  return tiendanubeRequest<TiendanubeStore>(storeId, accessToken, "GET", "/store")
 }
 
 // ─────────────────────────────────────────────
@@ -243,7 +238,9 @@ export async function getTiendanubeProducts(
   page = 1
 ): Promise<TiendanubeProduct[]> {
   return tiendanubeRequest<TiendanubeProduct[]>(
-    storeId, accessToken, "GET",
+    storeId,
+    accessToken,
+    "GET",
     `/products?page=${page}&per_page=50&published=true`
   )
 }
@@ -269,9 +266,7 @@ export async function createTiendanubeCoupon(
   accessToken: string,
   payload: CreateCouponPayload
 ) {
-  return tiendanubeRequest(
-    storeId, accessToken, "POST", "/coupons", payload
-  )
+  return tiendanubeRequest(storeId, accessToken, "POST", "/coupons", payload)
 }
 
 export async function deleteTiendanubeCoupon(
@@ -279,9 +274,7 @@ export async function deleteTiendanubeCoupon(
   accessToken: string,
   couponId: string
 ) {
-  return tiendanubeRequest(
-    storeId, accessToken, "DELETE", `/coupons/${couponId}`
-  )
+  return tiendanubeRequest(storeId, accessToken, "DELETE", `/coupons/${couponId}`)
 }
 
 // ─────────────────────────────────────────────
@@ -309,9 +302,7 @@ export async function createTiendanubeGiftingOrder(
     send_email: payload.send_email ?? false,
   }
 
-  return tiendanubeRequest(
-    storeId, accessToken, "POST", "/orders", orderPayload
-  )
+  return tiendanubeRequest(storeId, accessToken, "POST", "/orders", orderPayload)
 }
 
 // ─────────────────────────────────────────────
@@ -328,9 +319,7 @@ export async function getTiendanubeOrders(
     page: String(params.page ?? 1),
     ...(params.payment_status ? { payment_status: params.payment_status } : {}),
   })
-  return tiendanubeRequest<TiendanubeOrder[]>(
-    storeId, accessToken, "GET", `/orders?${qs}`
-  )
+  return tiendanubeRequest<TiendanubeOrder[]>(storeId, accessToken, "GET", `/orders?${qs}`)
 }
 
 export async function getTiendanubeWebhooks(
@@ -338,6 +327,47 @@ export async function getTiendanubeWebhooks(
   accessToken: string
 ): Promise<{ id: number; event: string; url: string }[]> {
   return tiendanubeRequest(storeId, accessToken, "GET", "/webhooks")
+}
+
+// ─────────────────────────────────────────────
+// SCRIPTS (storefront / checkout JS injection)
+// ─────────────────────────────────────────────
+//
+// MODELO ACTUAL (2025-03): los scripts NO se registran por API con un `src`
+// propio. El endpoint legacy POST /scripts ya no registra scripts. El flujo es:
+//
+//   1. Registrar el script en el Partner Portal (partners.tiendanube.com):
+//      name, handle, location (store|checkout), event (onfirstinteraction|onload),
+//      y subir el archivo JS (Tiendanube lo hostea en apps-scripts.tiendanube.com).
+//   2. Marcarlo "auto install" → se activa solo en cada tienda que instaló la app.
+//      No hace falta ninguna llamada a la API.
+//   3. Si NO es auto-install → asociar por tienda con POST /scripts
+//      { script_id, query_params }.
+//
+// Kool usa auto-install, así que acá sólo exponemos lectura para diagnóstico.
+
+export interface TiendanubeScript {
+  id: number
+  name?: string | { es?: string } | Record<string, string>
+  handle?: string
+  event?: string // onfirstinteraction | onload
+  location?: string // store | checkout
+  status?: string
+  is_auto_install?: boolean
+  src?: string
+  created_at?: string
+  updated_at?: string
+}
+
+/**
+ * Lista los scripts registrados/activos para una tienda.
+ * Sirve para verificar qué se está cargando realmente en el storefront.
+ */
+export async function getTiendanubeScripts(
+  storeId: string,
+  accessToken: string
+): Promise<TiendanubeScript[]> {
+  return tiendanubeRequest<TiendanubeScript[]>(storeId, accessToken, "GET", "/scripts")
 }
 
 // ─────────────────────────────────────────────
@@ -351,11 +381,8 @@ export async function getTiendanubeWebhooks(
  * Webhooks que registramos:
  * - order/paid: para atribución de conversiones
  */
-export async function registerTiendanubeWebhooks(
-  storeId: string,
-  accessToken: string
-) {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL!
+export async function registerTiendanubeWebhooks(storeId: string, accessToken: string) {
+  const baseUrl = env.NEXT_PUBLIC_APP_URL
 
   const webhooks = [
     {
@@ -365,9 +392,7 @@ export async function registerTiendanubeWebhooks(
   ]
 
   const results = await Promise.allSettled(
-    webhooks.map((webhook) =>
-      tiendanubeRequest(storeId, accessToken, "POST", "/webhooks", webhook)
-    )
+    webhooks.map((webhook) => tiendanubeRequest(storeId, accessToken, "POST", "/webhooks", webhook))
   )
 
   return results
@@ -386,9 +411,9 @@ export function parseTiendanubeOrderWebhook(order: TiendanubeOrder): {
   storeId?: string
   orderAmount: number
   currency: string
-  orderDate: Date        // Fecha en que se pagó (o creó si paid_at no está)
-  creatorCode: string | null  // El código del creator si usó cupón
-  utmCampaign: string | null  // UTM campaign si viene en la URL
+  orderDate: Date // Fecha en que se pagó (o creó si paid_at no está)
+  creatorCode: string | null // El código del creator si usó cupón
+  utmCampaign: string | null // UTM campaign si viene en la URL
 } {
   // El creator code puede venir de:
   // 1. El código de cupón usado (más confiable)
@@ -407,4 +432,53 @@ export function parseTiendanubeOrderWebhook(order: TiendanubeOrder): {
     creatorCode,
     utmCampaign: order.utm_parameters?.campaign || null,
   }
+}
+
+// ─────────────────────────────────────────────
+// WEBHOOK — VERIFICACIÓN DE FIRMA (HMAC)
+// ─────────────────────────────────────────────
+//
+// Tiendanube firma cada webhook con HMAC-SHA256 del body CRUDO usando el
+// client_secret de la app, en el header `x-linkedstore-hmac-sha256`.
+// Verificamos SIEMPRE antes de procesar: sin esto, cualquiera que conozca la
+// URL del endpoint podría POSTear órdenes falsas y disparar comisiones
+// fraudulentas (plata real).
+
+function hmacSha256(rawBody: string, secret: string): Buffer {
+  return createHmac("sha256", secret).update(rawBody, "utf8").digest()
+}
+
+function timingSafeEqualStr(a: string, b: string): boolean {
+  const ba = Buffer.from(a)
+  const bb = Buffer.from(b)
+  if (ba.length !== bb.length) return false
+  return timingSafeEqual(ba, bb)
+}
+
+/**
+ * Verifica la firma HMAC de un webhook de Tiendanube contra el client_secret.
+ * Compara contra hex y base64 para ser robusto al encoding del header.
+ * Fail-closed: devuelve false si falta el secret o la firma.
+ */
+export function verifyTiendanubeWebhookSignature(
+  rawBody: string,
+  signature: string | null | undefined
+): boolean {
+  const secret = env.TIENDANUBE_CLIENT_SECRET
+  if (!secret || !signature) return false
+  const digest = hmacSha256(rawBody, secret)
+  return (
+    timingSafeEqualStr(signature, digest.toString("hex")) ||
+    timingSafeEqualStr(signature, digest.toString("base64"))
+  )
+}
+
+/**
+ * Firma un body como lo haría Tiendanube (hex). SÓLO para tests/simulación
+ * del webhook — no se usa en producción.
+ */
+export function signTiendanubeWebhook(rawBody: string): string {
+  const secret = env.TIENDANUBE_CLIENT_SECRET
+  if (!secret) throw new Error("TIENDANUBE_CLIENT_SECRET no seteada")
+  return hmacSha256(rawBody, secret).toString("hex")
 }

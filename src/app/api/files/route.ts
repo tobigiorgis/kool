@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@clerk/nextjs/server"
 import { head } from "@vercel/blob"
+import { handleError } from "@/lib/api/response"
+import { env } from "@/lib/env"
 
 // GET /api/files?url=<blob-url>
 // Returns a short-lived signed download URL for a private blob
@@ -11,7 +13,7 @@ export async function GET(request: NextRequest) {
   const url = request.nextUrl.searchParams.get("url")
   if (!url) return NextResponse.json({ error: "Missing url" }, { status: 400 })
 
-  const token = process.env.BRIEF_READ_WRITE_TOKEN
+  const token = env.BRIEF_READ_WRITE_TOKEN
   if (!token) return NextResponse.json({ error: "Storage not configured" }, { status: 500 })
 
   try {
@@ -33,8 +35,7 @@ export async function GET(request: NextRequest) {
         "Cache-Control": "private, max-age=3600",
       },
     })
-  } catch (err) {
-    console.error("[files] error:", err)
-    return NextResponse.json({ error: String(err) }, { status: 500 })
+  } catch (error) {
+    return handleError("[files] GET", error)
   }
 }

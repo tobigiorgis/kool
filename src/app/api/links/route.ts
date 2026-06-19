@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma"
 import { createTiendanubeCoupon } from "@/lib/tiendanube"
 import { decrypt } from "@/lib/utils/crypto"
 import { generateDiscountCode, slugify } from "@/lib/utils"
+import { handleError } from "@/lib/api/response"
 import { z } from "zod"
 
 const CreateLinkSchema = z.object({
@@ -27,7 +28,8 @@ export async function POST(request: NextRequest) {
     const data = CreateLinkSchema.parse(body)
 
     // Generar slug si no se proveyó
-    const slug = data.slug || slugify(data.title || data.destination.replace(/https?:\/\//, "").split("/")[0])
+    const slug =
+      data.slug || slugify(data.title || data.destination.replace(/https?:\/\//, "").split("/")[0])
 
     // Verificar que el slug no esté tomado
     const existing = await prisma.link.findUnique({ where: { slug } })
@@ -64,11 +66,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ ok: true, link })
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: "Datos inválidos", details: error.errors }, { status: 400 })
-    }
-    console.error("[Links] Create error:", error)
-    return NextResponse.json({ error: "Error al crear el link" }, { status: 500 })
+    return handleError("[Links] POST", error)
   }
 }
 

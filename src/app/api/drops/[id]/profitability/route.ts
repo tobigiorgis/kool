@@ -1,32 +1,24 @@
 import { NextRequest, NextResponse } from "next/server"
-import { auth } from "@clerk/nextjs/server"
 import { prisma } from "@/lib/prisma"
 import { calculateDropProfitability } from "@/lib/drops/profitability"
+import { requireWorkspace } from "@/lib/api/workspace"
+import { notFound, handleError } from "@/lib/api/response"
 
-async function getWorkspaceId(userId: string) {
-  const member = await prisma.workspaceMember.findFirst({
-    where: { userId },
-    select: { workspaceId: true },
-  })
-  return member?.workspaceId ?? null
-}
+export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    const ws = await requireWorkspace()
+    if (ws.error) return ws.error
+    const { workspaceId } = ws
 
-export async function GET(
-  _req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const { userId } = await auth()
-  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    const { id } = await params
 
-  const workspaceId = await getWorkspaceId(userId)
-  if (!workspaceId) return NextResponse.json({ error: "No workspace" }, { status: 404 })
+    const drop = await prisma.drop.findFirst({ where: { id, workspaceId } })
+    if (!drop) return notFound()
 
-  const { id } = await params
+    const data = await calculateDropProfitability(id)
 
-  const drop = await prisma.drop.findFirst({ where: { id, workspaceId } })
-  if (!drop) return NextResponse.json({ error: "Not found" }, { status: 404 })
-
-  const data = await calculateDropProfitability(id)
-
-  return NextResponse.json(data)
+    return NextResponse.json(data)
+  } catch (error) {
+    return handleError("[Drops] GET /api/drops/[id]/profitability", error)
+  }
 }

@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@clerk/nextjs/server"
 import { prisma } from "@/lib/prisma"
 import { sendBriefing } from "@/lib/email"
+import { handleError } from "@/lib/api/response"
+import { logger } from "@/lib/logger"
 import { z } from "zod"
 
 const CreateBriefingSchema = z.object({
@@ -65,7 +67,7 @@ export async function POST(request: NextRequest) {
           briefingHtml: `<p>${data.body.replace(/\n/g, "<br>")}</p>`,
           startDate: data.startDate,
           endDate: data.endDate,
-        }).catch((err) => console.error("[Briefing] Email error:", err))
+        }).catch((err) => logger.error("[Briefing] Email error", err))
 
         // Mark as sent
         await prisma.briefingRecipient.update({
@@ -77,11 +79,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ ok: true, briefing })
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: "Datos inválidos", details: error.errors }, { status: 400 })
-    }
-    console.error("[Briefing] Create error:", error)
-    return NextResponse.json({ error: "Error al crear el briefing" }, { status: 500 })
+    return handleError("[Briefing] POST", error)
   }
 }
 
@@ -92,15 +90,19 @@ export async function GET(request: NextRequest) {
   const workspaceId = request.nextUrl.searchParams.get("workspaceId")
   if (!workspaceId) return NextResponse.json({ error: "Missing workspaceId" }, { status: 400 })
 
-  const briefings = await prisma.briefing.findMany({
-    where: { workspaceId },
-    include: {
-      recipients: {
-        include: { creator: { select: { id: true, name: true, email: true } } },
+  try {
+    const briefings = await prisma.briefing.findMany({
+      where: { workspaceId },
+      include: {
+        recipients: {
+          include: { creator: { select: { id: true, name: true, email: true } } },
+        },
       },
-    },
-    orderBy: { createdAt: "desc" },
-  })
+      orderBy: { createdAt: "desc" },
+    })
 
-  return NextResponse.json({ briefings })
+    return NextResponse.json({ briefings })
+  } catch (error) {
+    return handleError("[Briefing] GET", error)
+  }
 }

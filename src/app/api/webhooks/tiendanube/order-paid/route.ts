@@ -12,25 +12,36 @@
 
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { parseTiendanubeOrderWebhook } from "@/lib/tiendanube"
+import { parseTiendanubeOrderWebhook, verifyTiendanubeWebhookSignature } from "@/lib/tiendanube"
 import { getSaleRealStatus } from "@/lib/drops/sales"
+import { sendSaleGenerated, sendBountyAchieved } from "@/lib/email"
+import { evaluateBounties } from "@/lib/bounties"
+import { logger } from "@/lib/logger"
+import { env } from "@/lib/env"
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json()
+    // Verificar firma HMAC antes de procesar. Tiendanube firma el body crudo
+    // con el client_secret. Sin esto, cualquiera podría POSTear ventas falsas
+    // y generar comisiones fraudulentas.
+    const rawBody = await request.text()
+    const signature = request.headers.get("x-linkedstore-hmac-sha256")
+    if (!verifyTiendanubeWebhookSignature(rawBody, signature)) {
+      logger.warn("[Webhook order/paid]", "Firma inválida — rechazado")
+      return NextResponse.json({ error: "Invalid signature" }, { status: 401 })
+    }
+    const body = JSON.parse(rawBody)
 
-    console.log("[Webhook order/paid] Received:", JSON.stringify({
+    logger.info("[Webhook order/paid]", "Received", {
       orderId: body.id,
       storeId: body.store_id,
       total: body.total,
       coupon: body.promotional_discount?.code,
       utm: body.utm_parameters,
-    }))
+    })
 
     // Tiendanube envía el store_id en el header o en el body
-    const storeId =
-      request.headers.get("x-store-id") ||
-      body.store_id?.toString()
+    const storeId = request.headers.get("x-store-id") || body.store_id?.toString()
 
     if (!storeId) {
       return NextResponse.json({ error: "Missing store_id" }, { status: 400 })
@@ -67,8 +78,12 @@ export async function POST(request: NextRequest) {
 
     if (!parsed.creatorCode) {
       // Sin creator code: igual registrar ventas en DropProductSale (sin conversión)
-      const orderProducts: { product_id?: number; variant_id?: number; quantity: number; price: string }[] =
-        body.products || []
+      const orderProducts: {
+        product_id?: number
+        variant_id?: number
+        quantity: number
+        price: string
+      }[] = body.products || []
 
       for (const op of orderProducts) {
         const productIdStr = op.product_id?.toString()
@@ -118,7 +133,7 @@ export async function POST(request: NextRequest) {
         })
       }
 
-      console.log("[Webhook] No creator code — drop sales recorded if applicable")
+      logger.info("[Webhook order/paid]", "No creator code — drop sales recorded if applicable")
       return NextResponse.json({ ok: true, attributed: false })
     }
 
@@ -135,16 +150,20 @@ export async function POST(request: NextRequest) {
     })
 
     // Fallback: buscar por discountCode directo en el creator (legacy)
-    const creator = campaignCreator?.creator ?? await prisma.creator.findFirst({
-      where: {
-        workspaceId: connection.workspaceId,
-        discountCode: parsed.creatorCode,
-        status: "ACTIVE",
-      },
-    })
+    const creator =
+      campaignCreator?.creator ??
+      (await prisma.creator.findFirst({
+        where: {
+          workspaceId: connection.workspaceId,
+          discountCode: parsed.creatorCode,
+          status: "ACTIVE",
+        },
+      }))
 
     if (!creator) {
-      console.log("[Webhook] Skipped: creator not found for code:", parsed.creatorCode)
+      logger.info("[Webhook order/paid]", "Skipped: creator not found", {
+        creatorCode: parsed.creatorCode,
+      })
       return NextResponse.json({ ok: true, attributed: false })
     }
 
@@ -166,6 +185,7 @@ export async function POST(request: NextRequest) {
         data: {
           linkId: link?.id || undefined,
           creatorId: creator.id,
+          campaignId: campaignCreator?.campaignId || undefined,
           orderId: parsed.orderId,
           platform: "TIENDANUBE",
           orderAmount: parsed.orderAmount,
@@ -190,8 +210,12 @@ export async function POST(request: NextRequest) {
       })
 
       // Registrar ventas en DropProductSale si hay productos del Drop
-      const orderProducts: { product_id?: number; variant_id?: number; quantity: number; price: string }[] =
-        body.products || []
+      const orderProducts: {
+        product_id?: number
+        variant_id?: number
+        quantity: number
+        price: string
+      }[] = body.products || []
 
       for (const op of orderProducts) {
         const productIdStr = op.product_id?.toString()
@@ -243,7 +267,50 @@ export async function POST(request: NextRequest) {
       }
     })
 
-    console.log("[Webhook] Attribution success:", creator.name, "commission:", parsed.orderAmount * (commissionPct / 100))
+    const commissionAmount = parsed.orderAmount * (commissionPct / 100)
+    logger.info("[Webhook order/paid]", "Attribution success", {
+      creator: creator.name,
+      commission: commissionAmount,
+    })
+
+    // Evaluar bounties de la campaña: crear achievements de tiers recién alcanzados
+    if (campaignCreator?.campaignId) {
+      try {
+        const newlyAchieved = await evaluateBounties(creator.id, campaignCreator.campaignId)
+        for (const a of newlyAchieved) {
+          logger.info("[Webhook order/paid] Bounty achievement", "bounty_achieved", {
+            creator: creator.name,
+            bountyName: a.bountyName,
+            reward: a.reward,
+          })
+          if (creator.email) {
+            void sendBountyAchieved({
+              to: creator.email,
+              creatorName: creator.firstName || creator.name || "creator",
+              brandName: connection.workspace?.name || "tu marca",
+              bountyName: a.bountyName,
+              reward: a.reward,
+              dashboardUrl: `${env.NEXT_PUBLIC_APP_URL}/creator/program/${campaignCreator.campaignId}`,
+            })
+          }
+        }
+      } catch (err) {
+        logger.error("[Webhook order/paid] Bounty evaluation error", err)
+      }
+    }
+
+    // Email "venta generada" al creator (fire-and-forget — no bloquea el 200 a Tiendanube)
+    if (creator.email) {
+      void sendSaleGenerated({
+        to: creator.email,
+        creatorName: creator.firstName || creator.name || "creator",
+        brandName: connection.workspace?.name || "tu marca",
+        orderAmount: parsed.orderAmount,
+        commissionAmount,
+        currency: parsed.currency,
+        dashboardUrl: `${env.NEXT_PUBLIC_APP_URL}/creator`,
+      })
+    }
 
     return NextResponse.json({
       ok: true,
@@ -251,7 +318,7 @@ export async function POST(request: NextRequest) {
       creatorId: creator.id,
     })
   } catch (error) {
-    console.error("[Webhook] Tiendanube order/paid error:", error)
+    logger.error("[Webhook order/paid] Tiendanube order/paid error", error)
     // Devolvemos 200 igual para que Tiendanube no reintente indefinidamente
     // El error queda logueado para revisar
     return NextResponse.json({ ok: false, error: "Internal error" }, { status: 200 })
