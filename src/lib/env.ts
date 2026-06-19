@@ -17,7 +17,9 @@ export const env = createEnv({
     TIENDANUBE_CLIENT_ID: z.string().min(1),
     TIENDANUBE_CLIENT_SECRET: z.string().min(1),
     TIENDANUBE_REDIRECT_URI: z.string().url(),
-    TINYBIRD_API_KEY: z.string().min(1),
+    // Tinybird (analytics de clicks) es opcional — si no está, el tracking de
+    // clicks queda desactivado, el resto de la app anda igual.
+    TINYBIRD_API_KEY: z.string().min(1).optional(),
     TINYBIRD_BASE_URL: z.string().url().default("https://api.tinybird.co"),
     // Opcionales — features que no todos los entornos usan.
     BRIEF_READ_WRITE_TOKEN: z.string().optional(),
