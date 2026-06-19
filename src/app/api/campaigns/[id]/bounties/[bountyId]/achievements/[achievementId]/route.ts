@@ -1,6 +1,8 @@
-import { NextRequest, NextResponse } from "next/server"
+import { NextRequest } from "next/server"
 import { auth } from "@clerk/nextjs/server"
 import { prisma } from "@/lib/prisma"
+import { ok, fail, unauthorized, notFound, badRequest } from "@/lib/api/response"
+import { logger } from "@/lib/logger"
 import { z } from "zod"
 
 const UpdateAchievementSchema = z.object({
@@ -15,24 +17,24 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string; bountyId: string; achievementId: string }> }
 ) {
   const { userId } = await auth()
-  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  if (!userId) return unauthorized()
 
   const { id, bountyId, achievementId } = await params
 
-  const achievement = await prisma.bountyAchievement.findUnique({
-    where: { id: achievementId },
-    include: { bounty: { include: { campaign: { select: { id: true, workspaceId: true } } } } },
-  })
-  if (!achievement || achievement.bountyId !== bountyId || achievement.bounty.campaignId !== id) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 })
-  }
-
-  const member = await prisma.workspaceMember.findFirst({
-    where: { userId, workspaceId: achievement.bounty.campaign.workspaceId },
-  })
-  if (!member) return NextResponse.json({ error: "No access" }, { status: 403 })
-
   try {
+    const achievement = await prisma.bountyAchievement.findUnique({
+      where: { id: achievementId },
+      include: { bounty: { include: { campaign: { select: { id: true, workspaceId: true } } } } },
+    })
+    if (!achievement || achievement.bountyId !== bountyId || achievement.bounty.campaignId !== id) {
+      return notFound()
+    }
+
+    const member = await prisma.workspaceMember.findFirst({
+      where: { userId, workspaceId: achievement.bounty.campaign.workspaceId },
+    })
+    if (!member) return fail("No access", 403)
+
     const body = await request.json()
     const data = UpdateAchievementSchema.parse(body)
 
@@ -45,12 +47,12 @@ export async function PATCH(
       },
     })
 
-    return NextResponse.json({ ok: true, achievement: updated })
+    return ok({ achievement: updated })
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: "Datos inválidos" }, { status: 400 })
+      return badRequest("Datos inválidos")
     }
-    console.error("[Bounties] Achievement update error:", error)
-    return NextResponse.json({ error: "Error al actualizar" }, { status: 500 })
+    logger.error("[Bounties] Achievement PATCH", error)
+    return fail("Error al actualizar", 500)
   }
 }

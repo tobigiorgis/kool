@@ -3,30 +3,37 @@ import { auth } from "@clerk/nextjs/server"
 import { prisma } from "@/lib/prisma"
 import { decrypt } from "@/lib/utils/crypto"
 import { getTiendanubeScripts, getTiendanubeWebhooks } from "@/lib/tiendanube"
+import { fail, unauthorized, handleError } from "@/lib/api/response"
 
 export async function GET(request: NextRequest) {
-  const { userId } = await auth()
-  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  try {
+    const { userId } = await auth()
+    if (!userId) return unauthorized()
 
-  const workspaceId = request.nextUrl.searchParams.get("workspaceId")
-  if (!workspaceId) return NextResponse.json({ error: "missing workspaceId" }, { status: 400 })
+    if (process.env.NODE_ENV === "production") return fail("Not found", 404)
 
-  const connection = await prisma.tiendanubeConnection.findUnique({
-    where: { workspaceId },
-  })
-  if (!connection) return NextResponse.json({ error: "no connection" }, { status: 404 })
+    const workspaceId = request.nextUrl.searchParams.get("workspaceId")
+    if (!workspaceId) return fail("missing workspaceId", 400)
 
-  const accessToken = decrypt(connection.accessToken)
+    const connection = await prisma.tiendanubeConnection.findUnique({
+      where: { workspaceId },
+    })
+    if (!connection) return fail("no connection", 404)
 
-  // Usa el cliente compartido (Authorization: Bearer) en vez de fetch ad-hoc
-  const [scripts, webhooks] = await Promise.all([
-    getTiendanubeScripts(connection.storeId, accessToken).catch((e) => ({
-      error: e instanceof Error ? e.message : String(e),
-    })),
-    getTiendanubeWebhooks(connection.storeId, accessToken).catch((e) => ({
-      error: e instanceof Error ? e.message : String(e),
-    })),
-  ])
+    const accessToken = decrypt(connection.accessToken)
 
-  return NextResponse.json({ scripts, webhooks, storeId: connection.storeId })
+    // Usa el cliente compartido (Authorization: Bearer) en vez de fetch ad-hoc
+    const [scripts, webhooks] = await Promise.all([
+      getTiendanubeScripts(connection.storeId, accessToken).catch((e) => ({
+        error: e instanceof Error ? e.message : String(e),
+      })),
+      getTiendanubeWebhooks(connection.storeId, accessToken).catch((e) => ({
+        error: e instanceof Error ? e.message : String(e),
+      })),
+    ])
+
+    return NextResponse.json({ scripts, webhooks, storeId: connection.storeId })
+  } catch (error) {
+    return handleError("[Debug] tiendanube-scripts", error)
+  }
 }

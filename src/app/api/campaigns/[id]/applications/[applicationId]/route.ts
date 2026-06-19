@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server"
+import { NextRequest } from "next/server"
 import { auth } from "@clerk/nextjs/server"
 import { prisma } from "@/lib/prisma"
 import {
@@ -6,6 +6,9 @@ import {
   sendApplicationAcceptedExisting,
   sendApplicationRejected,
 } from "@/lib/email"
+import { ok, fail, unauthorized, notFound, badRequest } from "@/lib/api/response"
+import { logger } from "@/lib/logger"
+import { env } from "@/lib/env"
 import { z } from "zod"
 
 const UpdateSchema = z.object({
@@ -13,14 +16,14 @@ const UpdateSchema = z.object({
   notes: z.string().optional(),
 })
 
-const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || "https://kool-beta.vercel.app"
+const BASE_URL = env.NEXT_PUBLIC_APP_URL || "https://kool-beta.vercel.app"
 
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string; applicationId: string }> }
 ) {
   const { userId } = await auth()
-  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  if (!userId) return unauthorized()
 
   const { id, applicationId } = await params
 
@@ -28,16 +31,16 @@ export async function PATCH(
     where: { id },
     include: { workspace: { select: { id: true, name: true } } },
   })
-  if (!campaign) return NextResponse.json({ error: "Not found" }, { status: 404 })
+  if (!campaign) return notFound()
 
   const member = await prisma.workspaceMember.findFirst({
     where: { userId, workspaceId: campaign.workspaceId },
   })
-  if (!member) return NextResponse.json({ error: "No access" }, { status: 403 })
+  if (!member) return fail("No access", 403)
 
   const application = await prisma.application.findUnique({ where: { id: applicationId } })
   if (!application || application.campaignId !== id) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 })
+    return notFound()
   }
 
   try {
@@ -85,7 +88,7 @@ export async function PATCH(
           campaignName: campaign.name,
           brandName: campaign.workspace.name,
           dashboardUrl: `${BASE_URL}/creator`,
-        }).catch(console.error)
+        }).catch((e) => logger.error("[Campaigns applications] accepted email", e))
       } else {
         const registerUrl = `${BASE_URL}/register?email=${encodeURIComponent(application.email)}&campaignId=${campaign.id}`
         sendApplicationAccepted({
@@ -94,10 +97,10 @@ export async function PATCH(
           campaignName: campaign.name,
           brandName: campaign.workspace.name,
           registerUrl,
-        }).catch(console.error)
+        }).catch((e) => logger.error("[Campaigns applications] accepted email", e))
       }
 
-      return NextResponse.json({ ok: true, application: updated, creator })
+      return ok({ application: updated, creator })
     }
 
     // REJECTED
@@ -111,14 +114,14 @@ export async function PATCH(
       applicantName: application.name,
       campaignName: campaign.name,
       brandName: campaign.workspace.name,
-    }).catch(console.error)
+    }).catch((e) => logger.error("[Campaigns applications] rejected email", e))
 
-    return NextResponse.json({ ok: true, application: updated })
+    return ok({ application: updated })
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: "Datos inválidos" }, { status: 400 })
+      return badRequest("Datos inválidos")
     }
-    console.error("[Applications] Update error:", error)
-    return NextResponse.json({ error: "Error al actualizar" }, { status: 500 })
+    logger.error("[Campaigns applications] PATCH", error)
+    return fail("Error al actualizar", 500)
   }
 }

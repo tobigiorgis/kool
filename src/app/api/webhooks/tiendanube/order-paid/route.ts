@@ -16,6 +16,8 @@ import { parseTiendanubeOrderWebhook, verifyTiendanubeWebhookSignature } from "@
 import { getSaleRealStatus } from "@/lib/drops/sales"
 import { sendSaleGenerated, sendBountyAchieved } from "@/lib/email"
 import { evaluateBounties } from "@/lib/bounties"
+import { logger } from "@/lib/logger"
+import { env } from "@/lib/env"
 
 export async function POST(request: NextRequest) {
   try {
@@ -25,21 +27,18 @@ export async function POST(request: NextRequest) {
     const rawBody = await request.text()
     const signature = request.headers.get("x-linkedstore-hmac-sha256")
     if (!verifyTiendanubeWebhookSignature(rawBody, signature)) {
-      console.warn("[Webhook order/paid] Firma inválida — rechazado")
+      logger.warn("[Webhook order/paid]", "Firma inválida — rechazado")
       return NextResponse.json({ error: "Invalid signature" }, { status: 401 })
     }
     const body = JSON.parse(rawBody)
 
-    console.log(
-      "[Webhook order/paid] Received:",
-      JSON.stringify({
-        orderId: body.id,
-        storeId: body.store_id,
-        total: body.total,
-        coupon: body.promotional_discount?.code,
-        utm: body.utm_parameters,
-      })
-    )
+    logger.info("[Webhook order/paid]", "Received", {
+      orderId: body.id,
+      storeId: body.store_id,
+      total: body.total,
+      coupon: body.promotional_discount?.code,
+      utm: body.utm_parameters,
+    })
 
     // Tiendanube envía el store_id en el header o en el body
     const storeId = request.headers.get("x-store-id") || body.store_id?.toString()
@@ -134,7 +133,7 @@ export async function POST(request: NextRequest) {
         })
       }
 
-      console.log("[Webhook] No creator code — drop sales recorded if applicable")
+      logger.info("[Webhook order/paid]", "No creator code — drop sales recorded if applicable")
       return NextResponse.json({ ok: true, attributed: false })
     }
 
@@ -162,7 +161,9 @@ export async function POST(request: NextRequest) {
       }))
 
     if (!creator) {
-      console.log("[Webhook] Skipped: creator not found for code:", parsed.creatorCode)
+      logger.info("[Webhook order/paid]", "Skipped: creator not found", {
+        creatorCode: parsed.creatorCode,
+      })
       return NextResponse.json({ ok: true, attributed: false })
     }
 
@@ -267,14 +268,21 @@ export async function POST(request: NextRequest) {
     })
 
     const commissionAmount = parsed.orderAmount * (commissionPct / 100)
-    console.log("[Webhook] Attribution success:", creator.name, "commission:", commissionAmount)
+    logger.info("[Webhook order/paid]", "Attribution success", {
+      creator: creator.name,
+      commission: commissionAmount,
+    })
 
     // Evaluar bounties de la campaña: crear achievements de tiers recién alcanzados
     if (campaignCreator?.campaignId) {
       try {
         const newlyAchieved = await evaluateBounties(creator.id, campaignCreator.campaignId)
         for (const a of newlyAchieved) {
-          console.log("[Bounties] Achievement:", creator.name, "→", a.bountyName, a.reward)
+          logger.info("[Webhook order/paid] Bounty achievement", "bounty_achieved", {
+            creator: creator.name,
+            bountyName: a.bountyName,
+            reward: a.reward,
+          })
           if (creator.email) {
             void sendBountyAchieved({
               to: creator.email,
@@ -282,12 +290,12 @@ export async function POST(request: NextRequest) {
               brandName: connection.workspace?.name || "tu marca",
               bountyName: a.bountyName,
               reward: a.reward,
-              dashboardUrl: `${process.env.NEXT_PUBLIC_APP_URL}/creator/program/${campaignCreator.campaignId}`,
+              dashboardUrl: `${env.NEXT_PUBLIC_APP_URL}/creator/program/${campaignCreator.campaignId}`,
             })
           }
         }
       } catch (err) {
-        console.error("[Bounties] Evaluation error:", err)
+        logger.error("[Webhook order/paid] Bounty evaluation error", err)
       }
     }
 
@@ -300,7 +308,7 @@ export async function POST(request: NextRequest) {
         orderAmount: parsed.orderAmount,
         commissionAmount,
         currency: parsed.currency,
-        dashboardUrl: `${process.env.NEXT_PUBLIC_APP_URL}/creator`,
+        dashboardUrl: `${env.NEXT_PUBLIC_APP_URL}/creator`,
       })
     }
 
@@ -310,7 +318,7 @@ export async function POST(request: NextRequest) {
       creatorId: creator.id,
     })
   } catch (error) {
-    console.error("[Webhook] Tiendanube order/paid error:", error)
+    logger.error("[Webhook order/paid] Tiendanube order/paid error", error)
     // Devolvemos 200 igual para que Tiendanube no reintente indefinidamente
     // El error queda logueado para revisar
     return NextResponse.json({ ok: false, error: "Internal error" }, { status: 200 })

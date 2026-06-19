@@ -3,8 +3,11 @@
  * Registra clics y consulta estadísticas en tiempo real
  */
 
-const TINYBIRD_URL = process.env.TINYBIRD_BASE_URL || "https://api.tinybird.co"
-const TINYBIRD_TOKEN = process.env.TINYBIRD_API_KEY!
+import { env } from "@/lib/env"
+import { logger } from "@/lib/logger"
+
+const TINYBIRD_URL = env.TINYBIRD_BASE_URL
+const TINYBIRD_TOKEN = env.TINYBIRD_API_KEY
 
 // ─────────────────────────────────────────────
 // TIPOS
@@ -14,19 +17,19 @@ export interface ClickEvent {
   link_id: string
   workspace_id: string
   creator_id?: string
-  timestamp: string          // ISO 8601
+  timestamp: string // ISO 8601
   country: string
   city: string
   region: string
-  device: string             // "mobile" | "desktop" | "tablet"
-  os: string                 // "iOS" | "Android" | "Windows" | "macOS" | "other"
-  browser: string            // "Chrome" | "Safari" | "Instagram" | "TikTok" | "other"
-  source: string             // "instagram" | "tiktok" | "whatsapp" | "direct" | "other"
+  device: string // "mobile" | "desktop" | "tablet"
+  os: string // "iOS" | "Android" | "Windows" | "macOS" | "other"
+  browser: string // "Chrome" | "Safari" | "Instagram" | "TikTok" | "other"
+  source: string // "instagram" | "tiktok" | "whatsapp" | "direct" | "other"
   referer: string
   utm_campaign: string
   utm_source: string
   utm_medium: string
-  ip_hash: string            // SHA256 del IP para unique clicks
+  ip_hash: string // SHA256 del IP para unique clicks
 }
 
 export interface ClickStats {
@@ -84,7 +87,7 @@ export async function trackClick(event: ClickEvent): Promise<void> {
     })
   } catch (error) {
     // No bloqueamos el redirect si Tinybird falla
-    console.error("[Tinybird] Error tracking click:", error)
+    logger.error("[Tinybird]", "Error tracking click", { error })
   }
 }
 
@@ -92,10 +95,7 @@ export async function trackClick(event: ClickEvent): Promise<void> {
 // QUERY — Consultar estadísticas
 // ─────────────────────────────────────────────
 
-async function queryTinybird<T>(
-  pipe: string,
-  params: Record<string, string>
-): Promise<T[]> {
+async function queryTinybird<T>(pipe: string, params: Record<string, string>): Promise<T[]> {
   const searchParams = new URLSearchParams(params)
   const url = `${TINYBIRD_URL}/v0/pipes/${pipe}.json?${searchParams}`
 

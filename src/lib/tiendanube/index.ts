@@ -4,6 +4,7 @@
  */
 
 import { createHmac, timingSafeEqual } from "crypto"
+import { env } from "@/lib/env"
 
 const TIENDANUBE_API = "https://api.tiendanube.com/2025-03"
 const TIENDANUBE_AUTH = "https://www.tiendanube.com/apps"
@@ -139,14 +140,14 @@ export interface CreateOrderPayload {
  * El merchant es redirigido a esta URL para autorizar la app.
  */
 export function getTiendanubeAuthUrl(state: string): string {
-  const clientId = process.env.TIENDANUBE_CLIENT_ID!
+  const clientId = env.TIENDANUBE_CLIENT_ID
   const params = new URLSearchParams({
     client_id: clientId,
     response_type: "code",
     scope: ["write_orders", "read_orders", "write_coupons", "read_products", "write_scripts"].join(
       " "
     ),
-    redirect_uri: process.env.TIENDANUBE_REDIRECT_URI!,
+    redirect_uri: env.TIENDANUBE_REDIRECT_URI,
     state,
   })
 
@@ -162,8 +163,8 @@ export async function exchangeTiendanubeCode(code: string): Promise<TiendanubeTo
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      client_id: process.env.TIENDANUBE_CLIENT_ID,
-      client_secret: process.env.TIENDANUBE_CLIENT_SECRET,
+      client_id: env.TIENDANUBE_CLIENT_ID,
+      client_secret: env.TIENDANUBE_CLIENT_SECRET,
       grant_type: "authorization_code",
       code,
     }),
@@ -381,7 +382,7 @@ export async function getTiendanubeScripts(
  * - order/paid: para atribución de conversiones
  */
 export async function registerTiendanubeWebhooks(storeId: string, accessToken: string) {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL!
+  const baseUrl = env.NEXT_PUBLIC_APP_URL
 
   const webhooks = [
     {
@@ -463,7 +464,7 @@ export function verifyTiendanubeWebhookSignature(
   rawBody: string,
   signature: string | null | undefined
 ): boolean {
-  const secret = process.env.TIENDANUBE_CLIENT_SECRET
+  const secret = env.TIENDANUBE_CLIENT_SECRET
   if (!secret || !signature) return false
   const digest = hmacSha256(rawBody, secret)
   return (
@@ -477,7 +478,7 @@ export function verifyTiendanubeWebhookSignature(
  * del webhook — no se usa en producción.
  */
 export function signTiendanubeWebhook(rawBody: string): string {
-  const secret = process.env.TIENDANUBE_CLIENT_SECRET
+  const secret = env.TIENDANUBE_CLIENT_SECRET
   if (!secret) throw new Error("TIENDANUBE_CLIENT_SECRET no seteada")
   return hmacSha256(rawBody, secret).toString("hex")
 }

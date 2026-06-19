@@ -1,5 +1,6 @@
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server"
 import { NextResponse } from "next/server"
+import { env } from "@/lib/env"
 
 const isPublicRoute = createRouteMatcher([
   "/",
@@ -25,9 +26,9 @@ const isPublicRoute = createRouteMatcher([
 //
 // Upgrade futuro (subdominio nativo): servir el portal directamente en
 // creator.joinkool.co requiere Clerk "satellite domain". Ver DOMAINS.md.
-const ROOT_DOMAIN = process.env.NEXT_PUBLIC_ROOT_DOMAIN // joinkool.co
-const APP_DOMAIN = process.env.NEXT_PUBLIC_APP_DOMAIN // app.joinkool.co
-const CREATOR_DOMAIN = process.env.NEXT_PUBLIC_CREATOR_DOMAIN // creator.joinkool.co
+const ROOT_DOMAIN = env.NEXT_PUBLIC_ROOT_DOMAIN // joinkool.co
+const APP_DOMAIN = env.NEXT_PUBLIC_APP_DOMAIN // app.joinkool.co
+const CREATOR_DOMAIN = env.NEXT_PUBLIC_CREATOR_DOMAIN // creator.joinkool.co
 
 function hostRedirect(req: Request): NextResponse | null {
   if (!APP_DOMAIN) return null // routing por host desactivado

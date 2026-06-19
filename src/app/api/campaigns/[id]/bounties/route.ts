@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@clerk/nextjs/server"
 import { prisma } from "@/lib/prisma"
+import { ok, fail, unauthorized, badRequest, handleError } from "@/lib/api/response"
+import { logger } from "@/lib/logger"
 import { z } from "zod"
 
 // Verifica que el usuario tenga acceso al workspace de la campaña
@@ -16,28 +18,33 @@ async function getCampaignWithAccess(campaignId: string, userId: string) {
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { userId } = await auth()
-  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  if (!userId) return unauthorized()
 
   const { id } = await params
-  const access = await getCampaignWithAccess(id, userId)
-  if ("error" in access)
-    return NextResponse.json({ error: access.error }, { status: access.status })
 
-  const bounties = await prisma.bounty.findMany({
-    where: { campaignId: id },
-    orderBy: { createdAt: "desc" },
-    include: {
-      tiers: { orderBy: { threshold: "asc" } },
-      achievements: {
-        orderBy: { achievedAt: "desc" },
-        include: {
-          creator: { select: { id: true, name: true, email: true } },
+  try {
+    const access = await getCampaignWithAccess(id, userId)
+    if ("error" in access)
+      return NextResponse.json({ error: access.error }, { status: access.status })
+
+    const bounties = await prisma.bounty.findMany({
+      where: { campaignId: id },
+      orderBy: { createdAt: "desc" },
+      include: {
+        tiers: { orderBy: { threshold: "asc" } },
+        achievements: {
+          orderBy: { achievedAt: "desc" },
+          include: {
+            creator: { select: { id: true, name: true, email: true } },
+          },
         },
       },
-    },
-  })
+    })
 
-  return NextResponse.json({ bounties })
+    return NextResponse.json({ bounties })
+  } catch (error) {
+    return handleError("[Bounties] GET", error)
+  }
 }
 
 const TierSchema = z.object({
@@ -58,14 +65,15 @@ const CreateBountySchema = z.object({
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { userId } = await auth()
-  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  if (!userId) return unauthorized()
 
   const { id } = await params
-  const access = await getCampaignWithAccess(id, userId)
-  if ("error" in access)
-    return NextResponse.json({ error: access.error }, { status: access.status })
 
   try {
+    const access = await getCampaignWithAccess(id, userId)
+    if ("error" in access)
+      return NextResponse.json({ error: access.error }, { status: access.status })
+
     const body = await request.json()
     const data = CreateBountySchema.parse(body)
 
@@ -93,12 +101,12 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       include: { tiers: { orderBy: { threshold: "asc" } }, achievements: true },
     })
 
-    return NextResponse.json({ ok: true, bounty })
+    return ok({ bounty })
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: "Datos inválidos", details: error.errors }, { status: 400 })
+      return badRequest("Datos inválidos", error.errors)
     }
-    console.error("[Bounties] Create error:", error)
-    return NextResponse.json({ error: "Error al crear bounty" }, { status: 500 })
+    logger.error("[Bounties] POST", error)
+    return fail("Error al crear bounty", 500)
   }
 }

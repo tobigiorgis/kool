@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@clerk/nextjs/server"
 import { prisma } from "@/lib/prisma"
+import { ok, fail, unauthorized, badRequest, handleError } from "@/lib/api/response"
+import { logger } from "@/lib/logger"
 import { z } from "zod"
 
 // Verifica acceso y que el bounty pertenezca a la campaña del workspace del usuario
@@ -29,14 +31,15 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string; bountyId: string }> }
 ) {
   const { userId } = await auth()
-  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  if (!userId) return unauthorized()
 
   const { id, bountyId } = await params
-  const access = await getBountyWithAccess(id, bountyId, userId)
-  if ("error" in access)
-    return NextResponse.json({ error: access.error }, { status: access.status })
 
   try {
+    const access = await getBountyWithAccess(id, bountyId, userId)
+    if ("error" in access)
+      return NextResponse.json({ error: access.error }, { status: access.status })
+
     const body = await request.json()
     const data = UpdateBountySchema.parse(body)
 
@@ -46,13 +49,13 @@ export async function PATCH(
       include: { tiers: { orderBy: { threshold: "asc" } } },
     })
 
-    return NextResponse.json({ ok: true, bounty: updated })
+    return ok({ bounty: updated })
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: "Datos inválidos" }, { status: 400 })
+      return badRequest("Datos inválidos")
     }
-    console.error("[Bounties] Update error:", error)
-    return NextResponse.json({ error: "Error al actualizar" }, { status: 500 })
+    logger.error("[Bounties] PATCH", error)
+    return fail("Error al actualizar", 500)
   }
 }
 
@@ -61,13 +64,18 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string; bountyId: string }> }
 ) {
   const { userId } = await auth()
-  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  if (!userId) return unauthorized()
 
   const { id, bountyId } = await params
-  const access = await getBountyWithAccess(id, bountyId, userId)
-  if ("error" in access)
-    return NextResponse.json({ error: access.error }, { status: access.status })
 
-  await prisma.bounty.delete({ where: { id: bountyId } })
-  return NextResponse.json({ ok: true })
+  try {
+    const access = await getBountyWithAccess(id, bountyId, userId)
+    if ("error" in access)
+      return NextResponse.json({ error: access.error }, { status: access.status })
+
+    await prisma.bounty.delete({ where: { id: bountyId } })
+    return ok()
+  } catch (error) {
+    return handleError("[Bounties] DELETE", error)
+  }
 }

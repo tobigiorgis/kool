@@ -9,26 +9,27 @@ import { prisma } from "@/lib/prisma"
 import { createTiendanubeGiftingOrder } from "@/lib/tiendanube"
 import { decrypt } from "@/lib/utils/crypto"
 import { z } from "zod"
+import { ok, fail, unauthorized, badRequest, handleError } from "@/lib/api/response"
 
 const CreateGiftingSchema = z.object({
   workspaceId: z.string(),
   creatorId: z.string(),
   campaignId: z.string().optional(),
-  products: z.array(z.object({
-    variantId: z.number(),
-    productId: z.number(),
-    name: z.string(),
-    quantity: z.number().min(1),
-    value: z.number(),
-  })),
+  products: z.array(
+    z.object({
+      variantId: z.number(),
+      productId: z.number(),
+      name: z.string(),
+      quantity: z.number().min(1),
+      value: z.number(),
+    })
+  ),
   notes: z.string().optional(),
 })
 
 export async function POST(request: NextRequest) {
   const { userId } = await auth()
-  if (!userId) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  }
+  if (!userId) return unauthorized()
 
   try {
     const body = await request.json()
@@ -39,7 +40,7 @@ export async function POST(request: NextRequest) {
       where: { workspaceId: data.workspaceId, user: { id: userId } },
     })
     if (!member) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+      return fail("Forbidden", 403)
     }
 
     // Obtener el creator con su dirección
@@ -47,7 +48,7 @@ export async function POST(request: NextRequest) {
       where: { id: data.creatorId },
     })
     if (!creator) {
-      return NextResponse.json({ error: "Creator not found" }, { status: 404 })
+      return fail("Creator not found", 404)
     }
 
     // Obtener la conexión con Tiendanube
@@ -55,16 +56,11 @@ export async function POST(request: NextRequest) {
       where: { workspaceId: data.workspaceId },
     })
     if (!connection || !connection.active) {
-      return NextResponse.json(
-        { error: "No hay tienda Tiendanube conectada" },
-        { status: 422 }
-      )
+      return fail("No hay tienda Tiendanube conectada", 422)
     }
 
     // Calcular valor total del gifting
-    const totalValue = data.products.reduce(
-      (sum, p) => sum + p.value * p.quantity, 0
-    )
+    const totalValue = data.products.reduce((sum, p) => sum + p.value * p.quantity, 0)
 
     const hasAddress = !!(creator.address && creator.city)
     const nameParts = creator.name.trim().split(" ")
@@ -86,23 +82,19 @@ export async function POST(request: NextRequest) {
         country: creator.country || "AR",
         phone: creator.phone || "",
       }
-      const tnOrder = await createTiendanubeGiftingOrder(
-        connection.storeId,
-        accessToken,
-        {
-          contact_email: creator.email,
-          contact_name: creator.name,
-          products: data.products.map((p) => ({
-            variant_id: p.variantId,
-            quantity: p.quantity,
-            price: 0,
-          })),
-          shipping_address: addressPayload,
-          billing_address: addressPayload,
-          note: data.notes,
-          send_email: false,
-        }
-      )
+      const tnOrder = await createTiendanubeGiftingOrder(connection.storeId, accessToken, {
+        contact_email: creator.email,
+        contact_name: creator.name,
+        products: data.products.map((p) => ({
+          variant_id: p.variantId,
+          quantity: p.quantity,
+          price: 0,
+        })),
+        shipping_address: addressPayload,
+        billing_address: addressPayload,
+        note: data.notes,
+        send_email: false,
+      })
       tiendanubeOrderId = (tnOrder as any).id?.toString()
     }
 
@@ -121,47 +113,35 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    return NextResponse.json({
-      ok: true,
-      giftingOrder,
-      tiendanubeOrderId,
-    })
+    return ok({ giftingOrder, tiendanubeOrderId })
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { error: "Invalid data", details: error.errors },
-        { status: 400 }
-      )
-    }
-    console.error("[Gifting] Error:", error)
-    return NextResponse.json(
-      { error: "Error al crear el gifting" },
-      { status: 500 }
-    )
+    return handleError("[Gifting] POST", error)
   }
 }
 
 export async function GET(request: NextRequest) {
   const { userId } = await auth()
-  if (!userId) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  }
+  if (!userId) return unauthorized()
 
   const workspaceId = request.nextUrl.searchParams.get("workspaceId")
   const campaignId = request.nextUrl.searchParams.get("campaignId")
 
   if (!workspaceId && !campaignId) {
-    return NextResponse.json({ error: "Missing workspaceId or campaignId" }, { status: 400 })
+    return badRequest("Missing workspaceId or campaignId")
   }
 
-  const giftingOrders = await prisma.giftingOrder.findMany({
-    where: {
-      ...(workspaceId ? { workspaceId } : {}),
-      ...(campaignId ? { campaignId } : {}),
-    },
-    include: { creator: { select: { id: true, name: true, email: true } } },
-    orderBy: { createdAt: "desc" },
-  })
+  try {
+    const giftingOrders = await prisma.giftingOrder.findMany({
+      where: {
+        ...(workspaceId ? { workspaceId } : {}),
+        ...(campaignId ? { campaignId } : {}),
+      },
+      include: { creator: { select: { id: true, name: true, email: true } } },
+      orderBy: { createdAt: "desc" },
+    })
 
-  return NextResponse.json({ giftingOrders })
+    return NextResponse.json({ giftingOrders })
+  } catch (error) {
+    return handleError("[Gifting] GET", error)
+  }
 }

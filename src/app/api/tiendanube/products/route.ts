@@ -3,24 +3,25 @@ import { auth } from "@clerk/nextjs/server"
 import { prisma } from "@/lib/prisma"
 import { getTiendanubeProducts } from "@/lib/tiendanube"
 import { decrypt } from "@/lib/utils/crypto"
+import { fail, unauthorized, badRequest, handleError } from "@/lib/api/response"
 
 export async function GET(request: NextRequest) {
   const { userId } = await auth()
-  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  if (!userId) return unauthorized()
 
   const workspaceId = request.nextUrl.searchParams.get("workspaceId")
-  if (!workspaceId) return NextResponse.json({ error: "Missing workspaceId" }, { status: 400 })
+  if (!workspaceId) return badRequest("Missing workspaceId")
 
   const member = await prisma.workspaceMember.findFirst({
     where: { userId, workspaceId },
   })
-  if (!member) return NextResponse.json({ error: "No access" }, { status: 403 })
+  if (!member) return fail("No access", 403)
 
   const connection = await prisma.tiendanubeConnection.findUnique({
     where: { workspaceId },
   })
   if (!connection?.active) {
-    return NextResponse.json({ error: "Tiendanube not connected" }, { status: 422 })
+    return fail("Tiendanube not connected", 422)
   }
 
   try {
@@ -38,7 +39,6 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ products })
   } catch (error) {
-    console.error("[Products] Error:", error)
-    return NextResponse.json({ error: "Error al cargar productos" }, { status: 500 })
+    return handleError("[Products] GET", error)
   }
 }

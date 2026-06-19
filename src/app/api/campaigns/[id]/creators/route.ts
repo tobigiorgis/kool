@@ -5,6 +5,9 @@ import { createTiendanubeCoupon } from "@/lib/tiendanube"
 import { decrypt } from "@/lib/utils/crypto"
 import { slugify, generateDiscountCode } from "@/lib/utils"
 import { sendCampaignInviteExisting, sendCampaignInviteNew } from "@/lib/email"
+import { ok, fail, unauthorized, notFound, badRequest, handleError } from "@/lib/api/response"
+import { logger } from "@/lib/logger"
+import { env } from "@/lib/env"
 import { z } from "zod"
 import crypto from "crypto"
 
@@ -51,12 +54,9 @@ async function ensureUniqueSlug(base: string): Promise<string> {
   return slug
 }
 
-export async function POST(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { userId } = await auth()
-  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  if (!userId) return unauthorized()
 
   const { id: campaignId } = await params
 
@@ -72,24 +72,25 @@ export async function POST(
       where: { id: campaignId },
       include: { workspace: { select: { name: true } } },
     })
-    if (!campaign) return NextResponse.json({ error: "Not found" }, { status: 404 })
+    if (!campaign) return notFound()
 
     const member = await prisma.workspaceMember.findFirst({
       where: { userId, workspaceId: campaign.workspaceId },
     })
-    if (!member) return NextResponse.json({ error: "No access" }, { status: 403 })
+    if (!member) return fail("No access", 403)
 
     const connection = await prisma.tiendanubeConnection.findUnique({
       where: { workspaceId: campaign.workspaceId },
     })
 
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://app.kool.link"
+    const appUrl = env.NEXT_PUBLIC_APP_URL || "https://app.kool.link"
 
     // ── New invite-by-email flow ───────────────
     if ("email" in body) {
       const data = InviteCreatorSchema.parse(body)
       const name = `${data.firstName} ${data.lastName}`
-      const discountCode = data.discountCode || generateDiscountCode(data.firstName, data.commissionPct ?? 10)
+      const discountCode =
+        data.discountCode || generateDiscountCode(data.firstName, data.commissionPct ?? 10)
 
       // Find or create creator
       let creator = await prisma.creator.findFirst({
@@ -145,7 +146,9 @@ export async function POST(
 
       // Create affiliate link if destination provided
       if (data.destination) {
-        const existingLink = await prisma.link.findFirst({ where: { creatorId: creator.id, campaignId } })
+        const existingLink = await prisma.link.findFirst({
+          where: { creatorId: creator.id, campaignId },
+        })
         if (!existingLink) {
           const slug = await ensureUniqueSlug(generateSlug(name))
           await prisma.link.create({
@@ -173,8 +176,10 @@ export async function POST(
             value: data.commissionPct ?? 10,
             valid: true,
           })
-        } catch (e: any) {
-          if (!e?.message?.includes("422")) console.error(`[Campaign] Coupon error:`, e)
+        } catch (error) {
+          if (!(error instanceof Error) || !error.message.includes("422")) {
+            logger.error("[Campaigns creators] invite coupon", error)
+          }
         }
       }
 
@@ -204,7 +209,7 @@ export async function POST(
         })
       }
 
-      return NextResponse.json({ ok: true, creatorId: creator.id })
+      return ok({ creatorId: creator.id })
     }
 
     // ── Legacy: add existing creators by ID ───
@@ -264,8 +269,10 @@ export async function POST(
               value: data.commissionPct ?? 10,
               valid: true,
             })
-          } catch (e: any) {
-            if (!e?.message?.includes("422")) console.error(`[Campaign] Coupon error:`, e)
+          } catch (error) {
+            if (!(error instanceof Error) || !error.message.includes("422")) {
+              logger.error("[Campaigns creators] add coupon", error)
+            }
           }
         }
 
@@ -273,22 +280,19 @@ export async function POST(
       })
     )
 
-    return NextResponse.json({ ok: true, added: results.filter(Boolean).length })
+    return ok({ added: results.filter(Boolean).length })
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: "Datos inválidos", details: error.errors }, { status: 400 })
+      return badRequest("Datos inválidos", error.errors)
     }
-    console.error("[Campaign] Add creators error:", error)
-    return NextResponse.json({ error: "Error al agregar creators" }, { status: 500 })
+    logger.error("[Campaigns creators] POST", error)
+    return fail("Error al agregar creators", 500)
   }
 }
 
-export async function PATCH(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { userId } = await auth()
-  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  if (!userId) return unauthorized()
 
   const { id: campaignId } = await params
 
@@ -297,18 +301,18 @@ export async function PATCH(
     const data = UpdateCreatorSchema.parse(body)
 
     const campaign = await prisma.campaign.findUnique({ where: { id: campaignId } })
-    if (!campaign) return NextResponse.json({ error: "Not found" }, { status: 404 })
+    if (!campaign) return notFound()
 
     const member = await prisma.workspaceMember.findFirst({
       where: { userId, workspaceId: campaign.workspaceId },
     })
-    if (!member) return NextResponse.json({ error: "No access" }, { status: 403 })
+    if (!member) return fail("No access", 403)
 
     // Obtener el registro actual para detectar cambios en el código
     const existing = await prisma.campaignCreator.findUnique({
       where: { campaignId_creatorId: { campaignId, creatorId: data.creatorId } },
     })
-    if (!existing) return NextResponse.json({ error: "Creator not in campaign" }, { status: 404 })
+    if (!existing) return fail("Creator not in campaign", 404)
 
     // Actualizar CampaignCreator
     const cc = await prisma.campaignCreator.update({
@@ -370,21 +374,21 @@ export async function PATCH(
             value: data.commissionPct ?? cc.commissionPct ?? 10,
             valid: true,
           })
-        } catch (e: any) {
-          if (!e?.message?.includes("422")) {
-            console.error(`[Campaign] Error creando cupón ${data.discountCode}:`, e)
+        } catch (error) {
+          if (!(error instanceof Error) || !error.message.includes("422")) {
+            logger.error("[Campaigns creators] update coupon", error)
           }
         }
       }
     }
 
-    return NextResponse.json({ ok: true })
+    return ok()
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: "Datos inválidos", details: error.errors }, { status: 400 })
+      return badRequest("Datos inválidos", error.errors)
     }
-    console.error("[Campaign] Update creator error:", error)
-    return NextResponse.json({ error: "Error al actualizar" }, { status: 500 })
+    logger.error("[Campaigns creators] PATCH", error)
+    return fail("Error al actualizar", 500)
   }
 }
 
@@ -393,29 +397,33 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { userId } = await auth()
-  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  if (!userId) return unauthorized()
 
   const { id: campaignId } = await params
   const creatorId = request.nextUrl.searchParams.get("creatorId")
-  if (!creatorId) return NextResponse.json({ error: "Missing creatorId" }, { status: 400 })
+  if (!creatorId) return badRequest("Missing creatorId")
 
-  const campaign = await prisma.campaign.findUnique({ where: { id: campaignId } })
-  if (!campaign) return NextResponse.json({ error: "Not found" }, { status: 404 })
+  try {
+    const campaign = await prisma.campaign.findUnique({ where: { id: campaignId } })
+    if (!campaign) return notFound()
 
-  const member = await prisma.workspaceMember.findFirst({
-    where: { userId, workspaceId: campaign.workspaceId },
-  })
-  if (!member) return NextResponse.json({ error: "No access" }, { status: 403 })
+    const member = await prisma.workspaceMember.findFirst({
+      where: { userId, workspaceId: campaign.workspaceId },
+    })
+    if (!member) return fail("No access", 403)
 
-  // Archivar el link asociado en vez de borrarlo (preservar analytics)
-  await prisma.link.updateMany({
-    where: { creatorId, campaignId },
-    data: { archived: true },
-  })
+    // Archivar el link asociado en vez de borrarlo (preservar analytics)
+    await prisma.link.updateMany({
+      where: { creatorId, campaignId },
+      data: { archived: true },
+    })
 
-  await prisma.campaignCreator.deleteMany({
-    where: { campaignId, creatorId },
-  })
+    await prisma.campaignCreator.deleteMany({
+      where: { campaignId, creatorId },
+    })
 
-  return NextResponse.json({ ok: true })
+    return ok()
+  } catch (error) {
+    return handleError("[Campaigns creators] DELETE", error)
+  }
 }

@@ -7,6 +7,7 @@
  */
 
 import { prisma } from "@/lib/prisma"
+import { logger } from "@/lib/logger"
 import type { BountyMetric, BountyRewardType, Prisma } from "@prisma/client"
 
 export interface CampaignProgress {
@@ -124,7 +125,7 @@ export async function evaluateBounties(
       } catch (err) {
         // P2002: ya existe (carrera de webhooks) — ignorar
         if ((err as Prisma.PrismaClientKnownRequestError)?.code !== "P2002") {
-          console.error("[Bounties] Error creando achievement:", err)
+          logger.error("[Bounties]", "Error creando achievement", { err })
         }
       }
     }

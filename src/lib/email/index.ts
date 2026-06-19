@@ -1,7 +1,15 @@
 import { Resend } from "resend"
+import { env } from "@/lib/env"
+import { logger } from "@/lib/logger"
 
-const resend = new Resend(process.env.RESEND_API_KEY)
-const FROM = process.env.EMAIL_FROM || "Kool <hola@kool.link>"
+// Lazy: no instanciar el cliente (ni requerir la API key) al importar el módulo,
+// así una key ausente no crashea rutas no relacionadas en build/arranque.
+let _resend: Resend | null = null
+function getResend(): Resend {
+  if (!_resend) _resend = new Resend(env.RESEND_API_KEY)
+  return _resend
+}
+const FROM = env.EMAIL_FROM
 
 // ─────────────────────────────────────────────
 // TIPOS
@@ -20,7 +28,7 @@ interface SendEmailOptions {
 
 async function sendEmail(opts: SendEmailOptions) {
   try {
-    const { data, error } = await resend.emails.send({
+    const { data, error } = await getResend().emails.send({
       from: FROM,
       to: Array.isArray(opts.to) ? opts.to : [opts.to],
       subject: opts.subject,
@@ -30,7 +38,7 @@ async function sendEmail(opts: SendEmailOptions) {
     if (error) throw error
     return { ok: true, id: data?.id }
   } catch (err) {
-    console.error("[Email] Send error:", err)
+    logger.error("[Email]", "Send error", { err })
     return { ok: false, error: err }
   }
 }
