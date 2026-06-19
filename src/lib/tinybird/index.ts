@@ -8,6 +8,8 @@ import { logger } from "@/lib/logger"
 
 const TINYBIRD_URL = env.TINYBIRD_BASE_URL
 const TINYBIRD_TOKEN = env.TINYBIRD_API_KEY
+// Tinybird es opcional. Sin token, ingest y queries son no-op (no rompen).
+const TINYBIRD_ENABLED = !!TINYBIRD_TOKEN
 
 // ─────────────────────────────────────────────
 // TIPOS
@@ -76,6 +78,7 @@ export interface ClicksBySource {
  * Es async/no-blocking para no afectar el tiempo de redirect.
  */
 export async function trackClick(event: ClickEvent): Promise<void> {
+  if (!TINYBIRD_ENABLED) return
   try {
     await fetch(`${TINYBIRD_URL}/v0/events?name=kool_clicks`, {
       method: "POST",
@@ -96,6 +99,7 @@ export async function trackClick(event: ClickEvent): Promise<void> {
 // ─────────────────────────────────────────────
 
 async function queryTinybird<T>(pipe: string, params: Record<string, string>): Promise<T[]> {
+  if (!TINYBIRD_ENABLED) return []
   const searchParams = new URLSearchParams(params)
   const url = `${TINYBIRD_URL}/v0/pipes/${pipe}.json?${searchParams}`
 
