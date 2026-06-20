@@ -1102,7 +1102,7 @@ function LinksTab({ links, campaignId }: { links: CampaignLink[]; campaignId: st
                     <div className="flex items-center gap-2">
                       <Link2 size={13} className="text-rose-400 flex-shrink-0" />
                       <span className="text-[13px] font-medium text-rose-500">
-                        kool.link/{link.slug}
+                        {process.env.NEXT_PUBLIC_SHORT_DOMAIN || "joinkool.co"}/{link.slug}
                       </span>
                     </div>
                     <p className="text-xs text-gray-400 truncate max-w-[220px] mt-0.5 ml-5">
@@ -1134,7 +1134,7 @@ function LinksTab({ links, campaignId }: { links: CampaignLink[]; campaignId: st
                     <div className="flex items-center justify-end gap-1">
                       <button
                         onClick={() =>
-                          navigator.clipboard.writeText(`https://kool.link/${link.slug}`)
+                          navigator.clipboard.writeText(`https://${process.env.NEXT_PUBLIC_SHORT_DOMAIN || "joinkool.co"}/${link.slug}`)
                         }
                         className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
                         title="Copiar link"

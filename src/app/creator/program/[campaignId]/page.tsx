@@ -123,10 +123,10 @@ export default async function ProgramOverviewPage({
               <div className="flex items-center gap-2 max-w-md">
                 <div className="flex-1 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
                   <span className="text-[13px] text-gray-700 font-mono">
-                    kool.link/{firstLink.slug}
+                    {process.env.NEXT_PUBLIC_SHORT_DOMAIN || "joinkool.co"}/{firstLink.slug}
                   </span>
                 </div>
-                <CopyLinkButton value={`https://kool.link/${firstLink.slug}`} />
+                <CopyLinkButton value={`https://${process.env.NEXT_PUBLIC_SHORT_DOMAIN || "joinkool.co"}/${firstLink.slug}`} />
               </div>
             </div>
           )}
@@ -368,7 +368,7 @@ export default async function ProgramOverviewPage({
                       {formatDate(e.createdAt)}
                     </td>
                     <td className="px-5 py-3 text-[13px] text-gray-700 font-mono">
-                      {e.conversion?.link?.slug ? `kool.link/${e.conversion.link.slug}` : "—"}
+                      {e.conversion?.link?.slug ? `${process.env.NEXT_PUBLIC_SHORT_DOMAIN || "joinkool.co"}/${e.conversion.link.slug}` : "—"}
                     </td>
                     <td className="px-5 py-3 text-[13px] text-gray-900 text-right">
                       {formatCurrency(e.orderAmount)}

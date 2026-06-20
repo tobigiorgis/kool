@@ -47,7 +47,7 @@ export default async function LinksPage({
               <div className="flex items-start gap-4">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
-                    <span className="text-[14px] font-mono font-medium text-gray-900">kool.link/{link.slug}</span>
+                    <span className="text-[14px] font-mono font-medium text-gray-900">{process.env.NEXT_PUBLIC_SHORT_DOMAIN || "joinkool.co"}/{link.slug}</span>
                     {link.title && (
                       <span className="text-[11px] text-gray-400 bg-gray-50 px-2 py-0.5 rounded-full">{link.title}</span>
                     )}
@@ -78,14 +78,14 @@ export default async function LinksPage({
 
                 <div className="flex items-center gap-2 shrink-0">
                   <a
-                    href={`https://kool.link/${link.slug}`}
+                    href={`https://${process.env.NEXT_PUBLIC_SHORT_DOMAIN || "joinkool.co"}/${link.slug}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex items-center justify-center w-9 h-9 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 transition-colors"
                   >
                     <ExternalLink size={14} className="text-gray-400" />
                   </a>
-                  <CopyLinkButton value={`https://kool.link/${link.slug}`} />
+                  <CopyLinkButton value={`https://${process.env.NEXT_PUBLIC_SHORT_DOMAIN || "joinkool.co"}/${link.slug}`} />
                 </div>
               </div>
             </div>

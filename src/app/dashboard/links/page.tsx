@@ -41,7 +41,7 @@ export default function LinksPage() {
   useEffect(() => { loadData() }, [loadData])
 
   const copyLink = (slug: string) => {
-    navigator.clipboard.writeText(`https://kool.link/${slug}`)
+    navigator.clipboard.writeText(`https://${process.env.NEXT_PUBLIC_SHORT_DOMAIN || "joinkool.co"}/${slug}`)
     setCopied(slug)
     setTimeout(() => setCopied(null), 2000)
   }
@@ -97,7 +97,7 @@ export default function LinksPage() {
                         <Link2 size={14} className="text-brand-500" />
                       </div>
                       <div>
-                        <p className="text-sm font-medium text-gray-900">kool.link/{link.slug}</p>
+                        <p className="text-sm font-medium text-gray-900">{process.env.NEXT_PUBLIC_SHORT_DOMAIN || "joinkool.co"}/{link.slug}</p>
                         <p className="text-xs text-gray-400 truncate max-w-[200px]">{link.destination}</p>
                       </div>
                     </div>
@@ -225,7 +225,7 @@ function CreateLinkModal({
             <label className="block text-xs font-medium text-gray-700 mb-1.5">Slug personalizado</label>
             <div className="flex">
               <span className="px-3 py-2 bg-gray-50 border border-r-0 border-gray-200 rounded-l-lg text-sm text-gray-500">
-                kool.link/
+                {process.env.NEXT_PUBLIC_SHORT_DOMAIN || "joinkool.co"}/
               </span>
               <input
                 type="text"

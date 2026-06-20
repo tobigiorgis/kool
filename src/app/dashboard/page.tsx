@@ -211,7 +211,7 @@ export default async function DashboardPage() {
                   >
                     <td className="px-5 py-3 text-[13px] text-gray-900">{commission.creator.name}</td>
                     <td className="px-5 py-3 text-[12px] font-mono text-gray-500">
-                      {commission.conversion.link ? `kool.link/${commission.conversion.link.slug}` : "—"}
+                      {commission.conversion.link ? `${process.env.NEXT_PUBLIC_SHORT_DOMAIN || "joinkool.co"}/${commission.conversion.link.slug}` : "—"}
                     </td>
                     <td className="px-5 py-3 text-[12px] text-gray-500">
                       {commission.conversion.link?.campaign?.name ?? "—"}

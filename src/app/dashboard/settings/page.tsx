@@ -220,7 +220,7 @@ function WorkspaceTab({ workspace }: { workspace: Workspace | null }) {
           <label className="block text-xs font-medium text-gray-700 mb-1.5">Slug</label>
           <div className="flex">
             <span className="px-3 py-2 bg-gray-50 border border-r-0 border-gray-200 rounded-l-lg text-sm text-gray-400">
-              kool.link/w/
+              joinkool.co/w/
             </span>
             <input
               type="text"

@@ -84,7 +84,7 @@ export default async function AllProgramsPage() {
 
                 {firstLink && (
                   <p className="text-xs text-gray-400 mt-1 flex items-center gap-1">
-                    <span className="font-mono">kool.link/{firstLink.slug}</span>
+                    <span className="font-mono">{process.env.NEXT_PUBLIC_SHORT_DOMAIN || "joinkool.co"}/{firstLink.slug}</span>
                   </p>
                 )}
 

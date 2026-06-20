@@ -82,7 +82,7 @@ export default function OnboardingPage() {
               </label>
               <div className="flex">
                 <span className="px-3 py-2.5 bg-gray-50 border border-r-0 border-gray-200 rounded-l-lg text-sm text-gray-400 flex-shrink-0">
-                  app.kool.link/
+                  app.joinkool.co/
                 </span>
                 <input
                   type="text"

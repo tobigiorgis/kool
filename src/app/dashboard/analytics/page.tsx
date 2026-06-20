@@ -101,7 +101,7 @@ function AnalyticsContent() {
 
   const filterLabel = data?.filterInfo
     ? (data.filterInfo.linkSlug
-        ? `kool.link/${data.filterInfo.linkSlug}`
+        ? `${process.env.NEXT_PUBLIC_SHORT_DOMAIN || "joinkool.co"}/${data.filterInfo.linkSlug}`
         : data.filterInfo.campaignName
         ? data.filterInfo.campaignName
         : data.filterInfo.creatorName
