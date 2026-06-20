@@ -6,6 +6,7 @@ import {
   Calendar, DollarSign, MousePointerClick, ShoppingBag, Copy,
 } from "lucide-react"
 import { formatCurrency, formatDate } from "@/lib/utils"
+import { SHORT_DOMAIN } from "@/lib/domains"
 
 interface Commission {
   id: string
@@ -249,10 +250,10 @@ function LinksTab({ links }: { links: CreatorLink[] }) {
           <div className="flex items-center justify-between mb-1.5">
             <div className="flex items-center gap-2">
               <Link2 size={13} className="text-rose-400 flex-shrink-0" />
-              <span className="text-sm font-medium text-rose-500">{process.env.NEXT_PUBLIC_SHORT_DOMAIN || "joinkool.co"}/{link.slug}</span>
+              <span className="text-sm font-medium text-rose-500">{SHORT_DOMAIN}/{link.slug}</span>
             </div>
             <button
-              onClick={() => navigator.clipboard.writeText(`https://${process.env.NEXT_PUBLIC_SHORT_DOMAIN || "joinkool.co"}/${link.slug}`)}
+              onClick={() => navigator.clipboard.writeText(`https://${SHORT_DOMAIN}/${link.slug}`)}
               className="text-gray-400 hover:text-gray-600 transition-colors"
             >
               <Copy size={13} />

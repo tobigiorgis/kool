@@ -9,6 +9,7 @@ import {
 } from "recharts"
 import { TrendingUp, MousePointerClick, Users, ShoppingCart, Globe, Smartphone, Wifi, X } from "lucide-react"
 import { formatNumber } from "@/lib/utils"
+import { SHORT_DOMAIN } from "@/lib/domains"
 
 type Period = "7d" | "30d" | "90d"
 
@@ -102,7 +103,7 @@ function AnalyticsContent() {
 
   const filterLabel = data?.filterInfo
     ? (data.filterInfo.linkSlug
-        ? `${process.env.NEXT_PUBLIC_SHORT_DOMAIN || "joinkool.co"}/${data.filterInfo.linkSlug}`
+        ? `${SHORT_DOMAIN}/${data.filterInfo.linkSlug}`
         : data.filterInfo.campaignName
         ? data.filterInfo.campaignName
         : data.filterInfo.creatorName

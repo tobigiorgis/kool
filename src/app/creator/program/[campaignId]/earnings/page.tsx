@@ -2,6 +2,7 @@ import { auth } from "@clerk/nextjs/server"
 import { redirect, notFound } from "next/navigation"
 import { prisma } from "@/lib/prisma"
 import { formatCurrency, formatDate } from "@/lib/utils"
+import { SHORT_DOMAIN } from "@/lib/domains"
 
 export default async function EarningsPage({
   params,
@@ -83,7 +84,7 @@ export default async function EarningsPage({
                 <tr key={c.id} className="hover:bg-gray-50/50 transition-colors">
                   <td className="px-5 py-3 text-[13px] text-gray-500 whitespace-nowrap">{formatDate(c.createdAt)}</td>
                   <td className="px-5 py-3 text-[13px] text-gray-700 font-mono">
-                    {c.conversion?.link?.slug ? `${process.env.NEXT_PUBLIC_SHORT_DOMAIN || "joinkool.co"}/${c.conversion.link.slug}` : "—"}
+                    {c.conversion?.link?.slug ? `${SHORT_DOMAIN}/${c.conversion.link.slug}` : "—"}
                   </td>
                   <td className="px-5 py-3 text-[13px] text-gray-900 text-right">{formatCurrency(c.orderAmount)}</td>
                   <td className="px-5 py-3 text-[13px] font-semibold text-gray-900 text-right">{formatCurrency(c.amount)}</td>

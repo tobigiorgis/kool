@@ -5,6 +5,7 @@ import { getDateRange, formatNumber, formatCurrency } from "@/lib/utils"
 import { MetricCard } from "./metric-card"
 import { Zap, ArrowUpRight, CheckCircle2, XCircle, Megaphone } from "lucide-react"
 import Link from "next/link"
+import { SHORT_DOMAIN } from "@/lib/domains"
 
 /** Deterministic sparkline from a seed value */
 function generateSparkline(seed: number, points = 14): number[] {
@@ -211,7 +212,7 @@ export default async function DashboardPage() {
                   >
                     <td className="px-5 py-3 text-[13px] text-gray-900">{commission.creator.name}</td>
                     <td className="px-5 py-3 text-[12px] font-mono text-gray-500">
-                      {commission.conversion.link ? `${process.env.NEXT_PUBLIC_SHORT_DOMAIN || "joinkool.co"}/${commission.conversion.link.slug}` : "—"}
+                      {commission.conversion.link ? `${SHORT_DOMAIN}/${commission.conversion.link.slug}` : "—"}
                     </td>
                     <td className="px-5 py-3 text-[12px] text-gray-500">
                       {commission.conversion.link?.campaign?.name ?? "—"}

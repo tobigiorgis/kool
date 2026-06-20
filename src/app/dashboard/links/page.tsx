@@ -2,8 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react"
 import { Plus, Copy, BarChart2, Link2, ExternalLink, RefreshCw } from "lucide-react"
-
-const SHORT_DOMAIN = process.env.NEXT_PUBLIC_SHORT_DOMAIN || "joinkool.co"
+import { SHORT_DOMAIN } from "@/lib/domains"
 
 interface LinkData {
   id: string

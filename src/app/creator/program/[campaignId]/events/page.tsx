@@ -2,6 +2,7 @@ import { auth } from "@clerk/nextjs/server"
 import { redirect, notFound } from "next/navigation"
 import { prisma } from "@/lib/prisma"
 import { formatDate } from "@/lib/utils"
+import { SHORT_DOMAIN } from "@/lib/domains"
 
 export default async function EventsPage({
   params,
@@ -66,7 +67,7 @@ export default async function EventsPage({
                   <div key={click.id} className="px-4 py-3 flex items-center gap-3">
                     <div className="flex-1 min-w-0">
                       <p className="text-[13px] font-mono text-gray-700 truncate">
-                        {process.env.NEXT_PUBLIC_SHORT_DOMAIN || "joinkool.co"}/{slugMap.get(click.linkId) ?? "—"}
+                        {SHORT_DOMAIN}/{slugMap.get(click.linkId) ?? "—"}
                       </p>
                       <div className="flex items-center gap-2 mt-0.5">
                         {click.country && (
@@ -104,7 +105,7 @@ export default async function EventsPage({
                   <div key={conv.id} className="px-4 py-3 flex items-center gap-3">
                     <div className="flex-1 min-w-0">
                       <p className="text-[13px] font-mono text-gray-700 truncate">
-                        {process.env.NEXT_PUBLIC_SHORT_DOMAIN || "joinkool.co"}/{conv.link?.slug ?? "—"}
+                        {SHORT_DOMAIN}/{conv.link?.slug ?? "—"}
                       </p>
                       <p className="text-[11px] text-gray-400 mt-0.5">
                         ${conv.orderAmount.toLocaleString("es-AR")} {conv.currency}
