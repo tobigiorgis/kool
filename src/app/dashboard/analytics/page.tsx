@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, Suspense } from "react"
 import { useSearchParams } from "next/navigation"
+import Link from "next/link"
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell,
@@ -123,17 +124,17 @@ function AnalyticsContent() {
         <div>
           {hasFilter && (
             <div className="flex items-center gap-2 mb-2">
-              <a href="/dashboard/analytics" className="text-xs text-gray-400 hover:text-gray-600 transition-colors">
+              <Link href="/dashboard/analytics" className="text-xs text-gray-400 hover:text-gray-600 transition-colors">
                 Analytics
-              </a>
+              </Link>
               <span className="text-xs text-gray-300">/</span>
               <span className="text-xs text-gray-700 font-medium">{filterLabel}</span>
-              <a
+              <Link
                 href="/dashboard/analytics"
                 className="ml-1 flex items-center gap-0.5 text-xs text-gray-400 hover:text-red-400 transition-colors"
               >
                 <X size={11} />
-              </a>
+              </Link>
             </div>
           )}
           <h1 className="text-2xl font-semibold text-gray-900">{getTitle()}</h1>
