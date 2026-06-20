@@ -38,8 +38,13 @@ function hostRedirect(req: Request): NextResponse | null {
 
   const url = new URL(req.url)
 
-  // Apex (joinkool.co) → app, preservando path
+  // Apex (joinkool.co) → short link rewrite or → app
   if (ROOT_DOMAIN && host === ROOT_DOMAIN) {
+    const slug = url.pathname.slice(1) // strip leading /
+    // Single-segment non-empty path → treat as short link slug
+    if (slug && !slug.includes("/")) {
+      return NextResponse.rewrite(new URL(`/api/r/${slug}${url.search}`, req.url))
+    }
     return NextResponse.redirect(`https://${APP_DOMAIN}${url.pathname}${url.search}`)
   }
 
