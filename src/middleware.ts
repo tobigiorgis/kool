@@ -20,8 +20,9 @@ const APP_DOMAIN = env.NEXT_PUBLIC_APP_DOMAIN       // app.joinkool.co
 const CREATOR_DOMAIN = env.NEXT_PUBLIC_CREATOR_DOMAIN
 
 function hostRedirect(req: Request): NextResponse | null {
-  const host = req.headers.get("host")?.split(":")[0]
-  if (!host) return null
+  const rawHost = req.headers.get("host")?.split(":")[0]
+  if (!rawHost) return null
+  const host = rawHost.replace(/^www\./, "") // normalizar www
 
   const url = new URL(req.url)
 
