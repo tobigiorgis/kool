@@ -15,9 +15,10 @@ const isPublicRoute = createRouteMatcher([
   "/scripts/(.*)", // Script de tracking — público
 ])
 
-const SHORT_DOMAIN = (env.NEXT_PUBLIC_SHORT_DOMAIN || "joinkool.co").replace(/^https?:\/\//, "")
-const APP_DOMAIN = env.NEXT_PUBLIC_APP_DOMAIN       // app.joinkool.co
-const CREATOR_DOMAIN = env.NEXT_PUBLIC_CREATOR_DOMAIN
+const strip = (v?: string) => v?.replace(/^https?:\/\//, "").replace(/\/$/, "") ?? ""
+const SHORT_DOMAIN = strip(env.NEXT_PUBLIC_SHORT_DOMAIN) || "joinkool.co"
+const APP_DOMAIN = strip(env.NEXT_PUBLIC_APP_DOMAIN)
+const CREATOR_DOMAIN = strip(env.NEXT_PUBLIC_CREATOR_DOMAIN)
 
 function hostRedirect(req: Request): NextResponse | null {
   const rawHost = req.headers.get("host")?.split(":")[0]
