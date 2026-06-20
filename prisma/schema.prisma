@@ -162,7 +162,7 @@ model Link {
   
   // URL
   slug        String    @unique  // ej: "camila-verano"
-  domain      String    @default("kool.link") // dominio corto
+  domain      String    @default("joinkool.co") // dominio corto
   destination String    // URL de destino (ML, Tiendanube, etc.)
   
   // Metadata

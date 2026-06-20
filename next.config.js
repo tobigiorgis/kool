@@ -13,7 +13,7 @@ const nextConfig = {
       {
         source: "/:slug",
         destination: "/api/r/:slug",
-        has: [{ type: "host", value: "kool.link" }],
+        has: [{ type: "host", value: "joinkool.co" }],
       },
     ]
   },
