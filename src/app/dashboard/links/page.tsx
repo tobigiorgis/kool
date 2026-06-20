@@ -3,13 +3,27 @@
 import { useState, useEffect, useCallback } from "react"
 import { Plus, Copy, BarChart2, Link2, ExternalLink, RefreshCw } from "lucide-react"
 
+const SHORT_DOMAIN = process.env.NEXT_PUBLIC_SHORT_DOMAIN || "joinkool.co"
+
 interface LinkData {
   id: string
   slug: string
   destination: string
   discountCode: string | null
   creator: { id: string; name: string; discountCode: string | null } | null
+  campaign: { id: string; name: string } | null
   createdAt: string
+}
+
+interface Campaign {
+  id: string
+  name: string
+}
+
+interface CampaignCreatorEntry {
+  creatorId: string
+  discountCode: string | null
+  creator: { id: string; firstName: string | null; lastName: string | null; name: string } | null
 }
 
 export default function LinksPage() {
@@ -41,7 +55,7 @@ export default function LinksPage() {
   useEffect(() => { loadData() }, [loadData])
 
   const copyLink = (slug: string) => {
-    navigator.clipboard.writeText(`https://${process.env.NEXT_PUBLIC_SHORT_DOMAIN || "joinkool.co"}/${slug}`)
+    navigator.clipboard.writeText(`https://${SHORT_DOMAIN}/${slug}`)
     setCopied(slug)
     setTimeout(() => setCopied(null), 2000)
   }
@@ -83,6 +97,7 @@ export default function LinksPage() {
             <thead>
               <tr className="border-b border-gray-100 bg-gray-50">
                 <th className="text-left px-6 py-3 text-xs font-medium text-gray-500">Link</th>
+                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500">Campaña</th>
                 <th className="text-left px-6 py-3 text-xs font-medium text-gray-500">Creator</th>
                 <th className="text-left px-6 py-3 text-xs font-medium text-gray-500">Código</th>
                 <th className="px-6 py-3" />
@@ -97,10 +112,17 @@ export default function LinksPage() {
                         <Link2 size={14} className="text-brand-500" />
                       </div>
                       <div>
-                        <p className="text-sm font-medium text-gray-900">{process.env.NEXT_PUBLIC_SHORT_DOMAIN || "joinkool.co"}/{link.slug}</p>
+                        <p className="text-sm font-medium text-gray-900">{SHORT_DOMAIN}/{link.slug}</p>
                         <p className="text-xs text-gray-400 truncate max-w-[200px]">{link.destination}</p>
                       </div>
                     </div>
+                  </td>
+                  <td className="px-6 py-4">
+                    {link.campaign ? (
+                      <span className="text-sm text-gray-700">{link.campaign.name}</span>
+                    ) : (
+                      <span className="text-xs text-gray-400">—</span>
+                    )}
                   </td>
                   <td className="px-6 py-4">
                     {link.creator ? (
@@ -175,19 +197,56 @@ function CreateLinkModal({
   const [destination, setDestination] = useState("")
   const [slug, setSlug] = useState("")
   const [discountCode, setDiscountCode] = useState("")
+  const [campaignId, setCampaignId] = useState("")
+  const [creatorId, setCreatorId] = useState("")
+  const [campaigns, setCampaigns] = useState<Campaign[]>([])
+  const [creatorsInCampaign, setCreatorsInCampaign] = useState<CampaignCreatorEntry[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
+
+  useEffect(() => {
+    fetch(`/api/campaigns?workspaceId=${workspaceId}`)
+      .then((r) => r.json())
+      .then((data) => setCampaigns(data.campaigns || []))
+      .catch(() => {})
+  }, [workspaceId])
+
+  useEffect(() => {
+    if (!campaignId) {
+      setCreatorsInCampaign([])
+      setCreatorId("")
+      return
+    }
+    fetch(`/api/campaigns/${campaignId}/creators`)
+      .then((r) => r.json())
+      .then((data) => setCreatorsInCampaign(data.campaignCreators || []))
+      .catch(() => {})
+  }, [campaignId])
+
+  const handleCreatorChange = (id: string) => {
+    setCreatorId(id)
+    if (id) {
+      const cc = creatorsInCampaign.find((c) => c.creatorId === id)
+      if (cc?.discountCode) setDiscountCode(cc.discountCode)
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
     setError("")
-
     try {
       const res = await fetch("/api/links", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ workspaceId, destination, slug: slug || undefined, discountCode: discountCode || undefined }),
+        body: JSON.stringify({
+          workspaceId,
+          destination,
+          slug: slug || undefined,
+          discountCode: discountCode || undefined,
+          campaignId: campaignId || undefined,
+          creatorId: creatorId || undefined,
+        }),
       })
       const data = await res.json()
       if (!res.ok) {
@@ -221,11 +280,12 @@ function CreateLinkModal({
               className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-transparent"
             />
           </div>
+
           <div>
             <label className="block text-xs font-medium text-gray-700 mb-1.5">Slug personalizado</label>
             <div className="flex">
               <span className="px-3 py-2 bg-gray-50 border border-r-0 border-gray-200 rounded-l-lg text-sm text-gray-500">
-                {process.env.NEXT_PUBLIC_SHORT_DOMAIN || "joinkool.co"}/
+                {SHORT_DOMAIN}/
               </span>
               <input
                 type="text"
@@ -236,6 +296,43 @@ function CreateLinkModal({
               />
             </div>
           </div>
+
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1.5">
+              Campaña <span className="text-gray-400 font-normal">(opcional)</span>
+            </label>
+            <select
+              value={campaignId}
+              onChange={(e) => { setCampaignId(e.target.value); setCreatorId("") }}
+              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400"
+            >
+              <option value="">Sin campaña</option>
+              {campaigns.map((c) => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
+          </div>
+
+          {campaignId && (
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1.5">
+                Creator <span className="text-gray-400 font-normal">(opcional)</span>
+              </label>
+              <select
+                value={creatorId}
+                onChange={(e) => handleCreatorChange(e.target.value)}
+                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400"
+              >
+                <option value="">Sin creator</option>
+                {creatorsInCampaign.map((cc) => (
+                  <option key={cc.creatorId} value={cc.creatorId}>
+                    {cc.creator?.firstName || cc.creator?.name} {cc.creator?.lastName ?? ""}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
           <div>
             <label className="block text-xs font-medium text-gray-700 mb-1.5">
               Código de descuento <span className="text-gray-400 font-normal">(opcional)</span>
@@ -248,7 +345,9 @@ function CreateLinkModal({
               className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-transparent font-mono"
             />
           </div>
+
           {error && <p className="text-xs text-red-600 bg-red-50 p-2 rounded-lg">{error}</p>}
+
           <div className="flex gap-3 pt-2">
             <button
               type="button"

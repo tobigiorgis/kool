@@ -11,6 +11,34 @@ import { env } from "@/lib/env"
 import { z } from "zod"
 import crypto from "crypto"
 
+export async function GET(
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { userId } = await auth()
+  if (!userId) return unauthorized()
+
+  const { id: campaignId } = await params
+
+  const campaign = await prisma.campaign.findUnique({ where: { id: campaignId } })
+  if (!campaign) return notFound()
+
+  const member = await prisma.workspaceMember.findFirst({
+    where: { userId, workspaceId: campaign.workspaceId },
+  })
+  if (!member) return fail("No access", 403)
+
+  const campaignCreators = await prisma.campaignCreator.findMany({
+    where: { campaignId },
+    include: {
+      creator: { select: { id: true, name: true, firstName: true, lastName: true, discountCode: true } },
+    },
+    orderBy: { createdAt: "asc" },
+  })
+
+  return ok({ campaignCreators })
+}
+
 // Schema for inviting via email (new flow)
 const InviteCreatorSchema = z.object({
   firstName: z.string().min(1),
@@ -83,7 +111,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       where: { workspaceId: campaign.workspaceId },
     })
 
-    const appUrl = env.NEXT_PUBLIC_APP_URL || "https://app.kool.link"
+    const appUrl = env.NEXT_PUBLIC_APP_URL || "https://app.joinkool.co"
 
     // ── New invite-by-email flow ───────────────
     if ("email" in body) {

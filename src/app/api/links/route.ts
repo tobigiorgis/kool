@@ -12,6 +12,7 @@ const CreateLinkSchema = z.object({
   destination: z.string().url(),
   slug: z.string().min(1).max(50).optional(),
   creatorId: z.string().optional(),
+  campaignId: z.string().optional(),
   discountCode: z.string().optional(),
   utmSource: z.string().optional(),
   utmMedium: z.string().optional(),
@@ -54,6 +55,7 @@ export async function POST(request: NextRequest) {
       data: {
         workspaceId: data.workspaceId,
         creatorId: data.creatorId,
+        campaignId: data.campaignId,
         slug,
         destination: data.destination,
         title: data.title,
@@ -85,7 +87,10 @@ export async function GET(request: NextRequest) {
       ...(creatorId ? { creatorId } : {}),
       archived: false,
     },
-    include: { creator: { select: { id: true, name: true, discountCode: true } } },
+    include: {
+      creator: { select: { id: true, name: true, discountCode: true } },
+      campaign: { select: { id: true, name: true } },
+    },
     orderBy: { createdAt: "desc" },
   })
 
