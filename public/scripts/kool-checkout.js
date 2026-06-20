@@ -49,19 +49,15 @@ export function App(nube) {
     if (!state || !state.cart) return
 
     // 1) ya aplicado → listo
-    if (appliedCoupon(state.cart)) {
-      console.log("[Kool Checkout] cupón ya aplicado:", appliedCoupon(state.cart))
-      return
-    }
+    if (appliedCoupon(state.cart)) return
     // 2) en la URL del checkout
     var fromUrl = refFromQueries(state.location && state.location.queries)
     if (fromUrl) { apply(fromUrl); return }
     // 3) lo que dejó el tracker en el storage
-    if (!store) { console.log("[Kool Checkout] sin código (cart/URL)"); return }
+    if (!store) return
     store.getItem(KEY).then(function (saved) {
       var code = clean(saved)
       if (code) apply(code)
-      else console.log("[Kool Checkout] sin código (cart/URL/storage)")
     }).catch(function () {})
   }
 
