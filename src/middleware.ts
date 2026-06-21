@@ -34,8 +34,8 @@ function hostRedirect(req: Request): NextResponse | null {
       // Rewrite interno → /api/r/{slug}, el browser sigue viendo joinkool.co/{slug}
       return NextResponse.rewrite(new URL(`/api/r/${slug}${url.search}`, req.url))
     }
-    // Raíz joinkool.co/ → redirigir al app si está configurado
-    if (APP_DOMAIN) {
+    // Raíz joinkool.co/ → redirigir al app solo si es un dominio distinto
+    if (APP_DOMAIN && APP_DOMAIN !== SHORT_DOMAIN) {
       return NextResponse.redirect(`https://${APP_DOMAIN}${url.search}`)
     }
     return null
