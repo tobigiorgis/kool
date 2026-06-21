@@ -12,7 +12,7 @@
 //      asyncLocalStorage (lo dejó el tracker; el storage es scoped a la app,
 //      compartido entre storefront y checkout) y lo aplicamos con coupon:add.
 
-function App(nube) {
+export function App(nube) {
   var KEY = "kool_ref"
   var COUPON_RE = /^[A-Za-z0-9_-]{2,40}$/
 
