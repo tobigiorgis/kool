@@ -15,8 +15,10 @@ export function App(nube) {
   var TTL = 30 * 24 * 60 * 60 // 30 días, en segundos
   var COUPON_RE = /^[A-Za-z0-9_-]{2,40}$/
 
+  console.log("[Kool] App iniciado")
   var browser = nube.getBrowserAPIs()
   var store = browser && browser.asyncLocalStorage
+  console.log("[Kool] storage:", store ? "disponible" : "NO disponible")
 
   function clean(v) {
     if (!v) return null
@@ -50,16 +52,22 @@ export function App(nube) {
   function resolve(state, cb) {
     var fromUrl = refFromQueries(state.location && state.location.queries)
     if (fromUrl) {
+      console.log("[Kool] ref en URL:", fromUrl)
       if (store) store.setItem(KEY, fromUrl, TTL).catch(function () {})
       cb(fromUrl)
       return
     }
     if (!store) return cb(null)
-    store.getItem(KEY).then(function (saved) { cb(clean(saved)) }).catch(function () { cb(null) })
+    store.getItem(KEY).then(function (saved) {
+      var code = clean(saved)
+      if (code) console.log("[Kool] ref en storage:", code)
+      cb(code)
+    }).catch(function () { cb(null) })
   }
 
   function handle() {
     var state = nube.getState()
+    console.log("[Kool] handle — cart:", state && state.cart ? "ok" : "null")
     resolve(state, function (code) { applyIfNeeded(state, code) })
   }
 
