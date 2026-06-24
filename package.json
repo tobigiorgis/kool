@@ -13,6 +13,7 @@
     "format:check": "prettier --check .",
     "test": "vitest run",
     "test:watch": "vitest",
+    "smoke:email": "SKIP_ENV_VALIDATION=1 dotenv -e .env.local -- npx tsx scripts/smoke-email.ts",
     "prepare": "husky",
     "db:push": "dotenv -e .env.local -- prisma db push",
     "db:migrate": "dotenv -e .env.local -- prisma migrate dev",

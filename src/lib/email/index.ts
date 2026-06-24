@@ -185,56 +185,6 @@ export async function sendBriefing({
   })
 }
 
-// ─── Notificación de gifting ──────────────────
-
-export async function sendGiftingNotification({
-  to,
-  creatorName,
-  brandName,
-  products,
-  trackingNumber,
-  notes,
-}: {
-  to: string
-  creatorName: string
-  brandName: string
-  products: { name: string; quantity: number }[]
-  trackingNumber?: string
-  notes?: string
-}) {
-  const productsList = products.map((p) => `<li>${p.quantity}x ${p.name}</li>`).join("")
-
-  const html = baseTemplate(
-    `
-    <h1>¡${brandName} te envió un regalo! 📦</h1>
-    <p>Hola ${creatorName},</p>
-    <p><strong>${brandName}</strong> te está enviando los siguientes productos:</p>
-    <ul style="background:#f9fafb; padding: 16px 16px 16px 32px; border-radius:8px;">
-      ${productsList}
-    </ul>
-    ${notes ? `<p style="background:#f0fdf4; padding:12px 16px; border-radius:8px; font-size:13px; color:#166534;">💬 ${notes}</p>` : ""}
-    ${
-      trackingNumber
-        ? `
-    <p>Número de seguimiento:</p>
-    <div style="text-align:center; margin: 12px 0;">
-      <span class="pill">${trackingNumber}</span>
-    </div>`
-        : "<p style='color:#6b7280; font-size:13px;'>Te avisaremos cuando tengamos el número de seguimiento.</p>"
-    }
-    <hr class="divider">
-    <p style="color:#6b7280; font-size:13px;">Cuando recibas el paquete, confirmá la recepción desde tu panel de Kool.</p>
-    `,
-    brandName
-  )
-
-  return sendEmail({
-    to,
-    subject: `${brandName} te envió un regalo`,
-    html,
-  })
-}
-
 // ─── Aplicación recibida ──────────────────────
 
 export async function sendApplicationConfirmation({
@@ -469,52 +419,6 @@ export async function sendCampaignInviteNew({
   return sendEmail({
     to,
     subject: `${brandName} te invitó a su programa de creators en Kool`,
-    html,
-  })
-}
-
-// ─── Notificación de comisión ─────────────────
-
-export async function sendCommissionApproved({
-  to,
-  creatorName,
-  amount,
-  currency,
-  brandName,
-  dashboardUrl,
-}: {
-  to: string
-  creatorName: string
-  amount: number
-  currency: string
-  brandName: string
-  dashboardUrl: string
-}) {
-  const formatted = new Intl.NumberFormat("es-AR", {
-    style: "currency",
-    currency,
-    minimumFractionDigits: 0,
-  }).format(amount)
-
-  const html = baseTemplate(
-    `
-    <h1>Tenés una comisión aprobada 💸</h1>
-    <p>Hola ${creatorName},</p>
-    <p><strong>${brandName}</strong> aprobó una comisión para vos:</p>
-    <div style="text-align:center; margin: 24px 0;">
-      <div style="font-size: 36px; font-weight: 700; color: #111827;">${formatted}</div>
-      <div style="color:#6b7280; font-size:13px; margin-top:4px;">${currency}</div>
-    </div>
-    <p style="text-align:center;">
-      <a href="${dashboardUrl}" class="btn">Ver mis comisiones →</a>
-    </p>
-    `,
-    brandName
-  )
-
-  return sendEmail({
-    to,
-    subject: `Comisión aprobada de ${brandName}: ${formatted}`,
     html,
   })
 }
