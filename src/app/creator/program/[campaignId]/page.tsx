@@ -1,4 +1,6 @@
 import { auth } from "@clerk/nextjs/server"
+import { buildShortUrl, shortUrlLabel } from "@/lib/links"
+import { creatorPath } from "@/lib/host"
 import { redirect, notFound } from "next/navigation"
 import { prisma } from "@/lib/prisma"
 import { formatCurrency, formatDate } from "@/lib/utils"
@@ -6,7 +8,6 @@ import { getCampaignProgress, progressForMetric, rewardLabel } from "@/lib/bount
 import Link from "next/link"
 import { CopyLinkButton } from "./copy-link-button"
 import { Tag, DollarSign, Trophy, Check, Gift, Package } from "lucide-react"
-import { SHORT_DOMAIN } from "@/lib/domains"
 
 export default async function ProgramOverviewPage({
   params,
@@ -124,10 +125,10 @@ export default async function ProgramOverviewPage({
               <div className="flex items-center gap-2 max-w-md">
                 <div className="flex-1 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
                   <span className="text-[13px] text-gray-700 font-mono">
-                    {SHORT_DOMAIN}/{firstLink.slug}
+                    {shortUrlLabel(firstLink.slug)}
                   </span>
                 </div>
-                <CopyLinkButton value={`https://${SHORT_DOMAIN}/${firstLink.slug}`} />
+                <CopyLinkButton value={buildShortUrl(firstLink.slug)} />
               </div>
             </div>
           )}
@@ -288,7 +289,7 @@ export default async function ProgramOverviewPage({
           <div className="flex items-center justify-between mb-4">
             <p className="text-[13px] font-semibold text-gray-900">Payouts</p>
             <Link
-              href="/creator/payouts"
+              href={creatorPath("payouts")}
               className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
             >
               Ver todos →
@@ -337,7 +338,7 @@ export default async function ProgramOverviewPage({
         <div className="flex items-center justify-between mb-3">
           <p className="text-[13px] font-semibold text-gray-900">Recent earnings</p>
           <Link
-            href={`/creator/program/${campaignId}/earnings`}
+            href={creatorPath(`program/${campaignId}/earnings`)}
             className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
           >
             View all →
@@ -369,7 +370,7 @@ export default async function ProgramOverviewPage({
                       {formatDate(e.createdAt)}
                     </td>
                     <td className="px-5 py-3 text-[13px] text-gray-700 font-mono">
-                      {e.conversion?.link?.slug ? `${SHORT_DOMAIN}/${e.conversion.link.slug}` : "—"}
+                      {e.conversion?.link?.slug ? shortUrlLabel(e.conversion.link.slug) : "—"}
                     </td>
                     <td className="px-5 py-3 text-[13px] text-gray-900 text-right">
                       {formatCurrency(e.orderAmount)}

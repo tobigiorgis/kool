@@ -8,6 +8,7 @@ import { sendCampaignInviteExisting, sendCampaignInviteNew } from "@/lib/email"
 import { ok, fail, unauthorized, notFound, badRequest, handleError } from "@/lib/api/response"
 import { logger } from "@/lib/logger"
 import { env } from "@/lib/env"
+import { creatorUrl } from "@/lib/host"
 import { z } from "zod"
 import crypto from "crypto"
 
@@ -111,7 +112,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       where: { workspaceId: campaign.workspaceId },
     })
 
-    const appUrl = env.NEXT_PUBLIC_APP_URL || "https://app.joinkool.co"
+    const appUrl = env.NEXT_PUBLIC_APP_URL
 
     // ── New invite-by-email flow ───────────────
     if ("email" in body) {
@@ -222,7 +223,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
           campaignName: campaign.name,
           discountCode,
           commissionPct: data.commissionPct,
-          dashboardUrl: `${appUrl}/creator`,
+          dashboardUrl: creatorUrl(""),
         })
       } else {
         const registerUrl = `${appUrl}/register?token=${inviteToken}`

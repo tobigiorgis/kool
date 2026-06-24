@@ -35,8 +35,8 @@ import {
 } from "lucide-react"
 import { Area, AreaChart, ResponsiveContainer, XAxis, YAxis, Tooltip } from "recharts"
 import { formatNumber, formatCurrency, formatDate, generateDiscountCode } from "@/lib/utils"
+import { buildShortUrl, shortUrlLabel } from "@/lib/links"
 import BountiesTab from "./BountiesTab"
-import { SHORT_DOMAIN } from "@/lib/domains"
 
 interface CampaignCreator {
   id: string
@@ -1103,7 +1103,7 @@ function LinksTab({ links, campaignId }: { links: CampaignLink[]; campaignId: st
                     <div className="flex items-center gap-2">
                       <Link2 size={13} className="text-rose-400 flex-shrink-0" />
                       <span className="text-[13px] font-medium text-rose-500">
-                        {SHORT_DOMAIN}/{link.slug}
+                        {shortUrlLabel(link.slug)}
                       </span>
                     </div>
                     <p className="text-xs text-gray-400 truncate max-w-[220px] mt-0.5 ml-5">
@@ -1134,9 +1134,7 @@ function LinksTab({ links, campaignId }: { links: CampaignLink[]; campaignId: st
                   <td className="px-5 py-3.5">
                     <div className="flex items-center justify-end gap-1">
                       <button
-                        onClick={() =>
-                          navigator.clipboard.writeText(`https://${SHORT_DOMAIN}/${link.slug}`)
-                        }
+                        onClick={() => navigator.clipboard.writeText(buildShortUrl(link.slug))}
                         className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
                         title="Copiar link"
                       >

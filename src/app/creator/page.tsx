@@ -1,6 +1,7 @@
 import { auth } from "@clerk/nextjs/server"
 import { prisma } from "@/lib/prisma"
 import { redirect } from "next/navigation"
+import { creatorPath } from "@/lib/host"
 
 export default async function CreatorRootPage() {
   const { userId } = await auth()
@@ -14,7 +15,7 @@ export default async function CreatorRootPage() {
     orderBy: { createdAt: "desc" },
   })
 
-  if (firstProgram) redirect(`/creator/program/${firstProgram.campaignId}`)
+  if (firstProgram) redirect(creatorPath(`program/${firstProgram.campaignId}`))
 
-  redirect("/creator/programs")
+  redirect(creatorPath("programs"))
 }

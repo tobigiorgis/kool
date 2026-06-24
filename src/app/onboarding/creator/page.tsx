@@ -1,9 +1,10 @@
 "use client"
 
 import { Suspense, useEffect, useState } from "react"
-import { useSearchParams, useRouter } from "next/navigation"
+import { useSearchParams } from "next/navigation"
 import { CheckCircle, AlertCircle, Loader2, ChevronRight } from "lucide-react"
 import { NicheSelector } from "@/components/creator/NicheSelector"
+import { creatorUrl } from "@/lib/host"
 
 interface CreatorInfo {
   id: string
@@ -21,7 +22,6 @@ interface CreatorInfo {
 
 function CreatorOnboardingForm() {
   const searchParams = useSearchParams()
-  const router = useRouter()
   const token = searchParams.get("token")
 
   const [creator, setCreator] = useState<CreatorInfo | null>(null)
@@ -58,7 +58,10 @@ function CreatorOnboardingForm() {
     fetch(`/api/onboarding/creator?token=${token}`)
       .then((r) => r.json())
       .then((d) => {
-        if (d.error) { setLoadError(d.error); return }
+        if (d.error) {
+          setLoadError(d.error)
+          return
+        }
         setCreator(d.creator)
         setForm((f) => ({
           ...f,
@@ -78,7 +81,10 @@ function CreatorOnboardingForm() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!form.acceptTerms) { setError("Debés aceptar los términos para continuar."); return }
+    if (!form.acceptTerms) {
+      setError("Debés aceptar los términos para continuar.")
+      return
+    }
     setSubmitting(true)
     setError("")
 
@@ -89,7 +95,10 @@ function CreatorOnboardingForm() {
         body: JSON.stringify({ token: token ?? undefined, ...form }),
       })
       const data = await res.json()
-      if (!res.ok) { setError(data.error ?? "Error al guardar"); return }
+      if (!res.ok) {
+        setError(data.error ?? "Error al guardar")
+        return
+      }
       setDone(true)
     } catch {
       setError("Error de conexión.")
@@ -133,12 +142,15 @@ function CreatorOnboardingForm() {
                 {creator.discountCode}
               </div>
               <p className="text-[13px] text-gray-500 mb-6">
-                Ganás <strong className="text-gray-900">{creator.commissionPct}%</strong> de comisión por cada venta que generes.
+                Ganás <strong className="text-gray-900">{creator.commissionPct}%</strong> de
+                comisión por cada venta que generes.
               </p>
             </>
           )}
           <button
-            onClick={() => router.push("/creator")}
+            onClick={() => {
+              window.location.href = creatorUrl("")
+            }}
             className="bg-gray-900 text-white text-[13px] font-medium px-6 py-2.5 rounded-xl hover:bg-gray-800 transition-colors"
           >
             Ver mi panel →
@@ -148,7 +160,8 @@ function CreatorOnboardingForm() {
     )
   }
 
-  const inputCls = "w-full px-3 py-2 text-[13px] border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-brand-300 focus:border-brand-300"
+  const inputCls =
+    "w-full px-3 py-2 text-[13px] border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-brand-300 focus:border-brand-300"
   const labelCls = "block text-[12px] font-medium text-gray-700 mb-1.5"
 
   return (
@@ -171,13 +184,25 @@ function CreatorOnboardingForm() {
       <div className="max-w-xl mx-auto px-6 py-10">
         {/* Step indicator */}
         <div className="flex items-center gap-3 mb-8">
-          <div className={`flex items-center gap-2 ${step >= 1 ? "text-gray-900" : "text-gray-300"}`}>
-            <div className={`w-6 h-6 rounded-full text-xs font-bold flex items-center justify-center ${step >= 1 ? "bg-brand-500 text-white" : "bg-gray-100 text-gray-400"}`}>1</div>
+          <div
+            className={`flex items-center gap-2 ${step >= 1 ? "text-gray-900" : "text-gray-300"}`}
+          >
+            <div
+              className={`w-6 h-6 rounded-full text-xs font-bold flex items-center justify-center ${step >= 1 ? "bg-brand-500 text-white" : "bg-gray-100 text-gray-400"}`}
+            >
+              1
+            </div>
             <span className="text-[13px] font-medium">Tu perfil</span>
           </div>
           <ChevronRight size={14} className="text-gray-300" />
-          <div className={`flex items-center gap-2 ${step >= 2 ? "text-gray-900" : "text-gray-300"}`}>
-            <div className={`w-6 h-6 rounded-full text-xs font-bold flex items-center justify-center ${step >= 2 ? "bg-brand-500 text-white" : "bg-gray-100 text-gray-400"}`}>2</div>
+          <div
+            className={`flex items-center gap-2 ${step >= 2 ? "text-gray-900" : "text-gray-300"}`}
+          >
+            <div
+              className={`w-6 h-6 rounded-full text-xs font-bold flex items-center justify-center ${step >= 2 ? "bg-brand-500 text-white" : "bg-gray-100 text-gray-400"}`}
+            >
+              2
+            </div>
             <span className="text-[13px] font-medium">Envíos y cobros</span>
           </div>
         </div>
@@ -186,7 +211,9 @@ function CreatorOnboardingForm() {
         {creator?.discountCode && (
           <div className="mb-8 p-4 border border-gray-100 rounded-xl flex items-center justify-between bg-gray-50">
             <div>
-              <p className="text-[11px] font-medium text-gray-400 uppercase tracking-wide mb-0.5">Tu código</p>
+              <p className="text-[11px] font-medium text-gray-400 uppercase tracking-wide mb-0.5">
+                Tu código
+              </p>
               <p className="text-xl font-bold font-mono text-gray-900">{creator.discountCode}</p>
             </div>
             <div className="text-right">
@@ -208,12 +235,16 @@ function CreatorOnboardingForm() {
 
             {/* Social */}
             <section className="space-y-3">
-              <h2 className="text-[12px] font-semibold text-gray-400 uppercase tracking-wide">Redes sociales</h2>
+              <h2 className="text-[12px] font-semibold text-gray-400 uppercase tracking-wide">
+                Redes sociales
+              </h2>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className={labelCls}>Instagram</label>
                   <div className="flex">
-                    <span className="px-2.5 py-2 bg-gray-50 border border-r-0 border-gray-200 rounded-l-lg text-[12px] text-gray-400">@</span>
+                    <span className="px-2.5 py-2 bg-gray-50 border border-r-0 border-gray-200 rounded-l-lg text-[12px] text-gray-400">
+                      @
+                    </span>
                     <input
                       type="text"
                       value={form.instagram}
@@ -226,7 +257,9 @@ function CreatorOnboardingForm() {
                 <div>
                   <label className={labelCls}>TikTok</label>
                   <div className="flex">
-                    <span className="px-2.5 py-2 bg-gray-50 border border-r-0 border-gray-200 rounded-l-lg text-[12px] text-gray-400">@</span>
+                    <span className="px-2.5 py-2 bg-gray-50 border border-r-0 border-gray-200 rounded-l-lg text-[12px] text-gray-400">
+                      @
+                    </span>
                     <input
                       type="text"
                       value={form.tiktok}
@@ -285,8 +318,12 @@ function CreatorOnboardingForm() {
             {/* Niches */}
             <section className="space-y-3">
               <div>
-                <h2 className="text-[12px] font-semibold text-gray-400 uppercase tracking-wide">Tus nichos</h2>
-                <p className="text-[11px] text-gray-400 mt-0.5">Elegí hasta 3 categorías que representan tu contenido</p>
+                <h2 className="text-[12px] font-semibold text-gray-400 uppercase tracking-wide">
+                  Tus nichos
+                </h2>
+                <p className="text-[11px] text-gray-400 mt-0.5">
+                  Elegí hasta 3 categorías que representan tu contenido
+                </p>
               </div>
               <NicheSelector
                 selected={form.niches}
@@ -315,7 +352,9 @@ function CreatorOnboardingForm() {
 
             {/* Shipping */}
             <section className="space-y-3">
-              <h2 className="text-[12px] font-semibold text-gray-400 uppercase tracking-wide">Dirección de envío</h2>
+              <h2 className="text-[12px] font-semibold text-gray-400 uppercase tracking-wide">
+                Dirección de envío
+              </h2>
               <div>
                 <label className={labelCls}>Calle y número</label>
                 <input
@@ -362,7 +401,9 @@ function CreatorOnboardingForm() {
 
             {/* Payment */}
             <section className="space-y-3">
-              <h2 className="text-[12px] font-semibold text-gray-400 uppercase tracking-wide">Datos de cobro</h2>
+              <h2 className="text-[12px] font-semibold text-gray-400 uppercase tracking-wide">
+                Datos de cobro
+              </h2>
               <div>
                 <label className={labelCls}>Alias o CBU (para transferencias)</label>
                 <input
@@ -388,7 +429,11 @@ function CreatorOnboardingForm() {
               />
               <span className="text-[13px] text-gray-600">
                 Acepto los{" "}
-                <a href="/terms" target="_blank" className="text-brand-600 underline hover:text-brand-700">
+                <a
+                  href="/terms"
+                  target="_blank"
+                  className="text-brand-600 underline hover:text-brand-700"
+                >
                   términos y condiciones
                 </a>{" "}
                 del programa de creators de Kool
@@ -426,11 +471,13 @@ function CreatorOnboardingForm() {
 
 export default function CreatorOnboardingPage() {
   return (
-    <Suspense fallback={
-      <div className="min-h-screen bg-white flex items-center justify-center">
-        <Loader2 size={20} className="animate-spin text-gray-400" />
-      </div>
-    }>
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-white flex items-center justify-center">
+          <Loader2 size={20} className="animate-spin text-gray-400" />
+        </div>
+      }
+    >
       <CreatorOnboardingForm />
     </Suspense>
   )

@@ -27,11 +27,13 @@ export const env = createEnv({
   },
   client: {
     NEXT_PUBLIC_APP_URL: z.string().url(),
-    NEXT_PUBLIC_SHORT_DOMAIN: z.string().optional(), // dominio de short links, ej: joinkool.co
     // Multi-host routing: vacíos => app single-domain (ver DOMAINS.md).
     NEXT_PUBLIC_APP_DOMAIN: z.string().optional(),
     NEXT_PUBLIC_CREATOR_DOMAIN: z.string().optional(),
     NEXT_PUBLIC_ROOT_DOMAIN: z.string().optional(),
+    // Dominio corto de los links de afiliado (ej. refer.joinkool.co). Lo lee el
+    // middleware (rewrite host→/api/r) y el builder buildShortUrl() de la UI.
+    NEXT_PUBLIC_SHORT_DOMAIN: z.string().min(1).default("kool.link"),
   },
   runtimeEnv: {
     DATABASE_URL: process.env.DATABASE_URL,

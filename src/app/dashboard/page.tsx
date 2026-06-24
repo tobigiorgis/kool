@@ -5,7 +5,7 @@ import { getDateRange, formatNumber, formatCurrency } from "@/lib/utils"
 import { MetricCard } from "./metric-card"
 import { Zap, ArrowUpRight, CheckCircle2, XCircle, Megaphone } from "lucide-react"
 import Link from "next/link"
-import { SHORT_DOMAIN } from "@/lib/domains"
+import { shortUrlLabel } from "@/lib/links"
 
 /** Deterministic sparkline from a seed value */
 function generateSparkline(seed: number, points = 14): number[] {
@@ -131,7 +131,10 @@ export default async function DashboardPage() {
       <div className="mb-8">
         <div className="flex items-center justify-between mb-3">
           <span className="text-[13px] font-medium text-gray-900">Campañas recientes</span>
-          <Link href="/dashboard/campaigns" className="text-[12px] text-gray-400 hover:text-gray-700 transition-colors">
+          <Link
+            href="/dashboard/campaigns"
+            className="text-[12px] text-gray-400 hover:text-gray-700 transition-colors"
+          >
             Ver todas →
           </Link>
         </div>
@@ -173,7 +176,8 @@ export default async function DashboardPage() {
                   </span>
                   <span className="text-gray-200 text-[10px]">·</span>
                   <span className="text-[11px] text-gray-400">
-                    {campaign._count.applications} aplicacion{campaign._count.applications !== 1 ? "es" : ""}
+                    {campaign._count.applications} aplicacion
+                    {campaign._count.applications !== 1 ? "es" : ""}
                   </span>
                 </div>
               </Link>
@@ -197,11 +201,21 @@ export default async function DashboardPage() {
             <table className="w-full">
               <thead>
                 <tr className="border-b border-[#f0f0f0]">
-                  <th className="text-left text-[11px] font-medium text-gray-400 px-5 py-3">Creator</th>
-                  <th className="text-left text-[11px] font-medium text-gray-400 px-5 py-3">Link</th>
-                  <th className="text-left text-[11px] font-medium text-gray-400 px-5 py-3">Campaña</th>
-                  <th className="text-right text-[11px] font-medium text-gray-400 px-5 py-3">Orden</th>
-                  <th className="text-right text-[11px] font-medium text-gray-400 px-5 py-3">Comisión</th>
+                  <th className="text-left text-[11px] font-medium text-gray-400 px-5 py-3">
+                    Creator
+                  </th>
+                  <th className="text-left text-[11px] font-medium text-gray-400 px-5 py-3">
+                    Link
+                  </th>
+                  <th className="text-left text-[11px] font-medium text-gray-400 px-5 py-3">
+                    Campaña
+                  </th>
+                  <th className="text-right text-[11px] font-medium text-gray-400 px-5 py-3">
+                    Orden
+                  </th>
+                  <th className="text-right text-[11px] font-medium text-gray-400 px-5 py-3">
+                    Comisión
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -210,9 +224,13 @@ export default async function DashboardPage() {
                     key={commission.id}
                     className={i < recentEvents.length - 1 ? "border-b border-[#f0f0f0]" : ""}
                   >
-                    <td className="px-5 py-3 text-[13px] text-gray-900">{commission.creator.name}</td>
+                    <td className="px-5 py-3 text-[13px] text-gray-900">
+                      {commission.creator.name}
+                    </td>
                     <td className="px-5 py-3 text-[12px] font-mono text-gray-500">
-                      {commission.conversion.link ? `${SHORT_DOMAIN}/${commission.conversion.link.slug}` : "—"}
+                      {commission.conversion.link
+                        ? shortUrlLabel(commission.conversion.link.slug)
+                        : "—"}
                     </td>
                     <td className="px-5 py-3 text-[12px] text-gray-500">
                       {commission.conversion.link?.campaign?.name ?? "—"}

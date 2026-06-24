@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { SignIn } from "@clerk/nextjs"
 import Link from "next/link"
+import { roleHomeUrl } from "@/lib/host"
 
 export default function LoginPage() {
   const [role, setRole] = useState<"brand" | "creator">("brand")
@@ -59,10 +60,7 @@ export default function LoginPage() {
 
         {/* Clerk sign in */}
         <div className="flex justify-center">
-          <SignIn
-            afterSignInUrl={role === "brand" ? "/dashboard" : "/creator"}
-            routing="hash"
-          />
+          <SignIn afterSignInUrl={roleHomeUrl(role)} routing="hash" />
         </div>
 
         {/* Footer */}
@@ -77,7 +75,10 @@ export default function LoginPage() {
           ) : (
             <>
               ¿Primera vez?{" "}
-              <Link href="/register?role=creator" className="text-gray-600 font-medium hover:underline">
+              <Link
+                href="/register?role=creator"
+                className="text-gray-600 font-medium hover:underline"
+              >
                 Creá tu cuenta
               </Link>
             </>

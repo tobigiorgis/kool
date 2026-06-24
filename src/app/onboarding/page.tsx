@@ -1,11 +1,11 @@
 "use client"
 
 import { useState } from "react"
-import { useRouter } from "next/navigation"
 import { slugify } from "@/lib/utils"
+import { SHORT_DOMAIN } from "@/lib/links"
+import { appUrl } from "@/lib/host"
 
 export default function OnboardingPage() {
-  const router = useRouter()
   const [name, setName] = useState("")
   const [slug, setSlug] = useState("")
   const [loading, setLoading] = useState(false)
@@ -34,7 +34,7 @@ export default function OnboardingPage() {
         return
       }
 
-      router.push("/dashboard")
+      window.location.href = appUrl("dashboard")
     } catch {
       setError("Error de conexión. Intentá de nuevo.")
     } finally {
@@ -51,7 +51,9 @@ export default function OnboardingPage() {
             <span className="text-2xl font-bold tracking-tight text-gray-900">kool</span>
             <span className="w-2 h-2 rounded-full bg-brand-400 mb-0.5" />
           </div>
-          <p className="text-gray-500 text-sm mt-2">¡Bienvenido! Configurá tu workspace para empezar.</p>
+          <p className="text-gray-500 text-sm mt-2">
+            ¡Bienvenido! Configurá tu workspace para empezar.
+          </p>
         </div>
 
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-8">
@@ -82,20 +84,20 @@ export default function OnboardingPage() {
               </label>
               <div className="flex">
                 <span className="px-3 py-2.5 bg-gray-50 border border-r-0 border-gray-200 rounded-l-lg text-sm text-gray-400 flex-shrink-0">
-                  app.joinkool.co/
+                  {SHORT_DOMAIN}/w/
                 </span>
                 <input
                   type="text"
                   value={slug}
-                  onChange={(e) =>
-                    setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))
-                  }
+                  onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))}
                   placeholder="mi-workspace"
                   required
                   className="flex-1 px-3 py-2.5 text-sm border border-gray-200 rounded-r-lg focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-transparent min-w-0"
                 />
               </div>
-              <p className="text-xs text-gray-400 mt-1">Solo letras minúsculas, números y guiones.</p>
+              <p className="text-xs text-gray-400 mt-1">
+                Solo letras minúsculas, números y guiones.
+              </p>
             </div>
 
             {error && (

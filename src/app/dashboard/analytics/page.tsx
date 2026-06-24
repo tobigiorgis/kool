@@ -4,12 +4,29 @@ import { useEffect, useState, useCallback, Suspense } from "react"
 import { useSearchParams } from "next/navigation"
 import Link from "next/link"
 import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell,
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
 } from "recharts"
-import { TrendingUp, MousePointerClick, Users, ShoppingCart, Globe, Smartphone, Wifi, X } from "lucide-react"
+import {
+  TrendingUp,
+  MousePointerClick,
+  Users,
+  ShoppingCart,
+  Globe,
+  Smartphone,
+  Wifi,
+  X,
+} from "lucide-react"
 import { formatNumber } from "@/lib/utils"
-import { SHORT_DOMAIN } from "@/lib/domains"
+import { shortUrlLabel } from "@/lib/links"
 
 type Period = "7d" | "30d" | "90d"
 
@@ -45,12 +62,20 @@ const SOURCE_COLORS: Record<string, string> = {
 }
 
 const COUNTRY_NAMES: Record<string, string> = {
-  AR: "Argentina", MX: "México", CL: "Chile", CO: "Colombia",
-  PE: "Perú", UY: "Uruguay", BR: "Brasil", ES: "España",
+  AR: "Argentina",
+  MX: "México",
+  CL: "Chile",
+  CO: "Colombia",
+  PE: "Perú",
+  UY: "Uruguay",
+  BR: "Brasil",
+  ES: "España",
 }
 
 const PERIOD_LABELS: Record<Period, string> = {
-  "7d": "7 días", "30d": "30 días", "90d": "90 días",
+  "7d": "7 días",
+  "30d": "30 días",
+  "90d": "90 días",
 }
 
 export default function AnalyticsPage() {
@@ -71,13 +96,16 @@ function AnalyticsContent() {
   const [data, setData] = useState<AnalyticsData | null>(null)
   const [loading, setLoading] = useState(true)
 
-  const buildApiUrl = useCallback((p: string) => {
-    const params = new URLSearchParams({ period: p })
-    if (linkId) params.set("linkId", linkId)
-    if (campaignId) params.set("campaignId", campaignId)
-    if (creatorId) params.set("creatorId", creatorId)
-    return `/api/analytics?${params.toString()}`
-  }, [linkId, campaignId, creatorId])
+  const buildApiUrl = useCallback(
+    (p: string) => {
+      const params = new URLSearchParams({ period: p })
+      if (linkId) params.set("linkId", linkId)
+      if (campaignId) params.set("campaignId", campaignId)
+      if (creatorId) params.set("creatorId", creatorId)
+      return `/api/analytics?${params.toString()}`
+    },
+    [linkId, campaignId, creatorId]
+  )
 
   const fetchData = useCallback(async () => {
     setLoading(true)
@@ -89,7 +117,9 @@ function AnalyticsContent() {
     }
   }, [period, buildApiUrl])
 
-  useEffect(() => { fetchData() }, [fetchData])
+  useEffect(() => {
+    fetchData()
+  }, [fetchData])
 
   const conversionRate =
     data && data.stats.clicks > 0
@@ -102,13 +132,13 @@ function AnalyticsContent() {
   const hasFilter = !!(linkId || campaignId || creatorId)
 
   const filterLabel = data?.filterInfo
-    ? (data.filterInfo.linkSlug
-        ? `${SHORT_DOMAIN}/${data.filterInfo.linkSlug}`
-        : data.filterInfo.campaignName
+    ? data.filterInfo.linkSlug
+      ? shortUrlLabel(data.filterInfo.linkSlug)
+      : data.filterInfo.campaignName
         ? data.filterInfo.campaignName
         : data.filterInfo.creatorName
-        ? data.filterInfo.creatorName
-        : "")
+          ? data.filterInfo.creatorName
+          : ""
     : ""
 
   const getTitle = () => {
@@ -125,7 +155,10 @@ function AnalyticsContent() {
         <div>
           {hasFilter && (
             <div className="flex items-center gap-2 mb-2">
-              <Link href="/dashboard/analytics" className="text-xs text-gray-400 hover:text-gray-600 transition-colors">
+              <Link
+                href="/dashboard/analytics"
+                className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
+              >
                 Analytics
               </Link>
               <span className="text-xs text-gray-300">/</span>
@@ -206,7 +239,10 @@ function AnalyticsContent() {
           </div>
         ) : (
           <ResponsiveContainer width="100%" height={220}>
-            <LineChart data={data?.clicksByDay ?? []} margin={{ top: 5, right: 10, bottom: 5, left: 0 }}>
+            <LineChart
+              data={data?.clicksByDay ?? []}
+              margin={{ top: 5, right: 10, bottom: 5, left: 0 }}
+            >
               <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
               <XAxis
                 dataKey="date"
@@ -229,8 +265,23 @@ function AnalyticsContent() {
                 ]}
                 contentStyle={{ borderRadius: 8, border: "1px solid #e5e7eb", fontSize: 12 }}
               />
-              <Line type="monotone" dataKey="clicks" stroke="#00C46A" strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
-              <Line type="monotone" dataKey="unique_clicks" stroke="#3b82f6" strokeWidth={2} dot={false} activeDot={{ r: 4 }} strokeDasharray="4 2" />
+              <Line
+                type="monotone"
+                dataKey="clicks"
+                stroke="#00C46A"
+                strokeWidth={2}
+                dot={false}
+                activeDot={{ r: 4 }}
+              />
+              <Line
+                type="monotone"
+                dataKey="unique_clicks"
+                stroke="#3b82f6"
+                strokeWidth={2}
+                dot={false}
+                activeDot={{ r: 4 }}
+                strokeDasharray="4 2"
+              />
             </LineChart>
           </ResponsiveContainer>
         )}
@@ -263,11 +314,18 @@ function AnalyticsContent() {
                 return (
                   <div key={country}>
                     <div className="flex items-center justify-between mb-1">
-                      <span className="text-xs text-gray-700">{COUNTRY_NAMES[country] ?? country}</span>
-                      <span className="text-xs font-medium text-gray-900">{clicks.toLocaleString()}</span>
+                      <span className="text-xs text-gray-700">
+                        {COUNTRY_NAMES[country] ?? country}
+                      </span>
+                      <span className="text-xs font-medium text-gray-900">
+                        {clicks.toLocaleString()}
+                      </span>
                     </div>
                     <div className="h-1.5 bg-gray-100 rounded-full">
-                      <div className="h-1.5 rounded-full bg-brand-400" style={{ width: `${(clicks / max) * 100}%` }} />
+                      <div
+                        className="h-1.5 rounded-full bg-brand-400"
+                        style={{ width: `${(clicks / max) * 100}%` }}
+                      />
                     </div>
                   </div>
                 )
@@ -315,7 +373,10 @@ function AnalyticsContent() {
                 {(data?.devices ?? []).map(({ device, percentage }) => (
                   <div key={device} className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 rounded-full" style={{ background: DEVICE_COLORS[device] ?? "#9ca3af" }} />
+                      <div
+                        className="w-2 h-2 rounded-full"
+                        style={{ background: DEVICE_COLORS[device] ?? "#9ca3af" }}
+                      />
                       <span className="text-xs text-gray-600 capitalize">{device}</span>
                     </div>
                     <span className="text-xs font-medium text-gray-900">{percentage}%</span>
@@ -348,7 +409,10 @@ function AnalyticsContent() {
                   <div className="h-1.5 bg-gray-100 rounded-full">
                     <div
                       className="h-1.5 rounded-full"
-                      style={{ width: `${percentage}%`, background: SOURCE_COLORS[source] ?? "#9ca3af" }}
+                      style={{
+                        width: `${percentage}%`,
+                        background: SOURCE_COLORS[source] ?? "#9ca3af",
+                      }}
                     />
                   </div>
                 </div>
@@ -365,8 +429,16 @@ function AnalyticsContent() {
 }
 
 function StatCard({
-  label, value, icon, bg,
-}: { label: string; value: string; icon: React.ReactNode; bg: string }) {
+  label,
+  value,
+  icon,
+  bg,
+}: {
+  label: string
+  value: string
+  icon: React.ReactNode
+  bg: string
+}) {
   return (
     <div className="bg-white rounded-xl border border-gray-100 p-5">
       <div className="flex items-center justify-between mb-3">
