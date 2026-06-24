@@ -24,7 +24,7 @@ export default function PrivacyPage() {
             <h2 className="text-base font-semibold text-gray-900 mb-3">1. Introducción</h2>
             <p>
               Kool (&quot;nosotros&quot;, &quot;nuestro&quot;) opera la plataforma disponible en{" "}
-              <span className="text-gray-900">kool.link</span>. Esta política describe qué datos
+              <span className="text-gray-900">joinkool.co</span>. Esta política describe qué datos
               recopilamos, cómo los usamos y qué derechos tenés sobre ellos.
             </p>
           </section>

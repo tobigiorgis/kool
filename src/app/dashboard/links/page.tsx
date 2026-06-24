@@ -10,7 +10,19 @@ interface LinkData {
   destination: string
   discountCode: string | null
   creator: { id: string; name: string; discountCode: string | null } | null
+  campaign: { id: string; name: string } | null
   createdAt: string
+}
+
+interface Campaign {
+  id: string
+  name: string
+}
+
+interface CampaignCreatorEntry {
+  creatorId: string
+  discountCode: string | null
+  creator: { id: string; firstName: string | null; lastName: string | null; name: string } | null
 }
 
 export default function LinksPage() {
@@ -86,6 +98,7 @@ export default function LinksPage() {
             <thead>
               <tr className="border-b border-gray-100 bg-gray-50">
                 <th className="text-left px-6 py-3 text-xs font-medium text-gray-500">Link</th>
+                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500">Campaña</th>
                 <th className="text-left px-6 py-3 text-xs font-medium text-gray-500">Creator</th>
                 <th className="text-left px-6 py-3 text-xs font-medium text-gray-500">Código</th>
                 <th className="px-6 py-3" />
@@ -108,6 +121,13 @@ export default function LinksPage() {
                         </p>
                       </div>
                     </div>
+                  </td>
+                  <td className="px-6 py-4">
+                    {link.campaign ? (
+                      <span className="text-sm text-gray-700">{link.campaign.name}</span>
+                    ) : (
+                      <span className="text-xs text-gray-400">—</span>
+                    )}
                   </td>
                   <td className="px-6 py-4">
                     {link.creator ? (
@@ -182,14 +202,44 @@ function CreateLinkModal({
   const [destination, setDestination] = useState("")
   const [slug, setSlug] = useState("")
   const [discountCode, setDiscountCode] = useState("")
+  const [campaignId, setCampaignId] = useState("")
+  const [creatorId, setCreatorId] = useState("")
+  const [campaigns, setCampaigns] = useState<Campaign[]>([])
+  const [creatorsInCampaign, setCreatorsInCampaign] = useState<CampaignCreatorEntry[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
+
+  useEffect(() => {
+    fetch(`/api/campaigns?workspaceId=${workspaceId}`)
+      .then((r) => r.json())
+      .then((data) => setCampaigns(data.campaigns || []))
+      .catch(() => {})
+  }, [workspaceId])
+
+  useEffect(() => {
+    if (!campaignId) {
+      setCreatorsInCampaign([])
+      setCreatorId("")
+      return
+    }
+    fetch(`/api/campaigns/${campaignId}/creators`)
+      .then((r) => r.json())
+      .then((data) => setCreatorsInCampaign(data.campaignCreators || []))
+      .catch(() => {})
+  }, [campaignId])
+
+  const handleCreatorChange = (id: string) => {
+    setCreatorId(id)
+    if (id) {
+      const cc = creatorsInCampaign.find((c) => c.creatorId === id)
+      if (cc?.discountCode) setDiscountCode(cc.discountCode)
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
     setError("")
-
     try {
       const res = await fetch("/api/links", {
         method: "POST",
@@ -233,6 +283,7 @@ function CreateLinkModal({
               className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-transparent"
             />
           </div>
+
           <div>
             <label className="block text-xs font-medium text-gray-700 mb-1.5">
               Slug personalizado
@@ -250,6 +301,43 @@ function CreateLinkModal({
               />
             </div>
           </div>
+
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1.5">
+              Campaña <span className="text-gray-400 font-normal">(opcional)</span>
+            </label>
+            <select
+              value={campaignId}
+              onChange={(e) => { setCampaignId(e.target.value); setCreatorId("") }}
+              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400"
+            >
+              <option value="">Sin campaña</option>
+              {campaigns.map((c) => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
+          </div>
+
+          {campaignId && (
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1.5">
+                Creator <span className="text-gray-400 font-normal">(opcional)</span>
+              </label>
+              <select
+                value={creatorId}
+                onChange={(e) => handleCreatorChange(e.target.value)}
+                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400"
+              >
+                <option value="">Sin creator</option>
+                {creatorsInCampaign.map((cc) => (
+                  <option key={cc.creatorId} value={cc.creatorId}>
+                    {cc.creator?.firstName || cc.creator?.name} {cc.creator?.lastName ?? ""}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
           <div>
             <label className="block text-xs font-medium text-gray-700 mb-1.5">
               Código de descuento <span className="text-gray-400 font-normal">(opcional)</span>
@@ -262,7 +350,9 @@ function CreateLinkModal({
               className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-transparent font-mono"
             />
           </div>
+
           {error && <p className="text-xs text-red-600 bg-red-50 p-2 rounded-lg">{error}</p>}
+
           <div className="flex gap-3 pt-2">
             <button
               type="button"

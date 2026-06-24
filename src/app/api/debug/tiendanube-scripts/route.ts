@@ -10,8 +10,6 @@ export async function GET(request: NextRequest) {
     const { userId } = await auth()
     if (!userId) return unauthorized()
 
-    if (process.env.NODE_ENV === "production") return fail("Not found", 404)
-
     const workspaceId = request.nextUrl.searchParams.get("workspaceId")
     if (!workspaceId) return fail("missing workspaceId", 400)
 

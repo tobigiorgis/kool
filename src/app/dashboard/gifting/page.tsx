@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
+import Link from "next/link"
 import { Plus, Package, Truck, CheckCircle, Clock, XCircle, RefreshCw, Search, X, Minus } from "lucide-react"
 
 interface GiftingOrder {
@@ -95,12 +96,12 @@ export default function GiftingPage() {
           <p className="text-sm text-amber-800">
             Conectá tu tienda Tiendanube para crear órdenes de gifting.
           </p>
-          <a
+          <Link
             href="/dashboard/settings?tab=integrations"
             className="text-xs font-medium text-amber-700 hover:underline ml-4 flex-shrink-0"
           >
             Conectar →
-          </a>
+          </Link>
         </div>
       )}
 

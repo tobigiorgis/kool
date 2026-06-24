@@ -27,6 +27,7 @@ export const env = createEnv({
   },
   client: {
     NEXT_PUBLIC_APP_URL: z.string().url(),
+    NEXT_PUBLIC_SHORT_DOMAIN: z.string().optional(), // dominio de short links, ej: joinkool.co
     // Multi-host routing: vacíos => app single-domain (ver DOMAINS.md).
     NEXT_PUBLIC_APP_DOMAIN: z.string().optional(),
     NEXT_PUBLIC_CREATOR_DOMAIN: z.string().optional(),
@@ -50,6 +51,7 @@ export const env = createEnv({
     BRIEF_READ_WRITE_TOKEN: process.env.BRIEF_READ_WRITE_TOKEN,
     WEBHOOK_SECRET: process.env.WEBHOOK_SECRET,
     NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
+    NEXT_PUBLIC_SHORT_DOMAIN: process.env.NEXT_PUBLIC_SHORT_DOMAIN,
     NEXT_PUBLIC_APP_DOMAIN: process.env.NEXT_PUBLIC_APP_DOMAIN,
     NEXT_PUBLIC_CREATOR_DOMAIN: process.env.NEXT_PUBLIC_CREATOR_DOMAIN,
     NEXT_PUBLIC_ROOT_DOMAIN: process.env.NEXT_PUBLIC_ROOT_DOMAIN,
