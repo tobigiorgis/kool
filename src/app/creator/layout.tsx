@@ -2,13 +2,22 @@ import { auth } from "@clerk/nextjs/server"
 import { redirect } from "next/navigation"
 import { prisma } from "@/lib/prisma"
 import { CreatorSidebar } from "@/components/creator/CreatorSidebar"
+import { appUrl } from "@/lib/host"
 
 export default async function CreatorLayout({ children }: { children: React.ReactNode }) {
   const { userId } = await auth()
   if (!userId) redirect("/login")
 
   const creator = await prisma.creator.findFirst({ where: { userId } })
-  if (!creator) redirect("/onboarding/creator")
+  if (!creator) {
+    // Canonicalización: una marca que cayó en el host del creator → su dashboard.
+    const member = await prisma.workspaceMember.findFirst({
+      where: { userId },
+      select: { id: true },
+    })
+    if (member) redirect(appUrl("dashboard"))
+    redirect("/onboarding/creator")
+  }
 
   const campaignCreators = await prisma.campaignCreator.findMany({
     where: { creatorId: creator.id, status: "ACCEPTED" },
@@ -39,7 +48,9 @@ export default async function CreatorLayout({ children }: { children: React.Reac
   return (
     <div className="flex h-screen bg-[#fafafa]">
       <CreatorSidebar
-        creatorName={creator.firstName ? `${creator.firstName} ${creator.lastName ?? ""}`.trim() : creator.name}
+        creatorName={
+          creator.firstName ? `${creator.firstName} ${creator.lastName ?? ""}`.trim() : creator.name
+        }
         creatorAvatar={creator.avatar}
         programs={programs}
         pendingInvites={pendingInvites}

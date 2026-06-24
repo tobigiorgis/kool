@@ -4,10 +4,22 @@ import { useState } from "react"
 import { usePathname } from "next/navigation"
 import Link from "next/link"
 import { SignOutButton } from "@clerk/nextjs"
+import { creatorPath } from "@/lib/host"
 import {
-  LayoutGrid, UserPlus, Home, Link2, DollarSign,
-  BarChart3, Zap, Megaphone, Wallet, User,
-  LogOut, ChevronDown, Check, Search,
+  LayoutGrid,
+  UserPlus,
+  Home,
+  Link2,
+  DollarSign,
+  BarChart3,
+  Zap,
+  Megaphone,
+  Wallet,
+  User,
+  LogOut,
+  ChevronDown,
+  Check,
+  Search,
 } from "lucide-react"
 
 interface Program {
@@ -30,7 +42,8 @@ export function CreatorSidebar({ creatorName, creatorAvatar, programs, pendingIn
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
 
-  const campaignIdMatch = pathname.match(/\/creator\/program\/([^/]+)/)
+  // Tolera el path con o sin prefijo /creator (limpio en prod, prefijado en dev).
+  const campaignIdMatch = pathname.match(/\/program\/([^/]+)/)
   const currentCampaignId = campaignIdMatch?.[1]
   const currentProgram = programs.find((p) => p.campaignId === currentCampaignId)
   const isInProgram = !!currentProgram
@@ -45,7 +58,7 @@ export function CreatorSidebar({ creatorName, creatorAvatar, programs, pendingIn
     <aside className="w-[220px] bg-white border-r border-gray-100 flex flex-col h-full shrink-0">
       {/* Logo */}
       <div className="px-4 h-14 flex items-center border-b border-gray-100">
-        <Link href="/creator" className="flex items-center gap-1">
+        <Link href={creatorPath("")} className="flex items-center gap-1">
           <span className="text-[17px] font-bold tracking-tight text-gray-900">kool</span>
           <span className="w-[5px] h-[5px] rounded-full bg-[#00C46A] mb-0.5 ml-0.5" />
         </Link>
@@ -60,7 +73,11 @@ export function CreatorSidebar({ creatorName, creatorAvatar, programs, pendingIn
           <div className="flex items-center gap-2 min-w-0">
             {isInProgram && currentProgram ? (
               <>
-                <BrandAvatar name={currentProgram.brandName} logo={currentProgram.brandLogo} size={22} />
+                <BrandAvatar
+                  name={currentProgram.brandName}
+                  logo={currentProgram.brandLogo}
+                  size={22}
+                />
                 <span className="text-[13px] font-medium text-gray-900 truncate">
                   {currentProgram.brandName}
                 </span>
@@ -83,7 +100,10 @@ export function CreatorSidebar({ creatorName, creatorAvatar, programs, pendingIn
             <div className="absolute top-full left-2 right-2 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-50 py-1.5 max-h-72 overflow-y-auto">
               <div className="px-2 pb-1.5">
                 <div className="relative">
-                  <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <Search
+                    size={12}
+                    className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400"
+                  />
                   <input
                     type="text"
                     value={searchQuery}
@@ -104,8 +124,11 @@ export function CreatorSidebar({ creatorName, creatorAvatar, programs, pendingIn
                   {filteredPrograms.map((p) => (
                     <Link
                       key={p.campaignId}
-                      href={`/creator/program/${p.campaignId}`}
-                      onClick={() => { setDropdownOpen(false); setSearchQuery("") }}
+                      href={creatorPath(`program/${p.campaignId}`)}
+                      onClick={() => {
+                        setDropdownOpen(false)
+                        setSearchQuery("")
+                      }}
                       className="flex items-center gap-2 px-2.5 py-1.5 text-[13px] hover:bg-gray-50 mx-1 rounded-lg"
                     >
                       <BrandAvatar name={p.brandName} logo={p.brandLogo} size={18} />
@@ -120,8 +143,11 @@ export function CreatorSidebar({ creatorName, creatorAvatar, programs, pendingIn
 
               <div className="border-t border-gray-100 my-1" />
               <Link
-                href="/creator/programs"
-                onClick={() => { setDropdownOpen(false); setSearchQuery("") }}
+                href={creatorPath("programs")}
+                onClick={() => {
+                  setDropdownOpen(false)
+                  setSearchQuery("")
+                }}
                 className="flex items-center gap-2 px-2.5 py-1.5 text-[13px] hover:bg-gray-50 mx-1 rounded-lg"
               >
                 <div className="w-[18px] h-[18px] rounded bg-gray-100 flex items-center justify-center shrink-0">
@@ -139,9 +165,14 @@ export function CreatorSidebar({ creatorName, creatorAvatar, programs, pendingIn
       <nav className="flex-1 p-2 space-y-0.5 overflow-y-auto">
         {!isInProgram ? (
           <>
-            <NavItem href="/creator/programs" icon={LayoutGrid} label="Programs" active={pathname === "/creator/programs" || pathname === "/creator"} />
             <NavItem
-              href="/creator/programs/invitations"
+              href={creatorPath("programs")}
+              icon={LayoutGrid}
+              label="Programs"
+              active={pathname === creatorPath("programs") || pathname === creatorPath("")}
+            />
+            <NavItem
+              href={creatorPath("programs/invitations")}
               icon={UserPlus}
               label="Invitations"
               active={pathname.includes("invitations")}
@@ -151,13 +182,13 @@ export function CreatorSidebar({ creatorName, creatorAvatar, programs, pendingIn
         ) : (
           <>
             <NavItem
-              href={`/creator/program/${currentCampaignId}`}
+              href={creatorPath(`program/${currentCampaignId}`)}
               icon={Home}
               label="Overview"
-              active={pathname === `/creator/program/${currentCampaignId}`}
+              active={pathname === creatorPath(`program/${currentCampaignId}`)}
             />
             <NavItem
-              href={`/creator/program/${currentCampaignId}/links`}
+              href={creatorPath(`program/${currentCampaignId}/links`)}
               icon={Link2}
               label="Links"
               active={pathname.endsWith("/links")}
@@ -166,19 +197,19 @@ export function CreatorSidebar({ creatorName, creatorAvatar, programs, pendingIn
               Insights
             </p>
             <NavItem
-              href={`/creator/program/${currentCampaignId}/earnings`}
+              href={creatorPath(`program/${currentCampaignId}/earnings`)}
               icon={DollarSign}
               label="Earnings"
               active={pathname.endsWith("/earnings")}
             />
             <NavItem
-              href={`/creator/program/${currentCampaignId}/analytics`}
+              href={creatorPath(`program/${currentCampaignId}/analytics`)}
               icon={BarChart3}
               label="Analytics"
               active={pathname.endsWith("/analytics")}
             />
             <NavItem
-              href={`/creator/program/${currentCampaignId}/events`}
+              href={creatorPath(`program/${currentCampaignId}/events`)}
               icon={Zap}
               label="Events"
               active={pathname.endsWith("/events")}
@@ -189,9 +220,19 @@ export function CreatorSidebar({ creatorName, creatorAvatar, programs, pendingIn
 
       {/* Footer */}
       <div className="border-t border-gray-100 p-2 space-y-0.5">
-        <NavItem href="/creator/programs" icon={Megaphone} label="Programs" active={false} />
-        <NavItem href="/creator/payouts" icon={Wallet} label="Payouts" active={pathname.includes("/payouts")} />
-        <NavItem href="/creator/profile" icon={User} label="Profile" active={pathname.includes("/profile")} />
+        <NavItem href={creatorPath("programs")} icon={Megaphone} label="Programs" active={false} />
+        <NavItem
+          href={creatorPath("payouts")}
+          icon={Wallet}
+          label="Payouts"
+          active={pathname.includes("/payouts")}
+        />
+        <NavItem
+          href={creatorPath("profile")}
+          icon={User}
+          label="Profile"
+          active={pathname.includes("/profile")}
+        />
         <div className="border-t border-gray-50 mt-2 pt-2">
           <SignOutButton>
             <button className="flex items-center gap-3 px-3 py-1.5 text-[13px] text-gray-500 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors w-full">
@@ -221,7 +262,10 @@ function BrandAvatar({ name, logo, size }: { name: string; logo: string | null; 
       className="rounded-md bg-gray-900 flex items-center justify-center shrink-0"
       style={{ width: size, height: size }}
     >
-      <span className="text-white font-bold" style={{ fontSize: Math.max(8, Math.round(size * 0.44)) }}>
+      <span
+        className="text-white font-bold"
+        style={{ fontSize: Math.max(8, Math.round(size * 0.44)) }}
+      >
         {name[0]?.toUpperCase()}
       </span>
     </div>
@@ -229,7 +273,11 @@ function BrandAvatar({ name, logo, size }: { name: string; logo: string | null; 
 }
 
 function NavItem({
-  href, icon: Icon, label, active, badge,
+  href,
+  icon: Icon,
+  label,
+  active,
+  badge,
 }: {
   href: string
   icon: React.ElementType

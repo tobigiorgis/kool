@@ -5,7 +5,7 @@
  * Guarda el click en Postgres y redirige al destino.
  */
 
-import { NextRequest, NextResponse } from "next/server"
+import { NextRequest, NextResponse, after } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { UAParser } from "ua-parser-js"
 import { createHash } from "crypto"
@@ -31,30 +31,31 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
     const destinationUrl = buildDestinationUrl(link)
 
-    // Guardar click (antes del redirect — garantiza que se persiste)
-    try {
-      const ua = new UAParser(request.headers.get("user-agent") || "")
-      const ip = request.headers.get("x-forwarded-for")?.split(",")[0].trim() || ""
-      const referer = request.headers.get("referer") || ""
-      const ipHash = createHash("sha256").update(ip).digest("hex")
-
-      await prisma.click.create({
-        data: {
-          linkId: link.id,
-          country: request.headers.get("x-vercel-ip-country") || undefined,
-          city: request.headers.get("x-vercel-ip-city") || undefined,
-          region: request.headers.get("x-vercel-ip-country-region") || undefined,
-          device: ua.getDevice().type || "desktop",
-          os: ua.getOS().name || undefined,
-          browser: ua.getBrowser().name || undefined,
-          referer: referer || undefined,
-          source: detectSource(referer),
-          ipHash,
-        },
-      })
-    } catch (e) {
-      logger.error("[Click] Error saving", e)
+    // Datos del click (capturados del request antes de responder).
+    const ua = new UAParser(request.headers.get("user-agent") || "")
+    const ip = request.headers.get("x-forwarded-for")?.split(",")[0].trim() || ""
+    const referer = request.headers.get("referer") || ""
+    const clickData = {
+      linkId: link.id,
+      country: request.headers.get("x-vercel-ip-country") || undefined,
+      city: request.headers.get("x-vercel-ip-city") || undefined,
+      region: request.headers.get("x-vercel-ip-country-region") || undefined,
+      device: ua.getDevice().type || "desktop",
+      os: ua.getOS().name || undefined,
+      browser: ua.getBrowser().name || undefined,
+      referer: referer || undefined,
+      source: detectSource(referer),
+      ipHash: createHash("sha256").update(ip).digest("hex"),
     }
+
+    // Persistir el click SIN bloquear el redirect (corre tras enviar la 302).
+    after(async () => {
+      try {
+        await prisma.click.create({ data: clickData })
+      } catch (e) {
+        logger.error("[Click] Error saving", e)
+      }
+    })
 
     return NextResponse.redirect(destinationUrl, {
       status: 302,

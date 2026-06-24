@@ -17,7 +17,7 @@ import { getSaleRealStatus } from "@/lib/drops/sales"
 import { sendSaleGenerated, sendBountyAchieved } from "@/lib/email"
 import { evaluateBounties } from "@/lib/bounties"
 import { logger } from "@/lib/logger"
-import { env } from "@/lib/env"
+import { creatorUrl } from "@/lib/host"
 
 export async function POST(request: NextRequest) {
   try {
@@ -290,7 +290,7 @@ export async function POST(request: NextRequest) {
               brandName: connection.workspace?.name || "tu marca",
               bountyName: a.bountyName,
               reward: a.reward,
-              dashboardUrl: `${env.NEXT_PUBLIC_APP_URL}/creator/program/${campaignCreator.campaignId}`,
+              dashboardUrl: creatorUrl(`program/${campaignCreator.campaignId}`),
             })
           }
         }
@@ -308,7 +308,7 @@ export async function POST(request: NextRequest) {
         orderAmount: parsed.orderAmount,
         commissionAmount,
         currency: parsed.currency,
-        dashboardUrl: `${env.NEXT_PUBLIC_APP_URL}/creator`,
+        dashboardUrl: creatorUrl(""),
       })
     }
 

@@ -9,6 +9,7 @@ import {
 import { ok, fail, unauthorized, notFound, badRequest } from "@/lib/api/response"
 import { logger } from "@/lib/logger"
 import { env } from "@/lib/env"
+import { creatorUrl } from "@/lib/host"
 import { z } from "zod"
 
 const UpdateSchema = z.object({
@@ -87,7 +88,7 @@ export async function PATCH(
           applicantName: application.name,
           campaignName: campaign.name,
           brandName: campaign.workspace.name,
-          dashboardUrl: `${BASE_URL}/creator`,
+          dashboardUrl: creatorUrl(""),
         }).catch((e) => logger.error("[Campaigns applications] accepted email", e))
       } else {
         const registerUrl = `${BASE_URL}/register?email=${encodeURIComponent(application.email)}&campaignId=${campaign.id}`

@@ -2,11 +2,21 @@ import Link from "next/link"
 import { redirect } from "next/navigation"
 import { auth } from "@clerk/nextjs/server"
 import { UserButton } from "@clerk/nextjs"
+import { prisma } from "@/lib/prisma"
+import { creatorUrl } from "@/lib/host"
 import { DashboardNav } from "./nav"
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { userId } = await auth()
   if (!userId) redirect("/login")
+
+  // Canonicalización: un creator (sin workspace) que cayó en el host de la app
+  // → su portal. No afecta a marcas mid-onboarding (no tienen fila creator).
+  const member = await prisma.workspaceMember.findFirst({ where: { userId }, select: { id: true } })
+  if (!member) {
+    const creator = await prisma.creator.findFirst({ where: { userId }, select: { id: true } })
+    if (creator) redirect(creatorUrl(""))
+  }
 
   // Auto-activar drops cuya fecha de lanzamiento ya pasó
   fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/drops/check-status`, {
@@ -44,9 +54,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
       </aside>
 
       {/* Main */}
-      <main className="flex-1 overflow-auto bg-white">
-        {children}
-      </main>
+      <main className="flex-1 overflow-auto bg-white">{children}</main>
     </div>
   )
 }

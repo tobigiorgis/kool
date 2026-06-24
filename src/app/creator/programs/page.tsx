@@ -4,6 +4,8 @@ import { redirect } from "next/navigation"
 import Link from "next/link"
 import { formatCurrency } from "@/lib/utils"
 import { Tag } from "lucide-react"
+import { shortUrlLabel } from "@/lib/links"
+import { creatorPath } from "@/lib/host"
 
 export default async function AllProgramsPage() {
   const { userId } = await auth()
@@ -54,7 +56,8 @@ export default async function AllProgramsPage() {
       <div className="mb-6">
         <h1 className="text-xl font-semibold text-gray-900 tracking-tight">Programs</h1>
         <p className="text-sm text-gray-400 mt-0.5">
-          {programs.length} programa{programs.length !== 1 ? "s" : ""} activo{programs.length !== 1 ? "s" : ""}
+          {programs.length} programa{programs.length !== 1 ? "s" : ""} activo
+          {programs.length !== 1 ? "s" : ""}
         </p>
       </div>
       <div className="border-t border-gray-200 mb-6" />
@@ -62,7 +65,9 @@ export default async function AllProgramsPage() {
       {programs.length === 0 ? (
         <div className="text-center py-20">
           <p className="text-sm text-gray-400">No estás en ningún programa todavía.</p>
-          <p className="text-xs text-gray-300 mt-1">Revisá tu email para invitaciones pendientes.</p>
+          <p className="text-xs text-gray-300 mt-1">
+            Revisá tu email para invitaciones pendientes.
+          </p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -71,7 +76,7 @@ export default async function AllProgramsPage() {
             return (
               <Link
                 key={p.campaignId}
-                href={`/creator/program/${p.campaignId}`}
+                href={creatorPath(`program/${p.campaignId}`)}
                 className="bg-white rounded-2xl border border-gray-200 p-5 hover:border-gray-300 hover:shadow-sm transition-all group"
               >
                 {/* Brand logo */}
@@ -84,7 +89,7 @@ export default async function AllProgramsPage() {
 
                 {firstLink && (
                   <p className="text-xs text-gray-400 mt-1 flex items-center gap-1">
-                    <span className="font-mono">kool.link/{firstLink.slug}</span>
+                    <span className="font-mono">{shortUrlLabel(firstLink.slug)}</span>
                   </p>
                 )}
 
@@ -115,9 +120,26 @@ export default async function AllProgramsPage() {
   )
 }
 
-function BrandLogo({ name, logo, color, size }: { name: string; logo: string | null; color: string | null; size: number }) {
+function BrandLogo({
+  name,
+  logo,
+  color,
+  size,
+}: {
+  name: string
+  logo: string | null
+  color: string | null
+  size: number
+}) {
   if (logo) {
-    return <img src={logo} className="rounded-xl object-cover" style={{ width: size, height: size }} alt={name} />
+    return (
+      <img
+        src={logo}
+        className="rounded-xl object-cover"
+        style={{ width: size, height: size }}
+        alt={name}
+      />
+    )
   }
   return (
     <div

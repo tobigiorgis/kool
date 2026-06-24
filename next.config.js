@@ -7,16 +7,9 @@ const nextConfig = {
       { protocol: "https", hostname: "img.clerk.com" },
     ],
   },
-  async rewrites() {
-    return [
-      // Shortlinks: kool.link/[slug] → /api/r/[slug]
-      {
-        source: "/:slug",
-        destination: "/api/r/:slug",
-        has: [{ type: "host", value: "kool.link" }],
-      },
-    ]
-  },
+  // Shortlinks (<short-domain>/:slug → /api/r/:slug) ahora los resuelve
+  // src/middleware.ts, que corre ANTES de los rewrites de next.config y por
+  // eso evita el rebote a login de Clerk. Ver shortlinkRewrite().
 }
 
 module.exports = nextConfig

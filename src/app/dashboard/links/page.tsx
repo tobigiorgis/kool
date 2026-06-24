@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react"
 import { Plus, Copy, BarChart2, Link2, ExternalLink, RefreshCw } from "lucide-react"
+import { SHORT_DOMAIN, buildShortUrl, shortUrlLabel } from "@/lib/links"
 
 interface LinkData {
   id: string
@@ -38,10 +39,12 @@ export default function LinksPage() {
     }
   }, [])
 
-  useEffect(() => { loadData() }, [loadData])
+  useEffect(() => {
+    loadData()
+  }, [loadData])
 
   const copyLink = (slug: string) => {
-    navigator.clipboard.writeText(`https://kool.link/${slug}`)
+    navigator.clipboard.writeText(buildShortUrl(slug))
     setCopied(slug)
     setTimeout(() => setCopied(null), 2000)
   }
@@ -97,8 +100,12 @@ export default function LinksPage() {
                         <Link2 size={14} className="text-brand-500" />
                       </div>
                       <div>
-                        <p className="text-sm font-medium text-gray-900">kool.link/{link.slug}</p>
-                        <p className="text-xs text-gray-400 truncate max-w-[200px]">{link.destination}</p>
+                        <p className="text-sm font-medium text-gray-900">
+                          {shortUrlLabel(link.slug)}
+                        </p>
+                        <p className="text-xs text-gray-400 truncate max-w-[200px]">
+                          {link.destination}
+                        </p>
                       </div>
                     </div>
                   </td>
@@ -187,7 +194,12 @@ function CreateLinkModal({
       const res = await fetch("/api/links", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ workspaceId, destination, slug: slug || undefined, discountCode: discountCode || undefined }),
+        body: JSON.stringify({
+          workspaceId,
+          destination,
+          slug: slug || undefined,
+          discountCode: discountCode || undefined,
+        }),
       })
       const data = await res.json()
       if (!res.ok) {
@@ -222,10 +234,12 @@ function CreateLinkModal({
             />
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1.5">Slug personalizado</label>
+            <label className="block text-xs font-medium text-gray-700 mb-1.5">
+              Slug personalizado
+            </label>
             <div className="flex">
               <span className="px-3 py-2 bg-gray-50 border border-r-0 border-gray-200 rounded-l-lg text-sm text-gray-500">
-                kool.link/
+                {SHORT_DOMAIN}/
               </span>
               <input
                 type="text"

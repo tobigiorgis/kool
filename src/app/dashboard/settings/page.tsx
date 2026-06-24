@@ -1,8 +1,17 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { CheckCircle, CheckCircle2, AlertCircle, ExternalLink, Plug, Store, Zap } from "lucide-react"
+import {
+  CheckCircle,
+  CheckCircle2,
+  AlertCircle,
+  ExternalLink,
+  Plug,
+  Store,
+  Zap,
+} from "lucide-react"
 import { useSearchParams } from "next/navigation"
+import { SHORT_DOMAIN } from "@/lib/links"
 
 interface TiendanubeConnection {
   storeName: string | null
@@ -42,7 +51,9 @@ export default function SettingsPage() {
       {tnConnected && (
         <div className="mb-6 flex items-center gap-2.5 p-4 bg-green-50 border border-green-100 rounded-xl max-w-2xl">
           <CheckCircle2 size={16} className="text-green-600 flex-shrink-0" />
-          <p className="text-sm text-green-700">Tiendanube conectado. Los webhooks ya están activos.</p>
+          <p className="text-sm text-green-700">
+            Tiendanube conectado. Los webhooks ya están activos.
+          </p>
         </div>
       )}
       {tnError && (
@@ -63,19 +74,34 @@ export default function SettingsPage() {
                 : "text-gray-500 border-transparent hover:text-gray-700"
             }`}
           >
-            {tab === "integrations" ? "Integraciones" : tab === "workspace" ? "Workspace" : "Plan & Billing"}
+            {tab === "integrations"
+              ? "Integraciones"
+              : tab === "workspace"
+                ? "Workspace"
+                : "Plan & Billing"}
           </button>
         ))}
       </div>
 
-      {activeTab === "integrations" && <IntegrationsTab connection={workspace?.tiendanubeConnection ?? null} workspaceId={workspace?.id ?? null} />}
+      {activeTab === "integrations" && (
+        <IntegrationsTab
+          connection={workspace?.tiendanubeConnection ?? null}
+          workspaceId={workspace?.id ?? null}
+        />
+      )}
       {activeTab === "workspace" && <WorkspaceTab workspace={workspace} />}
       {activeTab === "billing" && <BillingTab plan={workspace?.plan ?? "FREE"} />}
     </div>
   )
 }
 
-function IntegrationsTab({ connection, workspaceId }: { connection: TiendanubeConnection | null; workspaceId: string | null }) {
+function IntegrationsTab({
+  connection,
+  workspaceId,
+}: {
+  connection: TiendanubeConnection | null
+  workspaceId: string | null
+}) {
   const [connecting, setConnecting] = useState(false)
   const [reinstalling, setReinstalling] = useState(false)
 
@@ -112,7 +138,8 @@ function IntegrationsTab({ connection, workspaceId }: { connection: TiendanubeCo
             <div>
               <h3 className="text-sm font-semibold text-gray-900">Tiendanube</h3>
               <p className="text-xs text-gray-500 mt-0.5 max-w-sm">
-                Conectá tu tienda para trackear conversiones, crear códigos de descuento y gestionar gifting.
+                Conectá tu tienda para trackear conversiones, crear códigos de descuento y gestionar
+                gifting.
               </p>
               {connection?.storeDomain && (
                 <a
@@ -165,11 +192,14 @@ function IntegrationsTab({ connection, workspaceId }: { connection: TiendanubeCo
                 { label: "Catálogo sync", status: false },
               ].map(({ label, status }) => (
                 <div key={label} className="flex items-center gap-1.5">
-                  {status
-                    ? <CheckCircle size={12} className="text-brand-500" />
-                    : <AlertCircle size={12} className="text-gray-300" />
-                  }
-                  <span className={`text-xs ${status ? "text-gray-700" : "text-gray-400"}`}>{label}</span>
+                  {status ? (
+                    <CheckCircle size={12} className="text-brand-500" />
+                  ) : (
+                    <AlertCircle size={12} className="text-gray-300" />
+                  )}
+                  <span className={`text-xs ${status ? "text-gray-700" : "text-gray-400"}`}>
+                    {label}
+                  </span>
                 </div>
               ))}
             </div>
@@ -196,7 +226,9 @@ function IntegrationsTab({ connection, workspaceId }: { connection: TiendanubeCo
               <p className="text-xs text-gray-500 mt-0.5">Integración disponible próximamente.</p>
             </div>
           </div>
-          <span className="text-xs bg-gray-100 text-gray-500 px-2 py-1 rounded-full">Próximamente</span>
+          <span className="text-xs bg-gray-100 text-gray-500 px-2 py-1 rounded-full">
+            Próximamente
+          </span>
         </div>
       </div>
     </div>
@@ -220,7 +252,7 @@ function WorkspaceTab({ workspace }: { workspace: Workspace | null }) {
           <label className="block text-xs font-medium text-gray-700 mb-1.5">Slug</label>
           <div className="flex">
             <span className="px-3 py-2 bg-gray-50 border border-r-0 border-gray-200 rounded-l-lg text-sm text-gray-400">
-              kool.link/w/
+              {SHORT_DOMAIN}/w/
             </span>
             <input
               type="text"
@@ -240,7 +272,9 @@ function BillingTab({ plan }: { plan: string }) {
       <div className="bg-white rounded-xl border border-gray-100 p-6">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-sm font-semibold text-gray-900">Plan actual</h3>
-          <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-full font-medium">{plan}</span>
+          <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-full font-medium">
+            {plan}
+          </span>
         </div>
         <button className="w-full py-2.5 bg-gray-900 text-white rounded-lg text-sm font-medium hover:bg-gray-800 transition-colors">
           Actualizar a Pro — USD 49/mes
