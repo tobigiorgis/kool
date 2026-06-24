@@ -13,8 +13,12 @@ import { env } from "@/lib/env"
  * cae a paths relativos con /creator → comportamiento idéntico al actual.
  */
 
-const APP_DOMAIN = env.NEXT_PUBLIC_APP_DOMAIN
-const CREATOR_DOMAIN = env.NEXT_PUBLIC_CREATOR_DOMAIN
+// Normaliza el dominio de la env var: saca https:// y / final, por si lo
+// cargaron como "https://joinkool.co/" en Vercel. Sin esto se duplicaba el
+// protocolo: `https://${"https://joinkool.co"}` → URL rota → Clerk la rechaza.
+const stripHost = (v?: string) => v?.replace(/^https?:\/\//, "").replace(/\/+$/, "") || undefined
+const APP_DOMAIN = stripHost(env.NEXT_PUBLIC_APP_DOMAIN)
+const CREATOR_DOMAIN = stripHost(env.NEXT_PUBLIC_CREATOR_DOMAIN)
 
 function strip(sub: string): string {
   return sub.replace(/^\/+/, "")

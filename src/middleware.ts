@@ -41,10 +41,14 @@ const isCreatorPassthrough = createRouteMatcher([
 //
 // La sesión de Clerk se comparte entre subdominios del mismo root
 // automáticamente (no hace falta "satellite domain"). Ver DOMAINS.md.
-const ROOT_DOMAIN = env.NEXT_PUBLIC_ROOT_DOMAIN // joinkool.co
-const APP_DOMAIN = env.NEXT_PUBLIC_APP_DOMAIN // app.joinkool.co
-const CREATOR_DOMAIN = env.NEXT_PUBLIC_CREATOR_DOMAIN // creator.joinkool.co
-const SHORT_DOMAIN = env.NEXT_PUBLIC_SHORT_DOMAIN // refer.joinkool.co
+// Normaliza el dominio: saca https:// y / final, por si la env var en Vercel
+// quedó como "https://joinkool.co/". Sin esto, `host === DOMAIN` nunca matchea
+// (el host del request viene sin protocolo) y el routing por host no dispara.
+const stripHost = (v?: string) => v?.replace(/^https?:\/\//, "").replace(/\/+$/, "") || undefined
+const ROOT_DOMAIN = stripHost(env.NEXT_PUBLIC_ROOT_DOMAIN) // joinkool.co
+const APP_DOMAIN = stripHost(env.NEXT_PUBLIC_APP_DOMAIN) // app.joinkool.co
+const CREATOR_DOMAIN = stripHost(env.NEXT_PUBLIC_CREATOR_DOMAIN) // creator.joinkool.co
+const SHORT_DOMAIN = stripHost(env.NEXT_PUBLIC_SHORT_DOMAIN) // refer.joinkool.co
 // Hosts que sirven shortlinks. Incluye el legacy kool.link para que los links
 // ya compartidos sigan resolviendo durante la transición.
 const SHORT_HOSTS = new Set([SHORT_DOMAIN, "kool.link"])
