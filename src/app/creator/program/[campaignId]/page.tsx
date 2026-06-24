@@ -8,7 +8,6 @@ import { getCampaignProgress, progressForMetric, rewardLabel } from "@/lib/bount
 import Link from "next/link"
 import { CopyLinkButton } from "./copy-link-button"
 import { Tag, DollarSign, Trophy, Check, Gift, Package } from "lucide-react"
-import { SHORT_DOMAIN } from "@/lib/domains"
 
 export default async function ProgramOverviewPage({
   params,

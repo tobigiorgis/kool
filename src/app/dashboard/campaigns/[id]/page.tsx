@@ -37,7 +37,6 @@ import { Area, AreaChart, ResponsiveContainer, XAxis, YAxis, Tooltip } from "rec
 import { formatNumber, formatCurrency, formatDate, generateDiscountCode } from "@/lib/utils"
 import { buildShortUrl, shortUrlLabel } from "@/lib/links"
 import BountiesTab from "./BountiesTab"
-import { SHORT_DOMAIN } from "@/lib/domains"
 
 interface CampaignCreator {
   id: string

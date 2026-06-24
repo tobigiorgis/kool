@@ -3,7 +3,6 @@ import { shortUrlLabel } from "@/lib/links"
 import { redirect, notFound } from "next/navigation"
 import { prisma } from "@/lib/prisma"
 import { formatDate } from "@/lib/utils"
-import { SHORT_DOMAIN } from "@/lib/domains"
 
 export default async function EventsPage({ params }: { params: Promise<{ campaignId: string }> }) {
   const { campaignId } = await params

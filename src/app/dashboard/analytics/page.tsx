@@ -155,7 +155,7 @@ function AnalyticsContent() {
         <div>
           {hasFilter && (
             <div className="flex items-center gap-2 mb-2">
-              <a
+              <Link
                 href="/dashboard/analytics"
                 className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
               >
