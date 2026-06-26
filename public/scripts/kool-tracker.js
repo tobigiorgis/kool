@@ -10,7 +10,7 @@
 // aplica como cupón del carrito. Una vez aplicado, vive en `cart.coupon` y
 // sobrevive solo al checkout (que también es sandbox) → la venta se atribuye.
 
-export function App(nube) {
+function App(nube) {
   var KEY = "kool_ref"
   var TTL = 30 * 24 * 60 * 60 // 30 días, en segundos
   var COUPON_RE = /^[A-Za-z0-9_-]{2,40}$/
