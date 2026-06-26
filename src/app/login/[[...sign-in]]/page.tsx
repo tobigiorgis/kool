@@ -60,7 +60,7 @@ export default function LoginPage() {
 
         {/* Clerk sign in */}
         <div className="flex justify-center">
-          <SignIn afterSignInUrl={roleHomeUrl(role)} routing="hash" />
+          <SignIn forceRedirectUrl={roleHomeUrl(role)} routing="hash" />
         </div>
 
         {/* Footer */}

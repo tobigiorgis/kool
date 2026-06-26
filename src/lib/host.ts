@@ -59,3 +59,14 @@ export function appUrl(sub = ""): string {
 export function roleHomeUrl(role: "brand" | "creator"): string {
   return role === "creator" ? creatorUrl("") : appUrl("dashboard")
 }
+
+/**
+ * Orígenes https a los que Clerk tiene permitido redirigir tras autenticar.
+ * Sin esto, los redirects cross-host (afterSignIn absoluto a app./creator.)
+ * caen en "not on allowedRedirectOrigins" y Clerk los descarta → rebote al
+ * login. Vacío en dev single-domain → no se le pasa nada al ClerkProvider
+ * (comportamiento idéntico al actual).
+ */
+export function clerkAllowedOrigins(): string[] {
+  return [APP_DOMAIN, CREATOR_DOMAIN].filter(Boolean).map((d) => `https://${d}`)
+}
