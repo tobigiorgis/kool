@@ -87,6 +87,10 @@ function buildDestinationUrl(link: {
     if (link.utmContent) url.searchParams.set("utm_content", link.utmContent)
     const code = link.discountCode || link.creator?.discountCode
     if (code) {
+      // El script de la tienda (kool-tracker.js) lee coupon/ref/utm_campaign y
+      // aplica el cupón solo. `coupon` es el que se validó a mano. `utm_campaign`
+      // además habilita la atribución fallback del webhook (utm_parameters.campaign).
+      url.searchParams.set("coupon", code)
       url.searchParams.set("ref", code)
       url.searchParams.set("utm_campaign", code)
     }

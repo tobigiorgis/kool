@@ -13,8 +13,12 @@ import { env } from "@/lib/env"
  * cae a paths relativos con /creator → comportamiento idéntico al actual.
  */
 
-const APP_DOMAIN = env.NEXT_PUBLIC_APP_DOMAIN
-const CREATOR_DOMAIN = env.NEXT_PUBLIC_CREATOR_DOMAIN
+// Normaliza el dominio de la env var: saca https:// y / final, por si lo
+// cargaron como "https://joinkool.co/" en Vercel. Sin esto se duplicaba el
+// protocolo: `https://${"https://joinkool.co"}` → URL rota → Clerk la rechaza.
+const stripHost = (v?: string) => v?.replace(/^https?:\/\//, "").replace(/\/+$/, "") || undefined
+const APP_DOMAIN = stripHost(env.NEXT_PUBLIC_APP_DOMAIN)
+const CREATOR_DOMAIN = stripHost(env.NEXT_PUBLIC_CREATOR_DOMAIN)
 
 function strip(sub: string): string {
   return sub.replace(/^\/+/, "")
@@ -54,4 +58,15 @@ export function appUrl(sub = ""): string {
 /** A dónde mandar tras autenticar, según rol, al host correcto. */
 export function roleHomeUrl(role: "brand" | "creator"): string {
   return role === "creator" ? creatorUrl("") : appUrl("dashboard")
+}
+
+/**
+ * Orígenes https a los que Clerk tiene permitido redirigir tras autenticar.
+ * Sin esto, los redirects cross-host (afterSignIn absoluto a app./creator.)
+ * caen en "not on allowedRedirectOrigins" y Clerk los descarta → rebote al
+ * login. Vacío en dev single-domain → no se le pasa nada al ClerkProvider
+ * (comportamiento idéntico al actual).
+ */
+export function clerkAllowedOrigins(): string[] {
+  return [APP_DOMAIN, CREATOR_DOMAIN].filter(Boolean).map((d) => `https://${d}`)
 }

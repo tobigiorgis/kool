@@ -248,6 +248,8 @@ function CreateLinkModal({
           workspaceId,
           destination,
           slug: slug || undefined,
+          campaignId: campaignId || undefined,
+          creatorId: creatorId || undefined,
           discountCode: discountCode || undefined,
         }),
       })
@@ -308,12 +310,17 @@ function CreateLinkModal({
             </label>
             <select
               value={campaignId}
-              onChange={(e) => { setCampaignId(e.target.value); setCreatorId("") }}
+              onChange={(e) => {
+                setCampaignId(e.target.value)
+                setCreatorId("")
+              }}
               className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400"
             >
               <option value="">Sin campaña</option>
               {campaigns.map((c) => (
-                <option key={c.id} value={c.id}>{c.name}</option>
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
               ))}
             </select>
           </div>
