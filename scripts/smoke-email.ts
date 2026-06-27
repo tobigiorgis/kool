@@ -6,7 +6,7 @@
  * Uso (con tu key real en .env.local):
  *   npm run smoke:email tu@mail.com
  * o directo:
- *   RESEND_API_KEY=re_... EMAIL_FROM="Kool <hola@kool.link>" npx tsx scripts/smoke-email.ts tu@mail.com
+ *   RESEND_API_KEY=re_... EMAIL_FROM="Kool <hi@joinkool.co>" npx tsx scripts/smoke-email.ts tu@mail.com
  */
 import {
   sendCreatorInvite,

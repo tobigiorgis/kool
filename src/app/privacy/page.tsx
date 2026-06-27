@@ -109,10 +109,10 @@ export default function PrivacyPage() {
             <p className="mt-3">
               Para ejercer estos derechos escribinos a{" "}
               <a
-                href="mailto:hola@kool.link"
+                href="mailto:hi@joinkool.co"
                 className="text-gray-900 underline underline-offset-2"
               >
-                hola@kool.link
+                hi@joinkool.co
               </a>
               .
             </p>
@@ -142,10 +142,10 @@ export default function PrivacyPage() {
             <p>
               Preguntas sobre esta política:{" "}
               <a
-                href="mailto:hola@kool.link"
+                href="mailto:hi@joinkool.co"
                 className="text-gray-900 underline underline-offset-2"
               >
-                hola@kool.link
+                hi@joinkool.co
               </a>
             </p>
           </section>
