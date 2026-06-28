@@ -182,7 +182,7 @@ async function cmdSimulate(ref?: string) {
     currency,
     created_at: new Date().toISOString(),
     paid_at: new Date().toISOString(),
-    customer: { name: "Kool Test", email: "test@kool.link" },
+    customer: { name: "Kool Test", email: "test@joinkool.co" },
     products:
       product || variant
         ? [

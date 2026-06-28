@@ -22,7 +22,7 @@ export default function SupportPage() {
 
         <div className="space-y-4">
           <a
-            href="mailto:hola@kool.link"
+            href="mailto:hi@joinkool.co"
             className="flex items-start gap-4 p-5 rounded-xl border border-gray-100 hover:border-gray-200 hover:bg-gray-50 transition-all group"
           >
             <div className="w-9 h-9 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0 group-hover:bg-gray-200 transition-colors">
@@ -31,7 +31,7 @@ export default function SupportPage() {
             <div>
               <p className="text-sm font-semibold text-gray-900">Email</p>
               <p className="text-sm text-gray-500 mt-0.5">
-                hola@kool.link — respondemos en menos de 24 horas.
+                hi@joinkool.co — respondemos en menos de 24 horas.
               </p>
             </div>
           </a>
@@ -66,7 +66,7 @@ export default function SupportPage() {
 
         <p className="mt-12 text-xs text-gray-400">
           ¿Tenés un problema técnico urgente?{" "}
-          <a href="mailto:hola@kool.link" className="text-gray-600 underline underline-offset-2">
+          <a href="mailto:hi@joinkool.co" className="text-gray-600 underline underline-offset-2">
             Escribinos con el asunto &quot;Urgente&quot;
           </a>{" "}
           y lo priorizamos.
@@ -87,7 +87,7 @@ const faqs = [
   },
   {
     q: "¿Qué pasa si el script de tracking no funciona?",
-    a: "Verificá en Configuración → Integraciones que la conexión con Tiendanube esté activa. Si el problema persiste, escribinos a hola@kool.link con el dominio de tu tienda.",
+    a: "Verificá en Configuración → Integraciones que la conexión con Tiendanube esté activa. Si el problema persiste, escribinos a hi@joinkool.co con el dominio de tu tienda.",
   },
   {
     q: "¿Puedo usar Kool con múltiples tiendas?",
@@ -95,6 +95,6 @@ const faqs = [
   },
   {
     q: "¿Cómo elimino mi cuenta?",
-    a: "Escribinos a hola@kool.link desde el email de tu cuenta y procesamos la eliminación en menos de 48 horas.",
+    a: "Escribinos a hi@joinkool.co desde el email de tu cuenta y procesamos la eliminación en menos de 48 horas.",
   },
 ]
