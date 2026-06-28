@@ -71,12 +71,13 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const data = OnboardingSchema.parse(body)
 
-    // Find creator by invite token or by email
-    let creator = data.token
+    // Buscar creator por invite token o por email
+    const creator = data.token
       ? await prisma.creator.findUnique({ where: { inviteToken: data.token } })
       : await prisma.creator.findFirst({ where: { email: userEmail } })
 
-    if (!creator) {
+    // Token presente pero inválido → link roto. (Sin token y sin match → self-serve: se crea abajo.)
+    if (!creator && data.token) {
       return NextResponse.json({ error: "Creator no encontrado" }, { status: 404 })
     }
 
@@ -94,47 +95,70 @@ export async function POST(request: NextRequest) {
       update: {},
     })
 
-    // Update creator profile
-    const updated = await prisma.creator.update({
-      where: { id: creator.id },
-      include: { workspace: { select: { name: true } } },
-      data: {
-        userId,
-        status: "ACTIVE",
-        profileCompleted: true,
-        acceptedAt: new Date(),
-        ...(data.phone !== undefined && { phone: data.phone || null }),
-        ...(data.instagram !== undefined && { instagram: data.instagram || null }),
-        ...(data.tiktok !== undefined && { tiktok: data.tiktok || null }),
-        ...(data.dateOfBirth && { dateOfBirth: new Date(data.dateOfBirth) }),
-        ...(data.city !== undefined && { city: data.city || null }),
-        ...(data.province !== undefined && { province: data.province || null }),
-        ...(data.niches && { niches: data.niches }),
-        ...(data.shippingAddress !== undefined && {
-          shippingAddress: data.shippingAddress || null,
-        }),
-        ...(data.shippingCity !== undefined && { shippingCity: data.shippingCity || null }),
-        ...(data.shippingProvince !== undefined && {
-          shippingProvince: data.shippingProvince || null,
-        }),
-        ...(data.shippingZipCode !== undefined && {
-          shippingZipCode: data.shippingZipCode || null,
-        }),
-        ...(data.bankAlias !== undefined && { bankAlias: data.bankAlias || null }),
-        ...(data.avatar !== undefined && { avatar: data.avatar || null }),
-      },
-    })
+    // Campos de perfil comunes al alta (create) y a la activación (update).
+    const profileData = {
+      ...(data.phone !== undefined && { phone: data.phone || null }),
+      ...(data.instagram !== undefined && { instagram: data.instagram || null }),
+      ...(data.tiktok !== undefined && { tiktok: data.tiktok || null }),
+      ...(data.dateOfBirth && { dateOfBirth: new Date(data.dateOfBirth) }),
+      ...(data.city !== undefined && { city: data.city || null }),
+      ...(data.province !== undefined && { province: data.province || null }),
+      ...(data.niches && { niches: data.niches }),
+      ...(data.shippingAddress !== undefined && { shippingAddress: data.shippingAddress || null }),
+      ...(data.shippingCity !== undefined && { shippingCity: data.shippingCity || null }),
+      ...(data.shippingProvince !== undefined && {
+        shippingProvince: data.shippingProvince || null,
+      }),
+      ...(data.shippingZipCode !== undefined && { shippingZipCode: data.shippingZipCode || null }),
+      ...(data.bankAlias !== undefined && { bankAlias: data.bankAlias || null }),
+      ...(data.avatar !== undefined && { avatar: data.avatar || null }),
+    }
 
-    // Accept all pending invites for this creator
-    await prisma.campaignInvite.updateMany({
-      where: { creatorId: creator.id, status: "PENDING" },
-      data: { status: "ACCEPTED", respondedAt: new Date() },
-    })
+    const fullName = clerkUser.firstName
+      ? `${clerkUser.firstName} ${clerkUser.lastName ?? ""}`.trim()
+      : userEmail
 
-    await prisma.campaignCreator.updateMany({
-      where: { creatorId: creator.id, status: "INVITED" },
-      data: { status: "ACCEPTED" },
-    })
+    // creator existente (invitado por una marca) → activar y linkear userId.
+    // creator inexistente (self-serve, sin marca) → crear con workspaceId null.
+    const updated = creator
+      ? await prisma.creator.update({
+          where: { id: creator.id },
+          include: { workspace: { select: { name: true } } },
+          data: {
+            userId,
+            status: "ACTIVE",
+            profileCompleted: true,
+            acceptedAt: new Date(),
+            ...profileData,
+          },
+        })
+      : await prisma.creator.create({
+          include: { workspace: { select: { name: true } } },
+          data: {
+            userId,
+            email: userEmail,
+            name: fullName,
+            firstName: clerkUser.firstName ?? null,
+            lastName: clerkUser.lastName ?? null,
+            status: "ACTIVE",
+            profileCompleted: true,
+            acceptedAt: new Date(),
+            ...profileData,
+          },
+        })
+
+    // Aceptar invites pendientes — solo aplica a creators ya existentes (no-op en self-serve).
+    if (creator) {
+      await prisma.campaignInvite.updateMany({
+        where: { creatorId: creator.id, status: "PENDING" },
+        data: { status: "ACCEPTED", respondedAt: new Date() },
+      })
+
+      await prisma.campaignCreator.updateMany({
+        where: { creatorId: creator.id, status: "INVITED" },
+        data: { status: "ACCEPTED" },
+      })
+    }
 
     // Email de bienvenida (fire-and-forget — no bloquea la respuesta)
     if (updated.email) {

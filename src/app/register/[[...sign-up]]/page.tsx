@@ -4,7 +4,6 @@ import { useState, useEffect, Suspense } from "react"
 import { useSearchParams } from "next/navigation"
 import { SignUp } from "@clerk/nextjs"
 import Link from "next/link"
-import { Mail, ArrowRight } from "lucide-react"
 
 function RegisterForm() {
   const searchParams = useSearchParams()
@@ -73,7 +72,7 @@ function RegisterForm() {
         ) : token ? (
           <CreatorSignUp token={token} />
         ) : (
-          <CreatorRegisterInfo />
+          <CreatorSelfSignUp />
         )}
       </div>
     </div>
@@ -94,46 +93,22 @@ function CreatorSignUp({ token }: { token: string }) {
   )
 }
 
-function CreatorRegisterInfo() {
+function CreatorSelfSignUp() {
   return (
     <div className="space-y-4">
-      <div className="text-center mb-2">
-        <h1 className="text-lg font-semibold text-gray-900">Acceso por invitación</h1>
-        <p className="text-sm text-gray-500 mt-1">
-          Los creators acceden a Kool a través de la marca con la que trabajan
-        </p>
+      <div className="text-center mb-6">
+        <h1 className="text-lg font-semibold text-gray-900">Creá tu cuenta de creator</h1>
+        <p className="text-sm text-gray-500 mt-1">Accedé a tus comisiones, links y briefings</p>
       </div>
 
-      <div className="bg-white border border-gray-200 rounded-2xl p-6 space-y-4 shadow-sm">
-        <div className="flex items-start gap-3">
-          <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center shrink-0 mt-0.5">
-            <Mail size={15} className="text-blue-500" />
-          </div>
-          <div>
-            <p className="text-sm font-medium text-gray-900">Buscá el email de invitación</p>
-            <p className="text-xs text-gray-500 mt-0.5">
-              La marca que te sumó a su programa te envió un email con tu link de acceso. Revisá tu
-              bandeja de entrada.
-            </p>
-          </div>
-        </div>
-
-        <div className="border-t border-gray-100 pt-4">
-          <p className="text-xs text-gray-400 mb-3">¿Ya tenés una cuenta de creator?</p>
-          <Link
-            href="/login?role=creator"
-            className="flex items-center justify-center gap-2 w-full py-2.5 bg-gray-900 text-white text-sm font-medium rounded-xl hover:bg-gray-800 transition-colors"
-          >
-            Iniciar sesión
-            <ArrowRight size={14} />
-          </Link>
-        </div>
+      <div className="flex justify-center">
+        <SignUp forceRedirectUrl="/onboarding/creator" routing="hash" />
       </div>
 
       <p className="text-center text-xs text-gray-400">
-        ¿Sos una marca o agencia?{" "}
-        <Link href="/register" className="text-gray-600 font-medium hover:underline">
-          Registrate acá
+        ¿Ya tenés cuenta?{" "}
+        <Link href="/login?role=creator" className="text-gray-600 font-medium hover:underline">
+          Ingresá
         </Link>
       </p>
     </div>
