@@ -200,7 +200,7 @@ async function tiendanubeRequest<T>(
     headers: {
       Authorization: `Bearer ${accessToken}`,
       "Content-Type": "application/json",
-      "User-Agent": "Kool (hola@kool.link)",
+      "User-Agent": "Kool (hi@joinkool.co)",
     },
     body: body ? JSON.stringify(body) : undefined,
   })

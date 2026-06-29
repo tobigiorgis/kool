@@ -61,7 +61,7 @@ function RegisterForm() {
               </p>
             </div>
             <div className="flex justify-center">
-              <SignUp afterSignUpUrl="/onboarding" routing="hash" />
+              <SignUp forceRedirectUrl="/onboarding" routing="hash" />
             </div>
             <p className="text-center text-xs text-gray-400 mt-6">
               ¿Ya tenés cuenta?{" "}
@@ -85,15 +85,10 @@ function CreatorSignUp({ token }: { token: string }) {
     <div className="space-y-4">
       <div className="text-center mb-4">
         <h1 className="text-lg font-semibold text-gray-900">Activá tu cuenta</h1>
-        <p className="text-sm text-gray-500 mt-1">
-          Creá tu cuenta para acceder a tu programa
-        </p>
+        <p className="text-sm text-gray-500 mt-1">Creá tu cuenta para acceder a tu programa</p>
       </div>
       <div className="flex justify-center">
-        <SignUp
-          afterSignUpUrl={`/onboarding/creator?token=${token}`}
-          routing="hash"
-        />
+        <SignUp forceRedirectUrl={`/onboarding/creator?token=${token}`} routing="hash" />
       </div>
     </div>
   )
@@ -117,7 +112,8 @@ function CreatorRegisterInfo() {
           <div>
             <p className="text-sm font-medium text-gray-900">Buscá el email de invitación</p>
             <p className="text-xs text-gray-500 mt-0.5">
-              La marca que te sumó a su programa te envió un email con tu link de acceso. Revisá tu bandeja de entrada.
+              La marca que te sumó a su programa te envió un email con tu link de acceso. Revisá tu
+              bandeja de entrada.
             </p>
           </div>
         </div>

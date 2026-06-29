@@ -45,11 +45,22 @@ export async function POST(request: NextRequest) {
     let utmCampaign = data.utmCampaign
 
     if (data.creatorId && !discountCode) {
-      const creator = await prisma.creator.findUnique({ where: { id: data.creatorId } })
-      if (creator?.discountCode) {
-        discountCode = creator.discountCode
-        utmCampaign = utmCampaign || creator.discountCode
+      // El código vive en CampaignCreator (por campaña). Buscarlo ahí primero;
+      // fallback al discountCode legacy del creator si no hay campaña.
+      if (data.campaignId) {
+        const cc = await prisma.campaignCreator.findUnique({
+          where: {
+            campaignId_creatorId: { campaignId: data.campaignId, creatorId: data.creatorId },
+          },
+          select: { discountCode: true },
+        })
+        if (cc?.discountCode) discountCode = cc.discountCode
       }
+      if (!discountCode) {
+        const creator = await prisma.creator.findUnique({ where: { id: data.creatorId } })
+        if (creator?.discountCode) discountCode = creator.discountCode
+      }
+      if (discountCode) utmCampaign = utmCampaign || discountCode
     }
 
     // Crear el link
