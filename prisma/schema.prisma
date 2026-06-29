@@ -238,7 +238,7 @@ model Click {
 
 model Creator {
   id          String        @id @default(cuid())
-  workspaceId String
+  workspaceId String?       // null = creator self-serve (sin marca, registro propio)
   userId      String?       @unique // Si tiene cuenta en Kool
   
   // Info personal
@@ -304,7 +304,7 @@ model Creator {
   updatedAt   DateTime      @updatedAt
 
   // Relaciones
-  workspace     Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  workspace     Workspace?      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   user          User?           @relation(fields: [userId], references: [id])
   links         Link[]
   campaigns     CampaignCreator[]

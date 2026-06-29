@@ -24,16 +24,22 @@ export async function GET() {
       }
     }
 
-    const programs = creators.map((c) => ({
-      creatorId: c.id,
-      workspaceId: c.workspaceId,
-      workspaceName: c.workspace.name,
-      workspaceLogo: c.workspace.brandLogo ?? c.workspace.logo,
-      commissionPct: c.commissionPct,
-      discountCode: c.discountCode,
-      tier: c.tier,
-      status: c.status,
-    }))
+    // Self-serve creators (sin marca) tienen workspace null → no son un "programa".
+    const programs = creators.flatMap((c) => {
+      if (!c.workspace) return []
+      return [
+        {
+          creatorId: c.id,
+          workspaceId: c.workspaceId,
+          workspaceName: c.workspace.name,
+          workspaceLogo: c.workspace.brandLogo ?? c.workspace.logo,
+          commissionPct: c.commissionPct,
+          discountCode: c.discountCode,
+          tier: c.tier,
+          status: c.status,
+        },
+      ]
+    })
 
     return NextResponse.json({ programs })
   } catch (error) {

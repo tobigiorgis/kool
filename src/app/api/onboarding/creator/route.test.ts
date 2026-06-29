@@ -9,7 +9,7 @@ vi.mock("@/lib/env", () => ({
 
 vi.mock("@/lib/prisma", () => ({
   prisma: {
-    creator: { findUnique: vi.fn(), findFirst: vi.fn(), update: vi.fn() },
+    creator: { findUnique: vi.fn(), findFirst: vi.fn(), update: vi.fn(), create: vi.fn() },
     user: { upsert: vi.fn() },
     campaignInvite: { updateMany: vi.fn() },
     campaignCreator: { updateMany: vi.fn() },
@@ -56,6 +56,15 @@ beforeEach(() => {
     commissionPct: 12,
     workspace: { name: "Acme" },
   } as never)
+  vi.mocked(prisma.creator.create).mockResolvedValue({
+    id: "cr-new",
+    email: "ana@mail.com",
+    firstName: "Ana",
+    name: "Ana Lopez",
+    discountCode: null,
+    commissionPct: 10,
+    workspace: null,
+  } as never)
   vi.mocked(prisma.campaignInvite.updateMany).mockResolvedValue({} as never)
   vi.mocked(prisma.campaignCreator.updateMany).mockResolvedValue({} as never)
 })
@@ -93,10 +102,22 @@ describe("POST /api/onboarding/creator", () => {
     expect(sendWelcomeCreator).not.toHaveBeenCalled()
   })
 
-  it("404 y no manda mail si el creator no se encuentra", async () => {
+  it("sin token y sin creator previo → crea self-serve (sin marca) y responde 200", async () => {
     vi.mocked(prisma.creator.findFirst).mockResolvedValue(null as never)
     const res = await POST(req({}))
+    expect(res.status).toBe(200)
+    expect(prisma.creator.create).toHaveBeenCalledTimes(1)
+    expect(prisma.creator.update).not.toHaveBeenCalled()
+    // self-serve sin marca → mail con fallback de brand, sin discountCode
+    expect(sendWelcomeCreator).toHaveBeenCalledTimes(1)
+  })
+
+  it("token inválido → 404, no crea ni manda mail", async () => {
+    vi.mocked(prisma.creator.findUnique).mockResolvedValue(null as never)
+    const res = await POST(req({ token: "bad-token" }))
     expect(res.status).toBe(404)
+    expect(prisma.creator.create).not.toHaveBeenCalled()
+    expect(prisma.creator.update).not.toHaveBeenCalled()
     expect(sendWelcomeCreator).not.toHaveBeenCalled()
   })
 })
