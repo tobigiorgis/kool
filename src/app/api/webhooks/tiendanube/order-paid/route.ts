@@ -76,8 +76,8 @@ export async function POST(request: NextRequest) {
     // Parsear los datos de la orden
     const parsed = parseTiendanubeOrderWebhook(body)
 
-    if (!parsed.creatorCode) {
-      // Sin creator code: igual registrar ventas en DropProductSale (sin conversión)
+    if (!parsed.creatorCode && !parsed.linkSlug) {
+      // Sin código ni link identificable: registrar drop sales si aplica, sin conversión
       const orderProducts: {
         product_id?: number
         variant_id?: number
@@ -133,58 +133,65 @@ export async function POST(request: NextRequest) {
         })
       }
 
-      logger.info("[Webhook order/paid]", "No creator code — drop sales recorded if applicable")
+      logger.info("[Webhook order/paid]", "No creator code ni link slug — drop sales recorded if applicable")
       return NextResponse.json({ ok: true, attributed: false })
     }
 
-    // Buscar el creator por su código de descuento en CampaignCreator (por campaña)
-    const campaignCreator = await prisma.campaignCreator.findFirst({
-      where: {
-        discountCode: parsed.creatorCode,
-        campaign: { workspaceId: connection.workspaceId },
-      },
-      include: {
-        creator: true,
-        campaign: true,
-      },
-    })
+    // 1. Buscar por código de descuento en CampaignCreator
+    const campaignCreator = parsed.creatorCode
+      ? await prisma.campaignCreator.findFirst({
+          where: {
+            discountCode: parsed.creatorCode,
+            campaign: { workspaceId: connection.workspaceId },
+          },
+          include: { creator: true, campaign: true },
+        })
+      : null
 
-    // Fallback: buscar por discountCode directo en el creator (legacy)
+    // 2. Fallback: buscar creator por discountCode directo (legacy)
     const creator =
       campaignCreator?.creator ??
-      (await prisma.creator.findFirst({
-        where: {
-          workspaceId: connection.workspaceId,
-          discountCode: parsed.creatorCode,
-          status: "ACTIVE",
-        },
-      }))
+      (parsed.creatorCode
+        ? await prisma.creator.findFirst({
+            where: {
+              workspaceId: connection.workspaceId,
+              discountCode: parsed.creatorCode,
+              status: "ACTIVE",
+            },
+          })
+        : null)
 
-    if (!creator) {
-      logger.info("[Webhook order/paid]", "Skipped: creator not found", {
+    // 3. Buscar el link — primero por slug (utm_content), luego por creator
+    const link =
+      (parsed.linkSlug
+        ? await prisma.link.findFirst({
+            where: { slug: parsed.linkSlug, workspaceId: connection.workspaceId, archived: false },
+          })
+        : null) ??
+      (creator
+        ? await prisma.link.findFirst({
+            where: { workspaceId: connection.workspaceId, creatorId: creator.id, archived: false },
+          })
+        : null)
+
+    // Si no hay creator ni link identificable, no atribuimos
+    if (!creator && !link) {
+      logger.info("[Webhook order/paid]", "Skipped: no creator nor link found", {
         creatorCode: parsed.creatorCode,
+        linkSlug: parsed.linkSlug,
       })
       return NextResponse.json({ ok: true, attributed: false })
     }
 
     // Usar comisión de campaña si existe, si no la del creator
-    const commissionPct = campaignCreator?.commissionPct ?? creator.commissionPct
-
-    // Buscar el link asociado al creator (para el registro)
-    const link = await prisma.link.findFirst({
-      where: {
-        workspaceId: connection.workspaceId,
-        creatorId: creator.id,
-        archived: false,
-      },
-    })
+    const commissionPct = campaignCreator?.commissionPct ?? creator?.commissionPct ?? 0
 
     // Registrar la conversión, la comisión y las ventas de Drop en una transacción
     await prisma.$transaction(async (tx) => {
       const conversion = await tx.conversion.create({
         data: {
           linkId: link?.id || undefined,
-          creatorId: creator.id,
+          creatorId: creator?.id || undefined,
           campaignId: campaignCreator?.campaignId || undefined,
           orderId: parsed.orderId,
           platform: "TIENDANUBE",
@@ -194,20 +201,21 @@ export async function POST(request: NextRequest) {
         },
       })
 
-      // Calcular comisión
-      const commissionAmount = parsed.orderAmount * (commissionPct / 100)
-
-      await tx.commission.create({
-        data: {
-          creatorId: creator.id,
-          conversionId: conversion.id,
-          orderAmount: parsed.orderAmount,
-          percentage: commissionPct,
-          amount: commissionAmount,
-          currency: parsed.currency,
-          status: "PENDING",
-        },
-      })
+      // Solo crear comisión si hay creator con porcentaje configurado
+      if (creator && commissionPct > 0) {
+        const commissionAmount = parsed.orderAmount * (commissionPct / 100)
+        await tx.commission.create({
+          data: {
+            creatorId: creator.id,
+            conversionId: conversion.id,
+            orderAmount: parsed.orderAmount,
+            percentage: commissionPct,
+            amount: commissionAmount,
+            currency: parsed.currency,
+            status: "PENDING",
+          },
+        })
+      }
 
       // Registrar ventas en DropProductSale si hay productos del Drop
       const orderProducts: {
@@ -269,53 +277,56 @@ export async function POST(request: NextRequest) {
 
     const commissionAmount = parsed.orderAmount * (commissionPct / 100)
     logger.info("[Webhook order/paid]", "Attribution success", {
-      creator: creator.name,
+      creator: creator?.name ?? null,
+      link: link?.slug ?? null,
       commission: commissionAmount,
     })
 
-    // Evaluar bounties de la campaña: crear achievements de tiers recién alcanzados
-    if (campaignCreator?.campaignId) {
-      try {
-        const newlyAchieved = await evaluateBounties(creator.id, campaignCreator.campaignId)
-        for (const a of newlyAchieved) {
-          logger.info("[Webhook order/paid] Bounty achievement", "bounty_achieved", {
-            creator: creator.name,
-            bountyName: a.bountyName,
-            reward: a.reward,
-          })
-          if (creator.email) {
-            void sendBountyAchieved({
-              to: creator.email,
-              creatorName: creator.firstName || creator.name || "creator",
-              brandName: connection.workspace?.name || "tu marca",
+    // Bounties y emails solo si hay creator
+    if (creator) {
+      if (campaignCreator?.campaignId) {
+        try {
+          const newlyAchieved = await evaluateBounties(creator.id, campaignCreator.campaignId)
+          for (const a of newlyAchieved) {
+            logger.info("[Webhook order/paid] Bounty achievement", "bounty_achieved", {
+              creator: creator.name,
               bountyName: a.bountyName,
               reward: a.reward,
-              dashboardUrl: creatorUrl(`program/${campaignCreator.campaignId}`),
             })
+            if (creator.email) {
+              void sendBountyAchieved({
+                to: creator.email,
+                creatorName: creator.firstName || creator.name || "creator",
+                brandName: connection.workspace?.name || "tu marca",
+                bountyName: a.bountyName,
+                reward: a.reward,
+                dashboardUrl: creatorUrl(`program/${campaignCreator.campaignId}`),
+              })
+            }
           }
+        } catch (err) {
+          logger.error("[Webhook order/paid] Bounty evaluation error", err)
         }
-      } catch (err) {
-        logger.error("[Webhook order/paid] Bounty evaluation error", err)
       }
-    }
 
-    // Email "venta generada" al creator (fire-and-forget — no bloquea el 200 a Tiendanube)
-    if (creator.email) {
-      void sendSaleGenerated({
-        to: creator.email,
-        creatorName: creator.firstName || creator.name || "creator",
-        brandName: connection.workspace?.name || "tu marca",
-        orderAmount: parsed.orderAmount,
-        commissionAmount,
-        currency: parsed.currency,
-        dashboardUrl: creatorUrl(""),
-      })
+      if (creator.email) {
+        void sendSaleGenerated({
+          to: creator.email,
+          creatorName: creator.firstName || creator.name || "creator",
+          brandName: connection.workspace?.name || "tu marca",
+          orderAmount: parsed.orderAmount,
+          commissionAmount,
+          currency: parsed.currency,
+          dashboardUrl: creatorUrl(""),
+        })
+      }
     }
 
     return NextResponse.json({
       ok: true,
       attributed: true,
-      creatorId: creator.id,
+      creatorId: creator?.id ?? null,
+      linkId: link?.id ?? null,
     })
   } catch (error) {
     logger.error("[Webhook order/paid] Tiendanube order/paid error", error)

@@ -71,6 +71,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 }
 
 function buildDestinationUrl(link: {
+  slug: string
   destination: string
   utmSource?: string | null
   utmMedium?: string | null
@@ -84,12 +85,11 @@ function buildDestinationUrl(link: {
     if (link.utmSource) url.searchParams.set("utm_source", link.utmSource)
     if (link.utmMedium) url.searchParams.set("utm_medium", link.utmMedium)
     if (link.utmCampaign) url.searchParams.set("utm_campaign", link.utmCampaign)
-    if (link.utmContent) url.searchParams.set("utm_content", link.utmContent)
+    // Siempre identificamos el link por slug en utm_content — permite atribución
+    // en el webhook incluso sin código de descuento.
+    url.searchParams.set("utm_content", link.utmContent || link.slug)
     const code = link.discountCode || link.creator?.discountCode
     if (code) {
-      // El script de la tienda (kool-tracker.js) lee coupon/ref/utm_campaign y
-      // aplica el cupón solo. `coupon` es el que se validó a mano. `utm_campaign`
-      // además habilita la atribución fallback del webhook (utm_parameters.campaign).
       url.searchParams.set("coupon", code)
       url.searchParams.set("ref", code)
       url.searchParams.set("utm_campaign", code)

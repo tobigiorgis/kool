@@ -411,14 +411,11 @@ export function parseTiendanubeOrderWebhook(order: TiendanubeOrder): {
   storeId?: string
   orderAmount: number
   currency: string
-  orderDate: Date // Fecha en que se pagó (o creó si paid_at no está)
-  creatorCode: string | null // El código del creator si usó cupón
-  utmCampaign: string | null // UTM campaign si viene en la URL
+  orderDate: Date
+  creatorCode: string | null  // Código de cupón o utm_campaign
+  linkSlug: string | null     // utm_content = slug del link de Kool
+  utmCampaign: string | null
 } {
-  // El creator code puede venir de:
-  // 1. El código de cupón usado (más confiable)
-  // 2. El utm_campaign de los parámetros UTM
-
   const creatorCode =
     order.promotional_discount?.code?.toUpperCase() ||
     order.utm_parameters?.campaign?.toUpperCase() ||
@@ -430,6 +427,7 @@ export function parseTiendanubeOrderWebhook(order: TiendanubeOrder): {
     currency: order.currency,
     orderDate: new Date(order.paid_at || order.created_at),
     creatorCode,
+    linkSlug: order.utm_parameters?.content || null,
     utmCampaign: order.utm_parameters?.campaign || null,
   }
 }
