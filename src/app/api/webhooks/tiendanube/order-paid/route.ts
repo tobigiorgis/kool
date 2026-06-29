@@ -37,7 +37,9 @@ export async function POST(request: NextRequest) {
       storeId: body.store_id,
       total: body.total,
       coupon: body.promotional_discount?.code,
+      promotional_discount: body.promotional_discount,
       utm: body.utm_parameters,
+      couponRaw: body.coupon,
     })
 
     // Tiendanube envía el store_id en el header o en el body
