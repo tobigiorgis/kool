@@ -14,6 +14,8 @@ const CreateLinkSchema = z.object({
   creatorId: z.string().optional(),
   campaignId: z.string().optional(),
   discountCode: z.string().optional(),
+  discountType: z.enum(["percentage", "absolute"]).optional(),
+  discountValue: z.number().optional(),
   utmSource: z.string().optional(),
   utmMedium: z.string().optional(),
   utmCampaign: z.string().optional(),
@@ -65,6 +67,26 @@ export async function POST(request: NextRequest) {
         utmCampaign,
       },
     })
+
+    // Crear cupón en Tiendanube si hay código de descuento
+    if (discountCode && data.discountValue) {
+      try {
+        const tnConn = await prisma.tiendanubeConnection.findUnique({
+          where: { workspaceId: data.workspaceId },
+        })
+        if (tnConn?.active) {
+          const { decrypt } = await import("@/lib/utils/crypto")
+          await createTiendanubeCoupon(tnConn.storeId, decrypt(tnConn.accessToken), {
+            code: discountCode,
+            type: data.discountType ?? "percentage",
+            value: data.discountValue,
+            valid: true,
+          })
+        }
+      } catch {
+        // El cupón puede ya existir — no es error crítico
+      }
+    }
 
     return NextResponse.json({ ok: true, link })
   } catch (error) {

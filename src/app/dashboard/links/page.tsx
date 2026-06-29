@@ -202,6 +202,7 @@ function CreateLinkModal({
   const [destination, setDestination] = useState("")
   const [slug, setSlug] = useState("")
   const [discountCode, setDiscountCode] = useState("")
+  const [discountValue, setDiscountValue] = useState("")
   const [campaignId, setCampaignId] = useState("")
   const [creatorId, setCreatorId] = useState("")
   const [campaigns, setCampaigns] = useState<Campaign[]>([])
@@ -249,6 +250,10 @@ function CreateLinkModal({
           destination,
           slug: slug || undefined,
           discountCode: discountCode || undefined,
+          discountType: "percentage",
+          discountValue: discountValue ? parseFloat(discountValue) : undefined,
+          campaignId: campaignId || undefined,
+          creatorId: creatorId || undefined,
         }),
       })
       const data = await res.json()
@@ -338,17 +343,36 @@ function CreateLinkModal({
             </div>
           )}
 
-          <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1.5">
-              Código de descuento <span className="text-gray-400 font-normal">(opcional)</span>
-            </label>
-            <input
-              type="text"
-              value={discountCode}
-              onChange={(e) => setDiscountCode(e.target.value.toUpperCase())}
-              placeholder="CAMILA15"
-              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-transparent font-mono"
-            />
+          <div className="flex gap-3">
+            <div className="flex-1">
+              <label className="block text-xs font-medium text-gray-700 mb-1.5">
+                Código de descuento <span className="text-gray-400 font-normal">(opcional)</span>
+              </label>
+              <input
+                type="text"
+                value={discountCode}
+                onChange={(e) => setDiscountCode(e.target.value.toUpperCase())}
+                placeholder="CAMILA15"
+                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-transparent font-mono"
+              />
+            </div>
+            {discountCode && (
+              <div className="w-28">
+                <label className="block text-xs font-medium text-gray-700 mb-1.5">% descuento</label>
+                <div className="flex">
+                  <input
+                    type="number"
+                    min="1"
+                    max="100"
+                    value={discountValue}
+                    onChange={(e) => setDiscountValue(e.target.value)}
+                    placeholder="10"
+                    className="flex-1 px-3 py-2 text-sm border border-r-0 border-gray-200 rounded-l-lg focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-transparent"
+                  />
+                  <span className="px-2 py-2 bg-gray-50 border border-gray-200 rounded-r-lg text-sm text-gray-500">%</span>
+                </div>
+              </div>
+            )}
           </div>
 
           {error && <p className="text-xs text-red-600 bg-red-50 p-2 rounded-lg">{error}</p>}
