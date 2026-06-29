@@ -117,29 +117,15 @@ export async function GET(request: NextRequest) {
         percentage: clicks.length ? Math.round((n / clicks.length) * 100) : 0,
       }))
 
-    // conversiones — filtrar por links resueltos o por workspace entero
-    let conversionCount = 0
-    if (targetLinkIds.length) {
-      conversionCount = await prisma.conversion.count({
-        where: {
-          linkId: { in: targetLinkIds },
-          convertedAt: { gte: fromDate, lte: toDate },
-        },
-      })
-    } else if (!linkId && !campaignId && !creatorId) {
-      const wsCreatorIds = await prisma.creator
-        .findMany({
-          where: { workspaceId },
-          select: { id: true },
+    // conversiones — siempre por linkId (incluye links sin creator)
+    const conversionCount = targetLinkIds.length
+      ? await prisma.conversion.count({
+          where: {
+            linkId: { in: targetLinkIds },
+            convertedAt: { gte: fromDate, lte: toDate },
+          },
         })
-        .then((cs) => cs.map((c) => c.id))
-      conversionCount = await prisma.conversion.count({
-        where: {
-          creatorId: { in: wsCreatorIds },
-          convertedAt: { gte: fromDate, lte: toDate },
-        },
-      })
-    }
+      : 0
 
     // Filter info for breadcrumb
     const [linkInfo, campaignInfo, creatorInfo] = await Promise.all([
