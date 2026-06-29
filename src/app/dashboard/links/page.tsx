@@ -254,8 +254,6 @@ function CreateLinkModal({
           discountCode: discountCode || undefined,
           discountType: "percentage",
           discountValue: discountValue ? parseFloat(discountValue) : undefined,
-          campaignId: campaignId || undefined,
-          creatorId: creatorId || undefined,
         }),
       })
       const data = await res.json()
