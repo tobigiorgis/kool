@@ -79,12 +79,20 @@ export interface TiendanubeOrder {
     type: string
     value: string
   }
+  // Cupones aplicados a la orden. Tiendanube los devuelve acá (array), NO en
+  // `promotional_discount.code`. Es el campo real donde vive el código del creator.
+  coupon?: {
+    id: number
+    code: string
+    type: string
+    value: string
+  }[]
   utm_parameters?: {
     campaign: string
     source: string
     medium: string
     content: string
-  }
+  } | null
 }
 
 export interface CreateCouponPayload {
@@ -412,11 +420,18 @@ export function parseTiendanubeOrderWebhook(order: TiendanubeOrder): {
   orderAmount: number
   currency: string
   orderDate: Date
-  creatorCode: string | null  // Código de cupón o utm_campaign
-  linkSlug: string | null     // utm_content = slug del link de Kool
+  creatorCode: string | null // Código de cupón o utm_campaign
+  linkSlug: string | null // utm_content = slug del link de Kool
   utmCampaign: string | null
 } {
+  // El cupón aplicado vive en `order.coupon` (array). `promotional_discount`
+  // NO trae `code` (solo montos), así que leerlo de ahí daba siempre null.
+  const couponCode = Array.isArray(order.coupon)
+    ? order.coupon.find((c) => c?.code)?.code
+    : undefined
+
   const creatorCode =
+    couponCode?.toUpperCase() ||
     order.promotional_discount?.code?.toUpperCase() ||
     order.utm_parameters?.campaign?.toUpperCase() ||
     null

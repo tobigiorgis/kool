@@ -36,10 +36,12 @@ export async function POST(request: NextRequest) {
       orderId: body.id,
       storeId: body.store_id,
       total: body.total,
-      coupon: body.promotional_discount?.code,
+      // El cupón aplicado vive en body.coupon[] (array), no en promotional_discount.code.
+      coupon: Array.isArray(body.coupon)
+        ? body.coupon.map((c: { code?: string }) => c?.code)
+        : body.coupon,
       promotional_discount: body.promotional_discount,
       utm: body.utm_parameters,
-      couponRaw: body.coupon,
     })
 
     // Tiendanube envía el store_id en el header o en el body
@@ -135,7 +137,10 @@ export async function POST(request: NextRequest) {
         })
       }
 
-      logger.info("[Webhook order/paid]", "No creator code ni link slug — drop sales recorded if applicable")
+      logger.info(
+        "[Webhook order/paid]",
+        "No creator code ni link slug — drop sales recorded if applicable"
+      )
       return NextResponse.json({ ok: true, attributed: false })
     }
 
