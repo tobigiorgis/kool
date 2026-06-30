@@ -12,7 +12,12 @@
 
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { parseTiendanubeOrderWebhook, verifyTiendanubeWebhookSignature } from "@/lib/tiendanube"
+import {
+  parseTiendanubeOrderWebhook,
+  verifyTiendanubeWebhookSignature,
+  getTiendanubeOrder,
+} from "@/lib/tiendanube"
+import { decrypt } from "@/lib/utils/crypto"
 import { getSaleRealStatus } from "@/lib/drops/sales"
 import { sendSaleGenerated, sendBountyAchieved } from "@/lib/email"
 import { evaluateBounties } from "@/lib/bounties"
@@ -77,8 +82,21 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Store not connected" }, { status: 404 })
     }
 
+    // Traer la orden completa por la API: garantiza `customer_visit` (donde viven
+    // los UTM reales, con o sin cupón) y el cupón autoritativo. Si falla, caemos
+    // al body del webhook para no perder la atribución por cupón.
+    let order = body
+    try {
+      order = await getTiendanubeOrder(storeId, decrypt(connection.accessToken), orderId)
+    } catch (err) {
+      logger.warn("[Webhook order/paid]", "No se pudo traer la orden completa, uso el body", {
+        orderId,
+        error: err instanceof Error ? err.message : String(err),
+      })
+    }
+
     // Parsear los datos de la orden
-    const parsed = parseTiendanubeOrderWebhook(body)
+    const parsed = parseTiendanubeOrderWebhook(order)
 
     if (!parsed.creatorCode && !parsed.linkSlug) {
       // Sin código ni link identificable: registrar drop sales si aplica, sin conversión
@@ -87,7 +105,7 @@ export async function POST(request: NextRequest) {
         variant_id?: number
         quantity: number
         price: string
-      }[] = body.products || []
+      }[] = order.products || []
 
       for (const op of orderProducts) {
         const productIdStr = op.product_id?.toString()
@@ -230,7 +248,7 @@ export async function POST(request: NextRequest) {
         variant_id?: number
         quantity: number
         price: string
-      }[] = body.products || []
+      }[] = order.products || []
 
       for (const op of orderProducts) {
         const productIdStr = op.product_id?.toString()

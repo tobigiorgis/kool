@@ -93,6 +93,19 @@ export interface TiendanubeOrder {
     medium: string
     content: string
   } | null
+  // Visita de aterrizaje. Acá viven los UTM REALES (el top-level utm_parameters
+  // viene siempre null). `utm_content` = slug del link de Kool; `landing_page`
+  // es la URL completa por la que entró el cliente (con o sin cupón).
+  customer_visit?: {
+    landing_page?: string | null
+    utm_parameters?: {
+      utm_content?: string | null
+      utm_campaign?: string | null
+      utm_source?: string | null
+      utm_medium?: string | null
+      utm_term?: string | null
+    } | null
+  } | null
 }
 
 export interface CreateCouponPayload {
@@ -330,6 +343,19 @@ export async function getTiendanubeOrders(
   return tiendanubeRequest<TiendanubeOrder[]>(storeId, accessToken, "GET", `/orders?${qs}`)
 }
 
+/**
+ * Trae UNA orden completa por id. El webhook order/paid la usa para garantizar
+ * los campos que el payload del webhook puede no traer (ej. `customer_visit`,
+ * donde viven los UTM reales) y el cupón autoritativo (`order.coupon[]`).
+ */
+export async function getTiendanubeOrder(
+  storeId: string,
+  accessToken: string,
+  orderId: string
+): Promise<TiendanubeOrder> {
+  return tiendanubeRequest<TiendanubeOrder>(storeId, accessToken, "GET", `/orders/${orderId}`)
+}
+
 export async function getTiendanubeWebhooks(
   storeId: string,
   accessToken: string
@@ -423,6 +449,7 @@ export function parseTiendanubeOrderWebhook(order: TiendanubeOrder): {
   creatorCode: string | null // Código de cupón o utm_campaign
   linkSlug: string | null // utm_content = slug del link de Kool
   utmCampaign: string | null
+  couponApplied: boolean // ¿la orden trae algún cupón aplicado?
 } {
   // El cupón aplicado vive en `order.coupon` (array). `promotional_discount`
   // NO trae `code` (solo montos), así que leerlo de ahí daba siempre null.
@@ -430,10 +457,21 @@ export function parseTiendanubeOrderWebhook(order: TiendanubeOrder): {
     ? order.coupon.find((c) => c?.code)?.code
     : undefined
 
+  // Los UTM reales viven en `customer_visit`, no en el top-level (siempre null).
+  const visitUtm = order.customer_visit?.utm_parameters
+
   const creatorCode =
     couponCode?.toUpperCase() ||
+    visitUtm?.utm_campaign?.toUpperCase() ||
     order.promotional_discount?.code?.toUpperCase() ||
     order.utm_parameters?.campaign?.toUpperCase() ||
+    null
+
+  // Slug del link: customer_visit.utm_content → parse de landing_page → top-level.
+  const linkSlug =
+    visitUtm?.utm_content ||
+    utmContentFromUrl(order.customer_visit?.landing_page) ||
+    order.utm_parameters?.content ||
     null
 
   return {
@@ -442,8 +480,19 @@ export function parseTiendanubeOrderWebhook(order: TiendanubeOrder): {
     currency: order.currency,
     orderDate: new Date(order.paid_at || order.created_at),
     creatorCode,
-    linkSlug: order.utm_parameters?.content || null,
-    utmCampaign: order.utm_parameters?.campaign || null,
+    linkSlug,
+    utmCampaign: visitUtm?.utm_campaign || order.utm_parameters?.campaign || null,
+    couponApplied: !!couponCode,
+  }
+}
+
+/** Extrae `utm_content` de una URL de landing (sandbox-safe, devuelve null si falla). */
+function utmContentFromUrl(url?: string | null): string | null {
+  if (!url) return null
+  try {
+    return new URL(url).searchParams.get("utm_content")
+  } catch {
+    return null
   }
 }
 

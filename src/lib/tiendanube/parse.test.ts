@@ -60,3 +60,83 @@ describe("parseTiendanubeOrderWebhook — extracción de creatorCode", () => {
     expect(parsed.linkSlug).toBe("ana-verano")
   })
 })
+
+describe("parseTiendanubeOrderWebhook — link desde customer_visit", () => {
+  // Estructura REAL: el slug del link vive en customer_visit, no en el top-level
+  // order.utm_parameters (que viene siempre null). Verificado contra GET /orders.
+  it("sin cupón: toma el slug de customer_visit.utm_parameters.utm_content", () => {
+    const order = {
+      ...(baseOrder as object),
+      coupon: [],
+      utm_parameters: null,
+      customer_visit: {
+        landing_page:
+          "https://pendexxx.mitiendanube.com/productos/tee/?utm_source=kool&utm_content=tobilv",
+        utm_parameters: {
+          utm_content: "tobilv",
+          utm_campaign: null,
+          utm_source: "kool",
+          utm_medium: "affiliate",
+          utm_term: null,
+        },
+      },
+    } as never
+
+    const parsed = parseTiendanubeOrderWebhook(order)
+    expect(parsed.linkSlug).toBe("tobilv")
+    expect(parsed.creatorCode).toBeNull()
+    expect(parsed.couponApplied).toBe(false)
+  })
+
+  it("fallback: parsea utm_content de customer_visit.landing_page", () => {
+    const order = {
+      ...(baseOrder as object),
+      coupon: [],
+      utm_parameters: null,
+      customer_visit: {
+        landing_page:
+          "https://pendexxx.mitiendanube.com/productos/tee/?utm_source=kool&utm_content=launch&ref=LAUNCH5",
+        utm_parameters: {
+          utm_content: null,
+          utm_campaign: null,
+          utm_source: "kool",
+          utm_medium: "affiliate",
+        },
+      },
+    } as never
+
+    const parsed = parseTiendanubeOrderWebhook(order)
+    expect(parsed.linkSlug).toBe("launch")
+  })
+
+  it("creatorCode desde customer_visit.utm_parameters.utm_campaign cuando no hay cupón", () => {
+    const order = {
+      ...(baseOrder as object),
+      coupon: [],
+      utm_parameters: null,
+      customer_visit: {
+        landing_page: null,
+        utm_parameters: {
+          utm_content: "tobilv",
+          utm_campaign: "tobinho10",
+          utm_source: "kool",
+          utm_medium: "affiliate",
+        },
+      },
+    } as never
+
+    const parsed = parseTiendanubeOrderWebhook(order)
+    expect(parsed.creatorCode).toBe("TOBINHO10")
+    expect(parsed.linkSlug).toBe("tobilv")
+  })
+
+  it("couponApplied true cuando hay cupón aplicado", () => {
+    const order = {
+      ...(baseOrder as object),
+      coupon: [{ id: 1, code: "TOBINHO10", type: "percentage", value: "10.00" }],
+    } as never
+
+    const parsed = parseTiendanubeOrderWebhook(order)
+    expect(parsed.couponApplied).toBe(true)
+  })
+})

@@ -4,7 +4,10 @@ import { NextRequest } from "next/server"
 vi.mock("@/lib/tiendanube", () => ({
   parseTiendanubeOrderWebhook: vi.fn(),
   verifyTiendanubeWebhookSignature: vi.fn(),
+  getTiendanubeOrder: vi.fn(),
 }))
+
+vi.mock("@/lib/utils/crypto", () => ({ decrypt: vi.fn(() => "token") }))
 
 vi.mock("@/lib/drops/sales", () => ({ getSaleRealStatus: vi.fn(() => "ENDED") }))
 
@@ -32,7 +35,11 @@ vi.mock("@/lib/logger", () => ({
 
 import { POST } from "./route"
 import { prisma } from "@/lib/prisma"
-import { parseTiendanubeOrderWebhook, verifyTiendanubeWebhookSignature } from "@/lib/tiendanube"
+import {
+  parseTiendanubeOrderWebhook,
+  verifyTiendanubeWebhookSignature,
+  getTiendanubeOrder,
+} from "@/lib/tiendanube"
 import { evaluateBounties } from "@/lib/bounties"
 import { sendSaleGenerated, sendBountyAchieved } from "@/lib/email"
 
@@ -56,12 +63,14 @@ const tx = {
 beforeEach(() => {
   vi.clearAllMocks()
   vi.mocked(verifyTiendanubeWebhookSignature).mockReturnValue(true)
+  vi.mocked(getTiendanubeOrder).mockResolvedValue(orderBody as never)
   vi.mocked(parseTiendanubeOrderWebhook).mockReturnValue({
     creatorCode: "ANA20",
     orderId: "order_1",
     orderAmount: 10000,
     currency: "ARS",
     orderDate: new Date("2026-01-01"),
+    couponApplied: true,
   } as never)
   vi.mocked(prisma.conversion.findFirst).mockResolvedValue(null as never)
   vi.mocked(prisma.tiendanubeConnection.findFirst).mockResolvedValue({
