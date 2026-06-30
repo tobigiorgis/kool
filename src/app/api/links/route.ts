@@ -20,6 +20,8 @@ const CreateLinkSchema = z.object({
   utmMedium: z.string().optional(),
   utmCampaign: z.string().optional(),
   title: z.string().optional(),
+  // Si true, el link paga comisión al creator aunque la venta no traiga cupón.
+  commissionWithoutCoupon: z.boolean().optional(),
 })
 
 export async function POST(request: NextRequest) {
@@ -76,6 +78,7 @@ export async function POST(request: NextRequest) {
         utmSource: data.utmSource || "kool",
         utmMedium: data.utmMedium || "affiliate",
         utmCampaign,
+        commissionWithoutCoupon: data.commissionWithoutCoupon ?? false,
       },
     })
 

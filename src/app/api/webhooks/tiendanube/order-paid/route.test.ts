@@ -4,7 +4,10 @@ import { NextRequest } from "next/server"
 vi.mock("@/lib/tiendanube", () => ({
   parseTiendanubeOrderWebhook: vi.fn(),
   verifyTiendanubeWebhookSignature: vi.fn(),
+  getTiendanubeOrder: vi.fn(),
 }))
+
+vi.mock("@/lib/utils/crypto", () => ({ decrypt: vi.fn(() => "token") }))
 
 vi.mock("@/lib/drops/sales", () => ({ getSaleRealStatus: vi.fn(() => "ENDED") }))
 
@@ -32,7 +35,11 @@ vi.mock("@/lib/logger", () => ({
 
 import { POST } from "./route"
 import { prisma } from "@/lib/prisma"
-import { parseTiendanubeOrderWebhook, verifyTiendanubeWebhookSignature } from "@/lib/tiendanube"
+import {
+  parseTiendanubeOrderWebhook,
+  verifyTiendanubeWebhookSignature,
+  getTiendanubeOrder,
+} from "@/lib/tiendanube"
 import { evaluateBounties } from "@/lib/bounties"
 import { sendSaleGenerated, sendBountyAchieved } from "@/lib/email"
 
@@ -56,12 +63,14 @@ const tx = {
 beforeEach(() => {
   vi.clearAllMocks()
   vi.mocked(verifyTiendanubeWebhookSignature).mockReturnValue(true)
+  vi.mocked(getTiendanubeOrder).mockResolvedValue(orderBody as never)
   vi.mocked(parseTiendanubeOrderWebhook).mockReturnValue({
     creatorCode: "ANA20",
     orderId: "order_1",
     orderAmount: 10000,
     currency: "ARS",
     orderDate: new Date("2026-01-01"),
+    couponApplied: true,
   } as never)
   vi.mocked(prisma.conversion.findFirst).mockResolvedValue(null as never)
   vi.mocked(prisma.tiendanubeConnection.findFirst).mockResolvedValue({
@@ -156,9 +165,94 @@ describe("POST webhook order/paid — sin envío de mail", () => {
   it("creator no encontrado → no manda mail", async () => {
     vi.mocked(prisma.campaignCreator.findFirst).mockResolvedValue(null as never)
     vi.mocked(prisma.creator.findFirst).mockResolvedValue(null as never)
+    vi.mocked(prisma.link.findFirst).mockResolvedValue(null as never)
     const res = await POST(req(orderBody))
     const json = await res.json()
     expect(json.attributed).toBe(false)
     expect(sendSaleGenerated).not.toHaveBeenCalled()
+  })
+})
+
+describe("POST webhook order/paid — atribución por link sin cupón", () => {
+  // Venta sin cupón: el link llega por customer_visit (parse devuelve linkSlug,
+  // creatorCode null, couponApplied false). El creator sale del link.
+  beforeEach(() => {
+    vi.mocked(parseTiendanubeOrderWebhook).mockReturnValue({
+      creatorCode: null,
+      linkSlug: "tobilv",
+      couponApplied: false,
+      orderId: "order_1",
+      orderAmount: 10000,
+      currency: "ARS",
+      orderDate: new Date("2026-01-01"),
+    } as never)
+    vi.mocked(prisma.campaignCreator.findFirst).mockResolvedValue(null as never)
+    vi.mocked(prisma.creator.findFirst).mockResolvedValue(null as never)
+  })
+
+  it("link con creator + flag ON → conversión + comisión", async () => {
+    vi.mocked(prisma.link.findFirst).mockResolvedValue({
+      id: "lnk1",
+      creatorId: "cr1",
+      campaignId: null,
+      commissionWithoutCoupon: true,
+      creator: {
+        id: "cr1",
+        email: "tobi@mail.com",
+        name: "Tobi",
+        firstName: "Tobi",
+        commissionPct: 10,
+      },
+    } as never)
+
+    const res = await POST(req(orderBody))
+    const json = await res.json()
+    expect(json.attributed).toBe(true)
+    expect(tx.conversion.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ linkId: "lnk1", creatorId: "cr1" }),
+      })
+    )
+    expect(tx.commission.create).toHaveBeenCalledTimes(1)
+  })
+
+  it("link con creator + flag OFF → conversión SIN comisión", async () => {
+    vi.mocked(prisma.link.findFirst).mockResolvedValue({
+      id: "lnk1",
+      creatorId: "cr1",
+      campaignId: null,
+      commissionWithoutCoupon: false,
+      creator: {
+        id: "cr1",
+        email: "tobi@mail.com",
+        name: "Tobi",
+        firstName: "Tobi",
+        commissionPct: 10,
+      },
+    } as never)
+
+    const res = await POST(req(orderBody))
+    const json = await res.json()
+    expect(json.attributed).toBe(true)
+    expect(tx.conversion.create).toHaveBeenCalledTimes(1)
+    expect(tx.commission.create).not.toHaveBeenCalled()
+  })
+
+  it("link sin creator → conversión atribuida al link, sin comisión", async () => {
+    vi.mocked(prisma.link.findFirst).mockResolvedValue({
+      id: "lnk1",
+      creatorId: null,
+      campaignId: null,
+      commissionWithoutCoupon: false,
+      creator: null,
+    } as never)
+
+    const res = await POST(req(orderBody))
+    const json = await res.json()
+    expect(json.attributed).toBe(true)
+    expect(tx.conversion.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ linkId: "lnk1" }) })
+    )
+    expect(tx.commission.create).not.toHaveBeenCalled()
   })
 })

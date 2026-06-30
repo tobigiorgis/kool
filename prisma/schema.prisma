@@ -183,7 +183,10 @@ model Link {
   
   // Descuento Tiendanube/Shopify (si aplica)
   discountCode String?   // ej: "CAMILA15"
-  
+
+  // Si true, el link paga comisión al creator aunque la orden no traiga cupón.
+  commissionWithoutCoupon Boolean @default(false)
+
   // Estado
   archived    Boolean   @default(false)
   createdAt   DateTime  @default(now())
