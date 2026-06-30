@@ -191,11 +191,13 @@ export async function POST(request: NextRequest) {
       (parsed.linkSlug
         ? await prisma.link.findFirst({
             where: { slug: parsed.linkSlug, workspaceId: connection.workspaceId, archived: false },
+            include: { creator: true },
           })
         : null) ??
       (creator
         ? await prisma.link.findFirst({
             where: { workspaceId: connection.workspaceId, creatorId: creator.id, archived: false },
+            include: { creator: true },
           })
         : null)
 
@@ -208,16 +210,25 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: true, attributed: false })
     }
 
+    // Creator efectivo: del cupón si lo hay, si no el dueño del link (atribución
+    // sin cupón). Campaña: la del cupón o, si no, la del link.
+    const effectiveCreator = creator ?? link?.creator ?? null
+    const campaignId = campaignCreator?.campaignId ?? link?.campaignId ?? undefined
+
+    // ¿Pagamos comisión? Sí si hubo cupón, o si el link está marcado para pagar
+    // comisión sin cupón.
+    const payCommission = parsed.couponApplied || link?.commissionWithoutCoupon === true
+
     // Usar comisión de campaña si existe, si no la del creator
-    const commissionPct = campaignCreator?.commissionPct ?? creator?.commissionPct ?? 0
+    const commissionPct = campaignCreator?.commissionPct ?? effectiveCreator?.commissionPct ?? 0
 
     // Registrar la conversión, la comisión y las ventas de Drop en una transacción
     await prisma.$transaction(async (tx) => {
       const conversion = await tx.conversion.create({
         data: {
           linkId: link?.id || undefined,
-          creatorId: creator?.id || undefined,
-          campaignId: campaignCreator?.campaignId || undefined,
+          creatorId: effectiveCreator?.id || undefined,
+          campaignId,
           orderId: parsed.orderId,
           platform: "TIENDANUBE",
           orderAmount: parsed.orderAmount,
@@ -226,12 +237,13 @@ export async function POST(request: NextRequest) {
         },
       })
 
-      // Solo crear comisión si hay creator con porcentaje configurado
-      if (creator && commissionPct > 0) {
+      // Crear comisión solo si hay creator, porcentaje > 0, y corresponde pagar
+      // (hubo cupón, o el link paga comisión sin cupón).
+      if (effectiveCreator && commissionPct > 0 && payCommission) {
         const commissionAmount = parsed.orderAmount * (commissionPct / 100)
         await tx.commission.create({
           data: {
-            creatorId: creator.id,
+            creatorId: effectiveCreator.id,
             conversionId: conversion.id,
             orderAmount: parsed.orderAmount,
             percentage: commissionPct,
@@ -300,32 +312,33 @@ export async function POST(request: NextRequest) {
       }
     })
 
-    const commissionAmount = parsed.orderAmount * (commissionPct / 100)
+    // Monto de comisión efectivo: 0 si no corresponde pagar (flag off, sin cupón).
+    const commissionAmount = payCommission ? parsed.orderAmount * (commissionPct / 100) : 0
     logger.info("[Webhook order/paid]", "Attribution success", {
-      creator: creator?.name ?? null,
+      creator: effectiveCreator?.name ?? null,
       link: link?.slug ?? null,
       commission: commissionAmount,
     })
 
-    // Bounties y emails solo si hay creator
-    if (creator) {
-      if (campaignCreator?.campaignId) {
+    // Bounties y emails solo si hay creator (del cupón o del link)
+    if (effectiveCreator) {
+      if (campaignId) {
         try {
-          const newlyAchieved = await evaluateBounties(creator.id, campaignCreator.campaignId)
+          const newlyAchieved = await evaluateBounties(effectiveCreator.id, campaignId)
           for (const a of newlyAchieved) {
             logger.info("[Webhook order/paid] Bounty achievement", "bounty_achieved", {
-              creator: creator.name,
+              creator: effectiveCreator.name,
               bountyName: a.bountyName,
               reward: a.reward,
             })
-            if (creator.email) {
+            if (effectiveCreator.email) {
               void sendBountyAchieved({
-                to: creator.email,
-                creatorName: creator.firstName || creator.name || "creator",
+                to: effectiveCreator.email,
+                creatorName: effectiveCreator.firstName || effectiveCreator.name || "creator",
                 brandName: connection.workspace?.name || "tu marca",
                 bountyName: a.bountyName,
                 reward: a.reward,
-                dashboardUrl: creatorUrl(`program/${campaignCreator.campaignId}`),
+                dashboardUrl: creatorUrl(`program/${campaignId}`),
               })
             }
           }
@@ -334,10 +347,10 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      if (creator.email) {
+      if (effectiveCreator.email) {
         void sendSaleGenerated({
-          to: creator.email,
-          creatorName: creator.firstName || creator.name || "creator",
+          to: effectiveCreator.email,
+          creatorName: effectiveCreator.firstName || effectiveCreator.name || "creator",
           brandName: connection.workspace?.name || "tu marca",
           orderAmount: parsed.orderAmount,
           commissionAmount,
@@ -350,7 +363,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       ok: true,
       attributed: true,
-      creatorId: creator?.id ?? null,
+      creatorId: effectiveCreator?.id ?? null,
       linkId: link?.id ?? null,
     })
   } catch (error) {
