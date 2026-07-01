@@ -88,13 +88,6 @@ export async function POST(request: NextRequest) {
     let order = body
     try {
       order = await getTiendanubeOrder(storeId, decrypt(connection.accessToken), orderId)
-      logger.info("[Webhook order/paid]", "Full order fetched", {
-        orderId,
-        coupon: order.coupon,
-        promotional_discount: order.promotional_discount,
-        utm_parameters: order.utm_parameters,
-        customer_visit: order.customer_visit,
-      })
     } catch (err) {
       logger.warn("[Webhook order/paid]", "No se pudo traer la orden completa, uso el body", {
         orderId,
@@ -104,11 +97,6 @@ export async function POST(request: NextRequest) {
 
     // Parsear los datos de la orden
     const parsed = parseTiendanubeOrderWebhook(order)
-    logger.info("[Webhook order/paid]", "Parsed", {
-      creatorCode: parsed.creatorCode,
-      linkSlug: parsed.linkSlug,
-      couponApplied: parsed.couponApplied,
-    })
 
     if (!parsed.creatorCode && !parsed.linkSlug) {
       // Sin código ni link identificable: registrar drop sales si aplica, sin conversión
