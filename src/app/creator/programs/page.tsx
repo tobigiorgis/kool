@@ -52,7 +52,7 @@ export default async function AllProgramsPage() {
   )
 
   return (
-    <div className="p-8 max-w-4xl mx-auto">
+    <div className="p-4 lg:p-8 max-w-4xl mx-auto">
       <div className="mb-6">
         <h1 className="text-xl font-semibold text-gray-900 tracking-tight">Programs</h1>
         <p className="text-sm text-gray-400 mt-0.5">

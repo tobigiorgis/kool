@@ -73,23 +73,24 @@ export default function CampaignsPage() {
   const totalPending = campaigns.reduce((s, c) => s + (c.pendingApplications ?? 0), 0)
 
   return (
-    <div className="p-8">
-      <div className="flex items-center justify-between mb-8">
+    <div className="p-4 lg:p-8">
+      <div className="flex items-center justify-between mb-6 lg:mb-8">
         <div>
-          <h1 className="text-2xl font-semibold text-gray-900">Campañas</h1>
-          <p className="text-sm text-gray-500 mt-1">Organizá tus acciones con creators por campaña</p>
+          <h1 className="text-xl lg:text-2xl font-semibold text-gray-900">Campañas</h1>
+          <p className="text-sm text-gray-500 mt-1 hidden sm:block">Organizá tus acciones con creators por campaña</p>
         </div>
         <button
           onClick={() => router.push("/dashboard/campaigns/new")}
-          className="flex items-center gap-2 bg-gray-900 text-white px-4 py-2 rounded-lg text-[13px] font-medium hover:bg-gray-800 transition-colors"
+          className="flex items-center gap-2 bg-gray-900 text-white px-3 py-2 lg:px-4 rounded-lg text-[13px] font-medium hover:bg-gray-800 transition-colors"
         >
           <Plus size={14} />
-          Nueva campaña
+          <span className="hidden sm:inline">Nueva campaña</span>
+          <span className="sm:hidden">Nueva</span>
         </button>
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4 mb-6 lg:mb-8">
         <div className="bg-white rounded-xl border border-gray-100 p-5">
           <p className="text-xs text-gray-500 mb-1">Total campañas</p>
           <p className="text-2xl font-semibold text-gray-900">{loading ? "—" : campaigns.length}</p>

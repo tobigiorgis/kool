@@ -80,7 +80,7 @@ const PERIOD_LABELS: Record<Period, string> = {
 
 export default function AnalyticsPage() {
   return (
-    <Suspense fallback={<div className="p-8 text-sm text-gray-400">Cargando...</div>}>
+    <Suspense fallback={<div className="p-4 lg:p-8 text-sm text-gray-400">Cargando...</div>}>
       <AnalyticsContent />
     </Suspense>
   )
@@ -149,7 +149,7 @@ function AnalyticsContent() {
   }
 
   return (
-    <div className="p-8">
+    <div className="p-4 lg:p-8">
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div>
@@ -298,7 +298,7 @@ function AnalyticsContent() {
       </div>
 
       {/* Fila inferior: países + dispositivos + fuentes */}
-      <div className="grid grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 lg:gap-6">
         {/* Top países */}
         <div className="bg-white rounded-xl border border-gray-100 p-6">
           <div className="flex items-center gap-2 mb-4">

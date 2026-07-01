@@ -77,7 +77,7 @@ export default function CreatorsPage() {
   })
 
   return (
-    <div className="p-8 max-w-6xl mx-auto">
+    <div className="p-4 lg:p-8 max-w-6xl mx-auto">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-2.5">
@@ -89,16 +89,17 @@ export default function CreatorsPage() {
         <div className="flex items-center gap-2">
           <button
             onClick={() => setShowImport(true)}
-            className="flex items-center gap-1.5 text-[13px] font-medium text-gray-600 border border-gray-200 px-3 py-1.5 rounded-lg hover:bg-gray-50 transition-colors"
+            className="hidden sm:flex items-center gap-1.5 text-[13px] font-medium text-gray-600 border border-gray-200 px-3 py-1.5 rounded-lg hover:bg-gray-50 transition-colors"
           >
             <Upload size={13} />
             Import CSV
           </button>
           <button
             onClick={() => setShowInvite(true)}
-            className="flex items-center gap-2 bg-gray-900 text-white px-4 py-2 rounded-lg text-[13px] font-medium hover:bg-gray-800 transition-colors"
+            className="flex items-center gap-2 bg-gray-900 text-white px-3 lg:px-4 py-2 rounded-lg text-[13px] font-medium hover:bg-gray-800 transition-colors"
           >
-            Invite creator
+            <span className="hidden sm:inline">Invite creator</span>
+            <span className="sm:hidden">Invite</span>
             <div className="w-5 h-5 rounded bg-gray-700 flex items-center justify-center">
               <Plus size={12} />
             </div>
@@ -107,20 +108,20 @@ export default function CreatorsPage() {
       </div>
 
       {/* Filters + search */}
-      <div className="flex items-center justify-between mb-4">
-        <button className="flex items-center gap-1.5 text-[13px] text-gray-600 hover:text-gray-900 border border-gray-200 px-3 py-1.5 rounded-lg transition-colors">
+      <div className="flex items-center justify-between mb-4 gap-3">
+        <button className="hidden sm:flex items-center gap-1.5 text-[13px] text-gray-600 hover:text-gray-900 border border-gray-200 px-3 py-1.5 rounded-lg transition-colors">
           <Filter size={13} />
           Filter
           <ChevronDown size={12} />
         </button>
-        <div className="relative">
+        <div className="relative flex-1 sm:flex-none">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
           <input
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search by name, email, or @instagram"
-            className="pl-9 pr-4 py-1.5 text-[13px] border border-gray-200 rounded-lg w-72 focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-transparent"
+            placeholder="Search by name, email..."
+            className="pl-9 pr-4 py-1.5 text-[13px] border border-gray-200 rounded-lg w-full sm:w-72 focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-transparent"
           />
         </div>
       </div>
@@ -133,7 +134,8 @@ export default function CreatorsPage() {
           </div>
         ) : (
           <>
-            <table className="w-full">
+            <div className="overflow-x-auto">
+            <table className="w-full min-w-[700px]">
               <thead>
                 <tr className="border-b border-gray-100">
                   {["Creator", "Enrolled", "Status", "Location", "Clicks", "Sales", "Revenue", "Commissions"].map(
@@ -244,6 +246,7 @@ export default function CreatorsPage() {
                 })}
               </tbody>
             </table>
+            </div>
 
             {filtered.length === 0 && (
               <div className="px-5 py-12 text-center">

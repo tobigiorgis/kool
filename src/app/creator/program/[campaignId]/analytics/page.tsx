@@ -33,7 +33,7 @@ export default function AnalyticsPage() {
   const maxClicks = Math.max(...data.map((d) => d.clicks), 1)
 
   return (
-    <div className="p-8 max-w-4xl mx-auto space-y-5">
+    <div className="p-4 lg:p-8 max-w-4xl mx-auto space-y-5">
       <div className="mb-2">
         <h1 className="text-xl font-semibold text-gray-900 tracking-tight">Analytics</h1>
         <p className="text-sm text-gray-400 mt-0.5">Performance de tus links</p>

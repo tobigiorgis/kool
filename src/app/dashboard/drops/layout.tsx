@@ -26,7 +26,7 @@ export default function DropsLayout({ children }: { children: React.ReactNode })
 
   return (
     <div className="flex flex-col h-full">
-      <div className="border-b border-[#f0f0f0] px-8 flex items-center gap-0">
+      <div className="border-b border-[#f0f0f0] px-4 lg:px-8 flex items-center gap-0 overflow-x-auto">
         {TABS.map(({ href, label }) => {
           const active = isActive(href)
           return (

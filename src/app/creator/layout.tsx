@@ -55,7 +55,7 @@ export default async function CreatorLayout({ children }: { children: React.Reac
         programs={programs}
         pendingInvites={pendingInvites}
       />
-      <main className="flex-1 overflow-auto">{children}</main>
+      <main className="flex-1 overflow-auto pb-16 lg:pb-0">{children}</main>
     </div>
   )
 }

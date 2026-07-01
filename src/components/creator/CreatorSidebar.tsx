@@ -22,6 +22,55 @@ import {
   Search,
 } from "lucide-react"
 
+// ─── Mobile bottom nav ───────────────────────────────────────────────────────
+
+function MobileCreatorNav({
+  pathname,
+  currentCampaignId,
+  isInProgram,
+  pendingInvites,
+}: {
+  pathname: string
+  currentCampaignId: string | undefined
+  isInProgram: boolean
+  pendingInvites: number
+}) {
+  const items = isInProgram && currentCampaignId
+    ? [
+        { href: creatorPath(`program/${currentCampaignId}`), label: "Overview", icon: Home, active: pathname === creatorPath(`program/${currentCampaignId}`) },
+        { href: creatorPath(`program/${currentCampaignId}/links`), label: "Links", icon: Link2, active: pathname.endsWith("/links") },
+        { href: creatorPath(`program/${currentCampaignId}/earnings`), label: "Earnings", icon: DollarSign, active: pathname.endsWith("/earnings") },
+        { href: creatorPath(`program/${currentCampaignId}/analytics`), label: "Analytics", icon: BarChart3, active: pathname.endsWith("/analytics") },
+        { href: creatorPath("profile"), label: "Profile", icon: User, active: pathname.includes("/profile") },
+      ]
+    : [
+        { href: creatorPath("programs"), label: "Programs", icon: LayoutGrid, active: pathname === creatorPath("programs") || pathname === creatorPath("") },
+        { href: creatorPath("programs/invitations"), label: "Invites", icon: UserPlus, active: pathname.includes("invitations"), badge: pendingInvites > 0 ? pendingInvites : undefined },
+        { href: creatorPath("payouts"), label: "Payouts", icon: Wallet, active: pathname.includes("/payouts") },
+        { href: creatorPath("profile"), label: "Profile", icon: User, active: pathname.includes("/profile") },
+      ]
+
+  return (
+    <nav className="lg:hidden fixed bottom-0 inset-x-0 bg-white border-t border-gray-100 z-50 flex items-stretch">
+      {items.map(({ href, label, icon: Icon, active, badge }) => (
+        <Link
+          key={href}
+          href={href}
+          className={`flex-1 flex flex-col items-center justify-center gap-1 py-2 relative transition-colors ${active ? "text-gray-900" : "text-gray-400"}`}
+        >
+          <Icon size={20} className={active ? "text-brand-500" : "text-gray-400"} />
+          <span className="text-[9px] font-medium">{label}</span>
+          {badge !== undefined && (
+            <span className="absolute top-1.5 right-[calc(50%-14px)] text-[9px] font-bold bg-rose-500 text-white rounded-full w-4 h-4 flex items-center justify-center">
+              {badge}
+            </span>
+          )}
+        </Link>
+      ))}
+    </nav>
+  )
+}
+
 interface Program {
   campaignId: string
   campaignName: string
@@ -55,7 +104,14 @@ export function CreatorSidebar({ creatorName, creatorAvatar, programs, pendingIn
   )
 
   return (
-    <aside className="w-[220px] bg-white border-r border-gray-100 flex flex-col h-full shrink-0">
+    <>
+    <MobileCreatorNav
+      pathname={pathname}
+      currentCampaignId={currentCampaignId}
+      isInProgram={isInProgram}
+      pendingInvites={pendingInvites}
+    />
+    <aside className="hidden lg:flex w-[220px] bg-white border-r border-gray-100 flex-col h-full shrink-0">
       {/* Logo */}
       <div className="px-4 h-14 flex items-center border-b border-gray-100">
         <Link href={creatorPath("")} className="flex items-center gap-1">
@@ -243,6 +299,7 @@ export function CreatorSidebar({ creatorName, creatorAvatar, programs, pendingIn
         </div>
       </div>
     </aside>
+    </>
   )
 }
 

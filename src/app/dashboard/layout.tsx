@@ -4,7 +4,7 @@ import { auth } from "@clerk/nextjs/server"
 import { UserButton } from "@clerk/nextjs"
 import { prisma } from "@/lib/prisma"
 import { creatorUrl } from "@/lib/host"
-import { DashboardNav } from "./nav"
+import { DashboardNav, MobileDashboardNav } from "./nav"
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { userId } = await auth()
@@ -26,8 +26,8 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   return (
     <div className="flex h-screen bg-white">
-      {/* Sidebar */}
-      <aside className="w-[220px] flex-shrink-0 border-r border-[#f0f0f0] flex flex-col bg-white">
+      {/* Sidebar — solo desktop */}
+      <aside className="hidden lg:flex w-[220px] flex-shrink-0 border-r border-[#f0f0f0] flex-col bg-white">
         {/* Logo */}
         <div className="h-14 flex items-center px-5 border-b border-[#f0f0f0]">
           <Link href="/dashboard" className="flex items-center gap-1">
@@ -53,8 +53,11 @@ export default async function DashboardLayout({ children }: { children: React.Re
         </div>
       </aside>
 
-      {/* Main */}
-      <main className="flex-1 overflow-auto bg-white">{children}</main>
+      {/* Main — padding bottom en mobile para el nav bar */}
+      <main className="flex-1 overflow-auto bg-white pb-16 lg:pb-0">{children}</main>
+
+      {/* Bottom nav — solo mobile */}
+      <MobileDashboardNav />
     </div>
   )
 }

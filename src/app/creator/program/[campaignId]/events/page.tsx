@@ -41,7 +41,7 @@ export default async function EventsPage({ params }: { params: Promise<{ campaig
   ])
 
   return (
-    <div className="p-8 max-w-4xl mx-auto space-y-5">
+    <div className="p-4 lg:p-8 max-w-4xl mx-auto space-y-5">
       <div className="mb-2">
         <h1 className="text-xl font-semibold text-gray-900 tracking-tight">Events</h1>
         <p className="text-sm text-gray-400 mt-0.5">Clicks y conversiones recientes</p>

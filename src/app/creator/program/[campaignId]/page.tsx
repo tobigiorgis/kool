@@ -97,7 +97,7 @@ export default async function ProgramOverviewPage({
   ])
 
   return (
-    <div className="p-8 max-w-5xl mx-auto space-y-5">
+    <div className="p-4 lg:p-8 max-w-5xl mx-auto space-y-4 lg:space-y-5">
       {/* Header card */}
       <div className="relative bg-white rounded-2xl border border-gray-200 overflow-hidden">
         <div
@@ -327,7 +327,7 @@ export default async function ProgramOverviewPage({
       </div>
 
       {/* Metric cards */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-3 gap-3 lg:gap-4">
         <MetricCard label="Clicks" value={totalClickCount.toLocaleString()} color="indigo" />
         <MetricCard label="Sales" value={salesCount.toLocaleString()} color="purple" />
         <MetricCard label="Revenue" value={formatCurrency(totalEarnings)} color="green" />
@@ -350,41 +350,43 @@ export default async function ProgramOverviewPage({
               <p className="text-[13px] text-gray-400">Sin ganancias todavía.</p>
             </div>
           ) : (
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-gray-100">
-                  {["Date", "Link", "Sale Amount", "Earnings", "Status"].map((h) => (
-                    <th
-                      key={h}
-                      className={`px-5 py-3 text-[11px] font-semibold text-gray-400 uppercase tracking-wider ${h === "Sale Amount" || h === "Earnings" ? "text-right" : "text-left"}`}
-                    >
-                      {h}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50">
-                {recentEarnings.map((e) => (
-                  <tr key={e.id} className="hover:bg-gray-50/50 transition-colors">
-                    <td className="px-5 py-3 text-[13px] text-gray-500">
-                      {formatDate(e.createdAt)}
-                    </td>
-                    <td className="px-5 py-3 text-[13px] text-gray-700 font-mono">
-                      {e.conversion?.link?.slug ? shortUrlLabel(e.conversion.link.slug) : "—"}
-                    </td>
-                    <td className="px-5 py-3 text-[13px] text-gray-900 text-right">
-                      {formatCurrency(e.orderAmount)}
-                    </td>
-                    <td className="px-5 py-3 text-[13px] font-semibold text-gray-900 text-right">
-                      {formatCurrency(e.amount)}
-                    </td>
-                    <td className="px-5 py-3">
-                      <StatusBadge status={e.status} />
-                    </td>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[460px]">
+                <thead>
+                  <tr className="border-b border-gray-100">
+                    {["Date", "Link", "Sale Amount", "Earnings", "Status"].map((h) => (
+                      <th
+                        key={h}
+                        className={`px-4 py-3 text-[11px] font-semibold text-gray-400 uppercase tracking-wider ${h === "Sale Amount" || h === "Earnings" ? "text-right" : "text-left"}`}
+                      >
+                        {h}
+                      </th>
+                    ))}
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-gray-50">
+                  {recentEarnings.map((e) => (
+                    <tr key={e.id} className="hover:bg-gray-50/50 transition-colors">
+                      <td className="px-4 py-3 text-[13px] text-gray-500 whitespace-nowrap">
+                        {formatDate(e.createdAt)}
+                      </td>
+                      <td className="px-4 py-3 text-[13px] text-gray-700 font-mono">
+                        {e.conversion?.link?.slug ? shortUrlLabel(e.conversion.link.slug) : "—"}
+                      </td>
+                      <td className="px-4 py-3 text-[13px] text-gray-900 text-right">
+                        {formatCurrency(e.orderAmount)}
+                      </td>
+                      <td className="px-4 py-3 text-[13px] font-semibold text-gray-900 text-right">
+                        {formatCurrency(e.amount)}
+                      </td>
+                      <td className="px-4 py-3">
+                        <StatusBadge status={e.status} />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
       </div>

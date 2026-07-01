@@ -189,7 +189,7 @@ export default function NewCampaignPage() {
   }
 
   return (
-    <div className="p-8 max-w-2xl">
+    <div className="p-4 lg:p-8 max-w-2xl">
       <button
         onClick={() => router.push("/dashboard/campaigns")}
         className="flex items-center gap-1 text-[13px] text-gray-400 hover:text-gray-600 mb-6 transition-colors"

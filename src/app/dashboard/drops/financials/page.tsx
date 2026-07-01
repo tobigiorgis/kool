@@ -110,7 +110,7 @@ export default function DropsFinancialsPage() {
 
   if (loading) {
     return (
-      <div className="p-8">
+      <div className="p-4 lg:p-8">
         <div className="animate-pulse space-y-4">
           <div className="grid grid-cols-4 gap-4">
             {[1, 2, 3, 4].map((i) => <div key={i} className="h-24 bg-gray-100 rounded-xl" />)}
@@ -122,7 +122,7 @@ export default function DropsFinancialsPage() {
   }
 
   return (
-    <div className="p-8">
+    <div className="p-4 lg:p-8">
       <h1 className="text-lg font-semibold text-gray-900 mb-6">Resumen financiero</h1>
 
       {/* KPIs globales */}

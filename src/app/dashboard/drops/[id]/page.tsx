@@ -165,7 +165,7 @@ export default function DropDetailPage() {
 
   if (loading) {
     return (
-      <div className="p-8">
+      <div className="p-4 lg:p-8">
         <div className="animate-pulse space-y-4">
           <div className="h-8 bg-gray-100 rounded w-1/3" />
           <div className="grid grid-cols-4 gap-4">
@@ -176,7 +176,7 @@ export default function DropDetailPage() {
     )
   }
 
-  if (!drop) return <div className="p-8 text-sm text-gray-400">Drop no encontrado</div>
+  if (!drop) return <div className="p-4 lg:p-8 text-sm text-gray-400">Drop no encontrado</div>
 
   // Métricas financieras
   const totalUnitsSold = drop.products.reduce((s, p) => s + p.sales.reduce((a, sale) => a + sale.quantity, 0), 0)
@@ -265,7 +265,7 @@ export default function DropDetailPage() {
   const progressBarColor = stageProgressColor(productionProgress)
 
   return (
-    <div className="p-8">
+    <div className="p-4 lg:p-8">
       {/* Header */}
       <div className="flex items-start justify-between mb-8">
         <div className="flex items-start gap-3">
@@ -1469,14 +1469,14 @@ function ConnectProductModal({ dropId, dropProduct, workspaceId, onClose, onSave
 
         <div className="overflow-y-auto flex-1">
           {loadingTn ? (
-            <div className="p-8 text-center text-sm text-gray-400 animate-pulse">Cargando productos de Tiendanube...</div>
+            <div className="p-4 lg:p-8 text-center text-sm text-gray-400 animate-pulse">Cargando productos de Tiendanube...</div>
           ) : tnError ? (
-            <div className="p-8 text-center">
+            <div className="p-4 lg:p-8 text-center">
               <p className="text-sm text-red-400">{tnError}</p>
               <p className="text-xs text-gray-400 mt-1">Verificá que tu tienda esté conectada en Configuración</p>
             </div>
           ) : filtered.length === 0 ? (
-            <div className="p-8 text-center text-sm text-gray-400">{search ? "No se encontraron productos" : "No hay productos en la tienda"}</div>
+            <div className="p-4 lg:p-8 text-center text-sm text-gray-400">{search ? "No se encontraron productos" : "No hay productos en la tienda"}</div>
           ) : (
             <ul className="divide-y divide-gray-50">
               {filtered.map((p) => {

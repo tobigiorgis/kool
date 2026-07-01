@@ -23,7 +23,7 @@ export default async function PayoutsPage() {
   const paidEarnings = commissions.filter((c) => c.status === "PAID").reduce((s, c) => s + c.amount, 0)
 
   return (
-    <div className="p-8 max-w-4xl mx-auto space-y-5">
+    <div className="p-4 lg:p-8 max-w-4xl mx-auto space-y-5">
       <div className="mb-2">
         <h1 className="text-xl font-semibold text-gray-900 tracking-tight">Payouts</h1>
         <p className="text-sm text-gray-400 mt-0.5">Historial de pagos y comisiones</p>

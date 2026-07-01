@@ -78,9 +78,9 @@ export default async function DashboardPage() {
   const connected = !!workspace.tiendanubeConnection
 
   return (
-    <div className="max-w-5xl mx-auto px-8 py-10">
+    <div className="max-w-5xl mx-auto px-4 py-6 lg:px-8 lg:py-10">
       {/* Header */}
-      <div className="flex items-start justify-between mb-8">
+      <div className="flex items-start justify-between mb-6 lg:mb-8">
         <div>
           <h1 className="text-xl font-semibold text-gray-900">{workspace.name}</h1>
           <p className="text-sm text-gray-400 mt-0.5">Últimos 30 días</p>
@@ -88,7 +88,8 @@ export default async function DashboardPage() {
         {connected ? (
           <span className="flex items-center gap-1.5 text-[12px] font-medium text-brand-600 bg-brand-50 border border-brand-100 px-3 py-1.5 rounded-full">
             <CheckCircle2 size={12} />
-            Tiendanube conectada
+            <span className="hidden sm:inline">Tiendanube conectada</span>
+            <span className="sm:hidden">Conectada</span>
           </span>
         ) : (
           <Link
@@ -96,14 +97,15 @@ export default async function DashboardPage() {
             className="flex items-center gap-1.5 text-[12px] font-medium text-gray-500 bg-[#fafafa] border border-[#f0f0f0] px-3 py-1.5 rounded-full hover:text-gray-800 transition-colors"
           >
             <XCircle size={12} className="text-gray-400" />
-            Conectar Tiendanube
+            <span className="hidden sm:inline">Conectar Tiendanube</span>
+            <span className="sm:hidden">Conectar</span>
             <ArrowUpRight size={11} />
           </Link>
         )}
       </div>
 
       {/* Metric cards */}
-      <div className="grid grid-cols-3 gap-4 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 lg:gap-4 mb-6 lg:mb-8">
         <MetricCard
           label="Clics"
           value={formatNumber(stats.clicks)}
@@ -128,7 +130,7 @@ export default async function DashboardPage() {
       </div>
 
       {/* Recent campaigns */}
-      <div className="mb-8">
+      <div className="mb-6 lg:mb-8">
         <div className="flex items-center justify-between mb-3">
           <span className="text-[13px] font-medium text-gray-900">Campañas recientes</span>
           <Link
@@ -151,7 +153,7 @@ export default async function DashboardPage() {
             </Link>
           </div>
         ) : (
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 lg:gap-4">
             {recentCampaigns.map((campaign) => (
               <Link
                 key={campaign.id}
@@ -198,53 +200,55 @@ export default async function DashboardPage() {
               <p className="text-[13px] text-gray-400">Todavía no hay comisiones registradas.</p>
             </div>
           ) : (
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-[#f0f0f0]">
-                  <th className="text-left text-[11px] font-medium text-gray-400 px-5 py-3">
-                    Creator
-                  </th>
-                  <th className="text-left text-[11px] font-medium text-gray-400 px-5 py-3">
-                    Link
-                  </th>
-                  <th className="text-left text-[11px] font-medium text-gray-400 px-5 py-3">
-                    Campaña
-                  </th>
-                  <th className="text-right text-[11px] font-medium text-gray-400 px-5 py-3">
-                    Orden
-                  </th>
-                  <th className="text-right text-[11px] font-medium text-gray-400 px-5 py-3">
-                    Comisión
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {recentEvents.map((commission, i) => (
-                  <tr
-                    key={commission.id}
-                    className={i < recentEvents.length - 1 ? "border-b border-[#f0f0f0]" : ""}
-                  >
-                    <td className="px-5 py-3 text-[13px] text-gray-900">
-                      {commission.creator.name}
-                    </td>
-                    <td className="px-5 py-3 text-[12px] font-mono text-gray-500">
-                      {commission.conversion.link
-                        ? shortUrlLabel(commission.conversion.link.slug)
-                        : "—"}
-                    </td>
-                    <td className="px-5 py-3 text-[12px] text-gray-500">
-                      {commission.conversion.link?.campaign?.name ?? "—"}
-                    </td>
-                    <td className="px-5 py-3 text-[12px] text-gray-700 text-right">
-                      {formatCurrency(commission.orderAmount)}
-                    </td>
-                    <td className="px-5 py-3 text-[12px] font-medium text-brand-500 text-right">
-                      {formatCurrency(commission.amount)}
-                    </td>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[500px]">
+                <thead>
+                  <tr className="border-b border-[#f0f0f0]">
+                    <th className="text-left text-[11px] font-medium text-gray-400 px-4 py-3">
+                      Creator
+                    </th>
+                    <th className="text-left text-[11px] font-medium text-gray-400 px-4 py-3">
+                      Link
+                    </th>
+                    <th className="text-left text-[11px] font-medium text-gray-400 px-4 py-3 hidden sm:table-cell">
+                      Campaña
+                    </th>
+                    <th className="text-right text-[11px] font-medium text-gray-400 px-4 py-3">
+                      Orden
+                    </th>
+                    <th className="text-right text-[11px] font-medium text-gray-400 px-4 py-3">
+                      Comisión
+                    </th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {recentEvents.map((commission, i) => (
+                    <tr
+                      key={commission.id}
+                      className={i < recentEvents.length - 1 ? "border-b border-[#f0f0f0]" : ""}
+                    >
+                      <td className="px-4 py-3 text-[13px] text-gray-900">
+                        {commission.creator.name}
+                      </td>
+                      <td className="px-4 py-3 text-[12px] font-mono text-gray-500">
+                        {commission.conversion.link
+                          ? shortUrlLabel(commission.conversion.link.slug)
+                          : "—"}
+                      </td>
+                      <td className="px-4 py-3 text-[12px] text-gray-500 hidden sm:table-cell">
+                        {commission.conversion.link?.campaign?.name ?? "—"}
+                      </td>
+                      <td className="px-4 py-3 text-[12px] text-gray-700 text-right">
+                        {formatCurrency(commission.orderAmount)}
+                      </td>
+                      <td className="px-4 py-3 text-[12px] font-medium text-brand-500 text-right">
+                        {formatCurrency(commission.amount)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
       </div>
