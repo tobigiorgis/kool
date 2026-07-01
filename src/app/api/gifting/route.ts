@@ -8,6 +8,9 @@ import { auth } from "@clerk/nextjs/server"
 import { prisma } from "@/lib/prisma"
 import { createTiendanubeGiftingOrder } from "@/lib/tiendanube"
 import { decrypt } from "@/lib/utils/crypto"
+import { sendGiftingReceived } from "@/lib/email"
+import { creatorUrl } from "@/lib/host"
+import { logger } from "@/lib/logger"
 import { z } from "zod"
 import { ok, fail, unauthorized, badRequest, handleError } from "@/lib/api/response"
 
@@ -38,6 +41,7 @@ export async function POST(request: NextRequest) {
     // Verificar que el user pertenece al workspace
     const member = await prisma.workspaceMember.findFirst({
       where: { workspaceId: data.workspaceId, user: { id: userId } },
+      include: { workspace: { select: { name: true } } },
     })
     if (!member) {
       return fail("Forbidden", 403)
@@ -112,6 +116,19 @@ export async function POST(request: NextRequest) {
         notes: data.notes,
       },
     })
+
+    // Notificar al creator que recibió un gifting (fire and forget)
+    if (creator.email) {
+      sendGiftingReceived({
+        to: creator.email,
+        creatorName: firstName,
+        brandName: member.workspace.name,
+        products: data.products.map((p) => ({ name: p.name, quantity: p.quantity })),
+        hasAddress,
+        notes: data.notes,
+        dashboardUrl: creatorUrl(""),
+      }).catch((err) => logger.error("[Gifting] Notification email error", err))
+    }
 
     return ok({ giftingOrder, tiendanubeOrderId })
   } catch (error) {

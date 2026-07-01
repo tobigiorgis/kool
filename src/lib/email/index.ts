@@ -563,3 +563,65 @@ export async function sendBountyAchieved({
     html,
   })
 }
+
+// ─── Gifting recibido (la marca te envió productos) ─
+
+export async function sendGiftingReceived({
+  to,
+  creatorName,
+  brandName,
+  products,
+  hasAddress,
+  notes,
+  dashboardUrl,
+}: {
+  to: string
+  creatorName: string
+  brandName: string
+  products: { name: string; quantity: number }[]
+  hasAddress: boolean
+  notes?: string
+  dashboardUrl: string
+}) {
+  const productsList = products
+    .map(
+      (p) =>
+        `<li style="margin: 4px 0;">${p.name}${p.quantity > 1 ? ` <span style="color:#9ca3af;">×${p.quantity}</span>` : ""}</li>`
+    )
+    .join("")
+
+  const html = baseTemplate(
+    `
+    <h1>¡${brandName} te envió un gifting! 🎁</h1>
+    <p>Hola ${creatorName},</p>
+    <p><strong>${brandName}</strong> te seleccionó para recibir productos sin cargo.</p>
+    <p style="margin-bottom: 4px;"><strong>Productos:</strong></p>
+    <ul style="padding-left: 20px; margin: 4px 0 16px; color:#374151;">
+      ${productsList}
+    </ul>
+    ${
+      notes
+        ? `<p style="background:#f3f4f6; padding: 12px 16px; border-radius:8px; font-size:13px;">📝 ${notes}</p>`
+        : ""
+    }
+    <p style="color:#6b7280; font-size:13px;">
+      ${
+        hasAddress
+          ? "Tu envío ya está siendo procesado y llegará a la dirección que cargaste en tu perfil."
+          : "Todavía no tenemos tu dirección de envío. Completá tus datos en tu panel para que la marca pueda enviártelo."
+      }
+    </p>
+    <hr class="divider">
+    <p style="text-align:center;">
+      <a href="${dashboardUrl}" class="btn">${hasAddress ? "Ver mi gifting →" : "Completar mi dirección →"}</a>
+    </p>
+    `,
+    brandName
+  )
+
+  return sendEmail({
+    to,
+    subject: `🎁 ${brandName} te envió un gifting`,
+    html,
+  })
+}

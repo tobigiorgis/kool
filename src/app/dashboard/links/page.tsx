@@ -207,6 +207,7 @@ function CreateLinkModal({
   const [creatorId, setCreatorId] = useState("")
   const [campaigns, setCampaigns] = useState<Campaign[]>([])
   const [creatorsInCampaign, setCreatorsInCampaign] = useState<CampaignCreatorEntry[]>([])
+  const [commissionWithoutCoupon, setCommissionWithoutCoupon] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
 
@@ -254,6 +255,7 @@ function CreateLinkModal({
           discountCode: discountCode || undefined,
           discountType: "percentage",
           discountValue: discountValue ? parseFloat(discountValue) : undefined,
+          commissionWithoutCoupon,
         }),
       })
       const data = await res.json()
@@ -363,7 +365,9 @@ function CreateLinkModal({
             </div>
             {discountCode && (
               <div className="w-28">
-                <label className="block text-xs font-medium text-gray-700 mb-1.5">% descuento</label>
+                <label className="block text-xs font-medium text-gray-700 mb-1.5">
+                  % descuento
+                </label>
                 <div className="flex">
                   <input
                     type="number"
@@ -374,10 +378,38 @@ function CreateLinkModal({
                     placeholder="10"
                     className="flex-1 px-3 py-2 text-sm border border-r-0 border-gray-200 rounded-l-lg focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-transparent"
                   />
-                  <span className="px-2 py-2 bg-gray-50 border border-gray-200 rounded-r-lg text-sm text-gray-500">%</span>
+                  <span className="px-2 py-2 bg-gray-50 border border-gray-200 rounded-r-lg text-sm text-gray-500">
+                    %
+                  </span>
                 </div>
               </div>
             )}
+          </div>
+
+          <div className="flex items-center justify-between gap-3 pt-1">
+            <div>
+              <label className="block text-xs font-medium text-gray-700">
+                Pagar comisión sin cupón
+              </label>
+              <p className="text-xs text-gray-400 mt-0.5">
+                El creator cobra aunque la venta no traiga código de descuento
+              </p>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={commissionWithoutCoupon}
+              onClick={() => setCommissionWithoutCoupon((v) => !v)}
+              className={`relative inline-flex h-6 w-11 flex-shrink-0 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-brand-400 focus:ring-offset-2 ${
+                commissionWithoutCoupon ? "bg-brand-400" : "bg-gray-200"
+              }`}
+            >
+              <span
+                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                  commissionWithoutCoupon ? "translate-x-6" : "translate-x-1"
+                }`}
+              />
+            </button>
           </div>
 
           {error && <p className="text-xs text-red-600 bg-red-50 p-2 rounded-lg">{error}</p>}

@@ -1,5 +1,5 @@
 /**
- * Smoke real de Resend: MANDA mails de verdad de las 11 templates a una casilla.
+ * Smoke real de Resend: MANDA mails de verdad de las 12 templates a una casilla.
  * Sirve para verificar de punta a punta key + dominio remitente + render.
  * NO corre en CI (vive fuera de src/**\/*.test.ts).
  *
@@ -20,6 +20,7 @@ import {
   sendWelcomeCreator,
   sendSaleGenerated,
   sendBountyAchieved,
+  sendGiftingReceived,
 } from "../src/lib/email/index"
 
 const BRAND = "Perfumería X"
@@ -35,7 +36,7 @@ async function main() {
     process.exit(1)
   }
 
-  console.log(`Enviando las 11 templates a ${to}...`)
+  console.log(`Enviando las 12 templates a ${to}...`)
   console.log("RESEND_API_KEY:", process.env.RESEND_API_KEY ? "seteada" : "FALTA")
   console.log("EMAIL_FROM:", process.env.EMAIL_FROM || "(default)")
   console.log("---")
@@ -169,6 +170,22 @@ async function main() {
           brandName: BRAND,
           bountyName: "10 ventas",
           reward: "Kit premium + 5% extra",
+          dashboardUrl: DASH,
+        }),
+    ],
+    [
+      "giftingReceived",
+      () =>
+        sendGiftingReceived({
+          to,
+          creatorName: NAME,
+          brandName: BRAND,
+          products: [
+            { name: "Perfume Vainilla 100ml", quantity: 1 },
+            { name: "Body Mist", quantity: 2 },
+          ],
+          hasAddress: true,
+          notes: "¡Gracias por sumarte!",
           dashboardUrl: DASH,
         }),
     ],

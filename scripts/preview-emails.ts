@@ -23,7 +23,8 @@ globalThis.fetch = (async (url: any, opts: any) => {
 
 async function main() {
   process.env.RESEND_API_KEY = process.env.RESEND_API_KEY || "re_preview"
-  const { sendWelcomeCreator, sendSaleGenerated } = await import("../src/lib/email/index")
+  const { sendWelcomeCreator, sendSaleGenerated, sendGiftingReceived } =
+    await import("../src/lib/email/index")
 
   await sendWelcomeCreator({
     to: "preview@test.com",
@@ -44,7 +45,30 @@ async function main() {
     dashboardUrl: "https://app.joinkool.co/creator",
   })
 
-  const names = ["welcome", "sale"]
+  await sendGiftingReceived({
+    to: "preview@test.com",
+    creatorName: "Cami",
+    brandName: "Perfumería X",
+    products: [
+      { name: "Perfume Vainilla 100ml", quantity: 1 },
+      { name: "Body Mist", quantity: 2 },
+    ],
+    hasAddress: true,
+    notes: "¡Gracias por sumarte!",
+    dashboardUrl: "https://app.joinkool.co/creator",
+  })
+
+  // Variante sin dirección (otro copy + CTA)
+  await sendGiftingReceived({
+    to: "preview@test.com",
+    creatorName: "Cami",
+    brandName: "Perfumería X",
+    products: [{ name: "Perfume Vainilla 100ml", quantity: 1 }],
+    hasAddress: false,
+    dashboardUrl: "https://app.joinkool.co/creator",
+  })
+
+  const names = ["welcome", "sale", "gifting", "gifting-no-address"]
   captured.forEach((c, i) => {
     const path = `/tmp/kool-email-${names[i] ?? i}.html`
     writeFileSync(path, c.html)
