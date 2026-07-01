@@ -201,6 +201,7 @@ function CreateLinkModal({
 }) {
   const [destination, setDestination] = useState("")
   const [slug, setSlug] = useState("")
+  const [withCoupon, setWithCoupon] = useState(false)
   const [discountCode, setDiscountCode] = useState("")
   const [discountValue, setDiscountValue] = useState("")
   const [campaignId, setCampaignId] = useState("")
@@ -234,7 +235,10 @@ function CreateLinkModal({
     setCreatorId(id)
     if (id) {
       const cc = creatorsInCampaign.find((c) => c.creatorId === id)
-      if (cc?.discountCode) setDiscountCode(cc.discountCode)
+      if (cc?.discountCode) {
+        setDiscountCode(cc.discountCode)
+        setWithCoupon(true)
+      }
     }
   }
 
@@ -350,20 +354,35 @@ function CreateLinkModal({
             </div>
           )}
 
-          <div className="flex gap-3">
-            <div className="flex-1">
-              <label className="block text-xs font-medium text-gray-700 mb-1.5">
-                Código de descuento <span className="text-gray-400 font-normal">(opcional)</span>
-              </label>
-              <input
-                type="text"
-                value={discountCode}
-                onChange={(e) => setDiscountCode(e.target.value.toUpperCase())}
-                placeholder="CAMILA15"
-                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-transparent font-mono"
-              />
+          <div className="flex items-center justify-between py-1">
+            <div>
+              <p className="text-xs font-medium text-gray-700">Agregar cupón para clientes</p>
+              <p className="text-xs text-gray-400 mt-0.5">El cliente recibe un código de descuento al comprar</p>
             </div>
-            {discountCode && (
+            <button
+              type="button"
+              onClick={() => {
+                setWithCoupon(!withCoupon)
+                if (withCoupon) { setDiscountCode(""); setDiscountValue("") }
+              }}
+              className={`relative inline-flex h-5 w-9 flex-shrink-0 rounded-full transition-colors ${withCoupon ? "bg-brand-400" : "bg-gray-200"}`}
+            >
+              <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform mt-0.5 ${withCoupon ? "translate-x-4" : "translate-x-0.5"}`} />
+            </button>
+          </div>
+
+          {withCoupon && (
+            <div className="flex gap-3">
+              <div className="flex-1">
+                <label className="block text-xs font-medium text-gray-700 mb-1.5">Código de descuento</label>
+                <input
+                  type="text"
+                  value={discountCode}
+                  onChange={(e) => setDiscountCode(e.target.value.toUpperCase())}
+                  placeholder="CAMILA15"
+                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-transparent font-mono"
+                />
+              </div>
               <div className="w-28">
                 <label className="block text-xs font-medium text-gray-700 mb-1.5">
                   % descuento
@@ -383,8 +402,8 @@ function CreateLinkModal({
                   </span>
                 </div>
               </div>
-            )}
-          </div>
+            </div>
+          )}
 
           <div className="flex items-center justify-between gap-3 pt-1">
             <div>
