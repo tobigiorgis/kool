@@ -208,7 +208,7 @@ function CreateLinkModal({
   const [creatorId, setCreatorId] = useState("")
   const [campaigns, setCampaigns] = useState<Campaign[]>([])
   const [creatorsInCampaign, setCreatorsInCampaign] = useState<CampaignCreatorEntry[]>([])
-  const [commissionWithoutCoupon] = useState(false)
+  const [commissionWithoutCoupon] = useState(true)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
 
