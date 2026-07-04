@@ -23,7 +23,7 @@ export default async function AllProgramsPage() {
     prisma.campaignInvite.findMany({
       where: { creatorId: creator.id, status: "PENDING" },
       include: { campaign: { include: { workspace: true } } },
-      orderBy: { createdAt: "desc" },
+      orderBy: { sentAt: "desc" },
     }),
   ])
 
