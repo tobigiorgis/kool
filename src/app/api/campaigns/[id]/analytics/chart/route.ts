@@ -53,7 +53,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     const [clicks, conversions] = await Promise.all([
       prisma.click.findMany({
         where: { linkId: { in: linkIds }, timestamp: { gte: startDate } },
-        select: { timestamp: true },
+        select: { timestamp: true, ipHash: true },
         orderBy: { timestamp: "asc" },
       }),
       prisma.conversion.findMany({
@@ -63,7 +63,16 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       }),
     ])
 
-    const chartData: { date: string; clicks: number; sales: number }[] = []
+    const chartData: { date: string; clicks: number; uniqueClicks: number; conversions: number }[] = []
+
+    const buildBucket = (
+      bucketClicks: { timestamp: Date; ipHash: string | null }[],
+      bucketConversions: { convertedAt: Date }[]
+    ) => ({
+      clicks: bucketClicks.length,
+      uniqueClicks: new Set(bucketClicks.map((c) => c.ipHash).filter(Boolean)).size,
+      conversions: bucketConversions.length,
+    })
 
     if (period === "1d") {
       const today = new Date()
@@ -73,12 +82,12 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         hourStart.setHours(h, 0, 0, 0)
         const hourEnd = new Date(today)
         hourEnd.setHours(h + 1, 0, 0, 0)
-
         chartData.push({
           date: hourStart.toISOString(),
-          clicks: clicks.filter((c) => c.timestamp >= hourStart && c.timestamp < hourEnd).length,
-          sales: conversions.filter((c) => c.convertedAt >= hourStart && c.convertedAt < hourEnd)
-            .length,
+          ...buildBucket(
+            clicks.filter((c) => c.timestamp >= hourStart && c.timestamp < hourEnd),
+            conversions.filter((c) => c.convertedAt >= hourStart && c.convertedAt < hourEnd)
+          ),
         })
       }
     } else {
@@ -88,12 +97,12 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         dayStart.setHours(0, 0, 0, 0)
         const dayEnd = new Date(dayStart)
         dayEnd.setDate(dayEnd.getDate() + 1)
-
         chartData.push({
           date: dayStart.toISOString(),
-          clicks: clicks.filter((c) => c.timestamp >= dayStart && c.timestamp < dayEnd).length,
-          sales: conversions.filter((c) => c.convertedAt >= dayStart && c.convertedAt < dayEnd)
-            .length,
+          ...buildBucket(
+            clicks.filter((c) => c.timestamp >= dayStart && c.timestamp < dayEnd),
+            conversions.filter((c) => c.convertedAt >= dayStart && c.convertedAt < dayEnd)
+          ),
         })
       }
     }
@@ -112,13 +121,13 @@ function buildEmptyChart(period: string, days: number, startDate: Date) {
     for (let h = 0; h < 24; h++) {
       const d = new Date(today)
       d.setHours(h, 0, 0, 0)
-      data.push({ date: d.toISOString(), clicks: 0, sales: 0 })
+      data.push({ date: d.toISOString(), clicks: 0, uniqueClicks: 0, conversions: 0 })
     }
   } else {
     for (let d = 0; d < days; d++) {
       const day = new Date(startDate)
       day.setDate(startDate.getDate() + d)
-      data.push({ date: day.toISOString(), clicks: 0, sales: 0 })
+      data.push({ date: day.toISOString(), clicks: 0, uniqueClicks: 0, conversions: 0 })
     }
   }
   return data
