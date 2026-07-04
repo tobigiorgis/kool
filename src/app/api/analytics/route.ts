@@ -70,12 +70,31 @@ export async function GET(request: NextRequest) {
         })
       : []
 
-    // clicks por día
+    // conversiones por día
+    const conversionsRaw = targetLinkIds.length
+      ? await prisma.conversion.findMany({
+          where: {
+            linkId: { in: targetLinkIds },
+            convertedAt: { gte: fromDate, lte: toDate },
+          },
+          select: { convertedAt: true },
+        })
+      : []
+
+    // clicks por día (+ conversiones por día)
     const days = buildDayRange(from, to)
     const clicksByDay = days.map((date) => {
       const dayClicks = clicks.filter((c) => c.timestamp.toISOString().split("T")[0] === date)
       const uniqueHashes = new Set(dayClicks.map((c) => c.ipHash).filter(Boolean))
-      return { date, clicks: dayClicks.length, unique_clicks: uniqueHashes.size }
+      const dayConversions = conversionsRaw.filter(
+        (c) => c.convertedAt.toISOString().split("T")[0] === date
+      ).length
+      return {
+        date,
+        clicks: dayClicks.length,
+        unique_clicks: uniqueHashes.size,
+        conversions: dayConversions,
+      }
     })
 
     const uniqueHashes = new Set(clicks.map((c) => c.ipHash).filter(Boolean))
