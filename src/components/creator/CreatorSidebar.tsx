@@ -46,7 +46,7 @@ function MobileCreatorNav({
     : [
         { href: creatorPath("programs"), label: "Programs", icon: LayoutGrid, active: pathname === creatorPath("programs") || pathname === creatorPath("") },
         { href: creatorPath("programs/invitations"), label: "Invites", icon: UserPlus, active: pathname.includes("invitations"), badge: pendingInvites > 0 ? pendingInvites : undefined },
-        { href: creatorPath("payouts"), label: "Payouts", icon: Wallet, active: pathname.includes("/payouts") },
+        { href: creatorPath("payouts"), label: "Earnings", icon: Wallet, active: pathname.includes("/payouts") },
         { href: creatorPath("profile"), label: "Profile", icon: User, active: pathname.includes("/profile") },
       ]
 
@@ -280,7 +280,7 @@ export function CreatorSidebar({ creatorName, creatorAvatar, programs, pendingIn
         <NavItem
           href={creatorPath("payouts")}
           icon={Wallet}
-          label="Payouts"
+          label="Earnings"
           active={pathname.includes("/payouts")}
         />
         <NavItem

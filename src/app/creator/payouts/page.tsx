@@ -2,8 +2,10 @@ import { auth } from "@clerk/nextjs/server"
 import { redirect } from "next/navigation"
 import { prisma } from "@/lib/prisma"
 import { formatCurrency, formatDate } from "@/lib/utils"
+import { shortUrlLabel } from "@/lib/links"
+import { Wallet } from "lucide-react"
 
-export default async function PayoutsPage() {
+export default async function EarningsPage() {
   const { userId } = await auth()
   if (!userId) redirect("/login")
 
@@ -14,7 +16,11 @@ export default async function PayoutsPage() {
     where: { creatorId: creator.id },
     orderBy: { createdAt: "desc" },
     include: {
-      conversion: { include: { link: { select: { slug: true, campaign: { select: { name: true } } } } } },
+      conversion: {
+        include: {
+          link: { select: { slug: true, campaign: { select: { name: true } } } },
+        },
+      },
     },
   })
 
@@ -23,81 +29,106 @@ export default async function PayoutsPage() {
   const paidEarnings = commissions.filter((c) => c.status === "PAID").reduce((s, c) => s + c.amount, 0)
 
   return (
-    <div className="p-4 lg:p-8 max-w-4xl mx-auto space-y-5">
+    <div className="p-4 lg:p-8 max-w-4xl mx-auto space-y-4 lg:space-y-5">
       <div className="mb-2">
-        <h1 className="text-xl font-semibold text-gray-900 tracking-tight">Payouts</h1>
-        <p className="text-sm text-gray-400 mt-0.5">Historial de pagos y comisiones</p>
+        <h1 className="text-xl font-semibold text-gray-900 tracking-tight">Earnings</h1>
+        <p className="text-sm text-gray-400 mt-0.5">Comisiones y pagos</p>
       </div>
       <div className="border-t border-gray-200" />
 
-      {/* Summary */}
-      <div className="grid grid-cols-3 gap-4">
-        <div className="bg-white rounded-2xl border border-gray-200 p-5">
-          <p className="text-[12px] text-gray-400 mb-1">Total ganado</p>
-          <p className="text-2xl font-semibold text-gray-900 tracking-tight">{formatCurrency(totalEarnings)}</p>
+      {/* Summary cards */}
+      <div className="grid grid-cols-3 gap-3 lg:gap-4">
+        <div className="bg-white rounded-2xl border border-gray-200 p-4 lg:p-5">
+          <p className="text-[12px] text-gray-400 mb-1">Total</p>
+          <p className="text-xl lg:text-2xl font-semibold text-gray-900 tracking-tight">{formatCurrency(totalEarnings)}</p>
         </div>
-        <div className="bg-white rounded-2xl border border-gray-200 p-5">
-          <p className="text-[12px] text-gray-400 mb-1">Pendiente de pago</p>
-          <p className="text-2xl font-semibold text-amber-600 tracking-tight">{formatCurrency(pendingEarnings)}</p>
+        <div className="bg-white rounded-2xl border border-gray-200 p-4 lg:p-5">
+          <p className="text-[12px] text-gray-400 mb-1">Pendiente</p>
+          <p className="text-xl lg:text-2xl font-semibold text-amber-600 tracking-tight">{formatCurrency(pendingEarnings)}</p>
         </div>
-        <div className="bg-white rounded-2xl border border-gray-200 p-5">
+        <div className="bg-white rounded-2xl border border-gray-200 p-4 lg:p-5">
           <p className="text-[12px] text-gray-400 mb-1">Pagado</p>
-          <p className="text-2xl font-semibold text-green-600 tracking-tight">{formatCurrency(paidEarnings)}</p>
+          <p className="text-xl lg:text-2xl font-semibold text-green-600 tracking-tight">{formatCurrency(paidEarnings)}</p>
         </div>
       </div>
 
       {/* Bank info */}
-      {creator.bankAlias && (
-        <div className="bg-white rounded-2xl border border-gray-200 p-5 flex items-center justify-between">
-          <div>
-            <p className="text-[12px] text-gray-400 mb-0.5">Cuenta de cobro</p>
-            <p className="text-[14px] font-medium text-gray-900 font-mono">{creator.bankAlias}</p>
+      {creator.bankAlias ? (
+        <div className="bg-white rounded-2xl border border-gray-200 p-4 lg:p-5 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-gray-100 flex items-center justify-center">
+              <Wallet size={15} className="text-gray-500" />
+            </div>
+            <div>
+              <p className="text-[12px] text-gray-400">Cuenta de cobro</p>
+              <p className="text-[14px] font-medium text-gray-900 font-mono">{creator.bankAlias}</p>
+            </div>
           </div>
           <span className="text-[11px] bg-green-50 text-green-600 px-2.5 py-1 rounded-full font-medium">Configurada</span>
         </div>
+      ) : (
+        <div className="bg-white rounded-2xl border border-dashed border-gray-200 p-4 lg:p-5 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-gray-50 flex items-center justify-center">
+              <Wallet size={15} className="text-gray-400" />
+            </div>
+            <div>
+              <p className="text-[13px] font-medium text-gray-700">Agregá tu cuenta de cobro</p>
+              <p className="text-[12px] text-gray-400">Para recibir tus pagos</p>
+            </div>
+          </div>
+          <a
+            href="/profile"
+            className="text-[12px] font-medium text-gray-900 bg-gray-100 px-3 py-1.5 rounded-lg hover:bg-gray-200 transition-colors"
+          >
+            Configurar →
+          </a>
+        </div>
       )}
 
-      {/* All commissions */}
+      {/* Transaction history */}
       <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
         <div className="px-5 py-4 border-b border-gray-100">
-          <p className="text-[13px] font-semibold text-gray-900">Historial completo</p>
+          <p className="text-[13px] font-semibold text-gray-900">Historial</p>
         </div>
         {commissions.length === 0 ? (
           <div className="py-16 text-center">
             <p className="text-sm text-gray-400">Sin comisiones todavía.</p>
           </div>
         ) : (
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-gray-100">
-                {["Fecha", "Programa", "Venta", "Comisión", "Estado"].map((h) => (
-                  <th
-                    key={h}
-                    className={`px-5 py-3 text-[11px] font-semibold text-gray-400 uppercase tracking-wider ${
-                      h === "Venta" || h === "Comisión" ? "text-right" : "text-left"
-                    }`}
-                  >
-                    {h}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-50">
-              {commissions.map((c) => (
-                <tr key={c.id} className="hover:bg-gray-50/50 transition-colors">
-                  <td className="px-5 py-3 text-[13px] text-gray-500 whitespace-nowrap">{formatDate(c.createdAt)}</td>
-                  <td className="px-5 py-3 text-[13px] text-gray-700">
-                    {c.conversion?.link?.campaign?.name ?? "—"}
-                  </td>
-                  <td className="px-5 py-3 text-[13px] text-gray-900 text-right">{formatCurrency(c.orderAmount)}</td>
-                  <td className="px-5 py-3 text-[13px] font-semibold text-gray-900 text-right">{formatCurrency(c.amount)}</td>
-                  <td className="px-5 py-3">
-                    <StatusBadge status={c.status} />
-                  </td>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[460px]">
+              <thead>
+                <tr className="border-b border-gray-100">
+                  {["Fecha", "Programa", "Venta", "Comisión", "Estado"].map((h) => (
+                    <th
+                      key={h}
+                      className={`px-4 py-3 text-[11px] font-semibold text-gray-400 uppercase tracking-wider ${
+                        h === "Venta" || h === "Comisión" ? "text-right" : "text-left"
+                      }`}
+                    >
+                      {h}
+                    </th>
+                  ))}
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-gray-50">
+                {commissions.map((c) => (
+                  <tr key={c.id} className="hover:bg-gray-50/50 transition-colors">
+                    <td className="px-4 py-3 text-[13px] text-gray-500 whitespace-nowrap">{formatDate(c.createdAt)}</td>
+                    <td className="px-4 py-3 text-[13px] text-gray-700">
+                      {c.conversion?.link?.campaign?.name ?? "—"}
+                    </td>
+                    <td className="px-4 py-3 text-[13px] text-gray-900 text-right">{formatCurrency(c.orderAmount)}</td>
+                    <td className="px-4 py-3 text-[13px] font-semibold text-gray-900 text-right">{formatCurrency(c.amount)}</td>
+                    <td className="px-4 py-3">
+                      <StatusBadge status={c.status} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
     </div>

@@ -17,10 +17,19 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     })
     if (!campaign) return notFound()
 
+    // Permitir acceso a workspace members Y a creators del programa
     const member = await prisma.workspaceMember.findFirst({
       where: { userId, workspaceId: campaign.workspaceId },
     })
-    if (!member) return fail("No access", 403)
+    if (!member) {
+      const creator = await prisma.creator.findFirst({ where: { userId } })
+      const creatorAccess = creator
+        ? await prisma.campaignCreator.findFirst({
+            where: { creatorId: creator.id, campaignId, status: "ACCEPTED" },
+          })
+        : null
+      if (!creatorAccess) return fail("No access", 403)
+    }
 
     const days = period === "1d" ? 1 : period === "7d" ? 7 : 30
 

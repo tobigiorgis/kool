@@ -1,7 +1,8 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Loader2, Check } from "lucide-react"
+import { Loader2, Check, LogOut } from "lucide-react"
+import { useClerk } from "@clerk/nextjs"
 
 interface CreatorProfile {
   name: string
@@ -22,6 +23,7 @@ export default function ProfilePage() {
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [form, setForm] = useState<Partial<CreatorProfile>>({})
+  const { signOut } = useClerk()
 
   useEffect(() => {
     fetch("/api/creator/me")
@@ -61,9 +63,18 @@ export default function ProfilePage() {
 
   return (
     <div className="p-4 lg:p-8 max-w-2xl mx-auto space-y-5">
-      <div className="mb-2">
-        <h1 className="text-xl font-semibold text-gray-900 tracking-tight">Profile</h1>
-        <p className="text-sm text-gray-400 mt-0.5">Tu información personal y de cobro</p>
+      <div className="flex items-start justify-between mb-2">
+        <div>
+          <h1 className="text-xl font-semibold text-gray-900 tracking-tight">Profile</h1>
+          <p className="text-sm text-gray-400 mt-0.5">Tu información personal y de cobro</p>
+        </div>
+        <button
+          onClick={() => signOut({ redirectUrl: "/" })}
+          className="lg:hidden flex items-center gap-1.5 text-[13px] text-gray-500 hover:text-red-500 hover:bg-red-50 px-3 py-2 rounded-lg transition-colors border border-gray-200"
+        >
+          <LogOut size={14} />
+          Log out
+        </button>
       </div>
       <div className="border-t border-gray-200" />
 
