@@ -30,7 +30,9 @@ interface DropCard {
 
 function fmt(n: number) {
   return new Intl.NumberFormat("es-AR", {
-    style: "currency", currency: "ARS", maximumFractionDigits: 0,
+    style: "currency",
+    currency: "ARS",
+    maximumFractionDigits: 0,
   }).format(n)
 }
 
@@ -50,7 +52,9 @@ export default function DropsPage() {
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-2xl font-semibold text-gray-900">Drops</h1>
-          <p className="text-sm text-gray-400 mt-0.5">Gestioná tus lanzamientos y calculá rentabilidad</p>
+          <p className="text-sm text-gray-400 mt-0.5">
+            Gestioná tus lanzamientos y calculá rentabilidad
+          </p>
         </div>
         <Link
           href="/dashboard/drops/new"
@@ -73,7 +77,9 @@ export default function DropsPage() {
             <Rocket size={20} className="text-gray-400" />
           </div>
           <p className="text-sm font-medium text-gray-700 mb-1">Todavía no hay drops</p>
-          <p className="text-sm text-gray-400 mb-6">Creá tu primer lanzamiento para trackear producción y rentabilidad</p>
+          <p className="text-sm text-gray-400 mb-6">
+            Creá tu primer lanzamiento para trackear producción y rentabilidad
+          </p>
           <Link
             href="/dashboard/drops/new"
             className="flex items-center gap-1.5 bg-gray-900 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-800 transition-colors"
@@ -100,21 +106,29 @@ function DropCard({ drop }: { drop: DropCard }) {
   return (
     <Link
       href={`/dashboard/drops/${drop.id}`}
-      className="bg-white border border-gray-100 rounded-xl p-5 hover:border-gray-200 hover:shadow-sm transition-all group flex flex-col gap-4"
+      className="bg-white border border-gray-100 rounded-xl p-5 hover:border-gray-200 transition-[box-shadow,border-color] duration-base ease-out-strong hover:shadow-card group flex flex-col gap-4"
     >
       {/* Header */}
       <div className="flex items-start gap-3">
         {drop.coverImage ? (
-          <img src={drop.coverImage} alt={drop.name} className="w-10 h-10 rounded-lg object-cover flex-shrink-0" />
+          <img
+            src={drop.coverImage}
+            alt={drop.name}
+            className="w-10 h-10 rounded-lg object-cover flex-shrink-0"
+          />
         ) : (
           <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
-            <span className="text-sm font-semibold text-gray-500">{drop.name.charAt(0).toUpperCase()}</span>
+            <span className="text-sm font-semibold text-gray-500">
+              {drop.name.charAt(0).toUpperCase()}
+            </span>
           </div>
         )}
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-sm font-semibold text-gray-900 truncate">{drop.name}</span>
-            <span className={`text-[11px] px-2 py-0.5 rounded-full font-medium flex-shrink-0 ${DROP_STATUS_COLORS[drop.status]}`}>
+            <span
+              className={`text-[11px] px-2 py-0.5 rounded-full font-medium flex-shrink-0 ${DROP_STATUS_COLORS[drop.status]}`}
+            >
               {DROP_STATUS_LABELS[drop.status]}
             </span>
             {(() => {
@@ -132,7 +146,11 @@ function DropCard({ drop }: { drop: DropCard }) {
             })()}
           </div>
           <p className="text-xs text-gray-400 mt-0.5">
-            {new Date(drop.launchDate).toLocaleDateString("es-AR", { day: "numeric", month: "short", year: "numeric" })}
+            {new Date(drop.launchDate).toLocaleDateString("es-AR", {
+              day: "numeric",
+              month: "short",
+              year: "numeric",
+            })}
           </p>
         </div>
       </div>
@@ -144,7 +162,10 @@ function DropCard({ drop }: { drop: DropCard }) {
           <span className="text-xs font-medium text-gray-700">{drop.productionProgress}%</span>
         </div>
         <div className="w-full h-1.5 bg-gray-100 rounded-full">
-          <div className={`h-1.5 rounded-full transition-all ${barColor}`} style={{ width: `${drop.productionProgress}%` }} />
+          <div
+            className={`h-1.5 rounded-full transition-colors duration-fast ${barColor}`}
+            style={{ width: `${drop.productionProgress}%` }}
+          />
         </div>
       </div>
 
@@ -156,11 +177,15 @@ function DropCard({ drop }: { drop: DropCard }) {
         </div>
         <div className="bg-gray-50 rounded-lg p-2.5">
           <p className="text-[10px] text-gray-400 mb-0.5">Ingresos</p>
-          <p className="text-sm font-semibold text-gray-900">{showFinancials ? fmt(drop.totalRevenue) : "—"}</p>
+          <p className="text-sm font-semibold text-gray-900">
+            {showFinancials ? fmt(drop.totalRevenue) : "—"}
+          </p>
         </div>
         <div className="bg-gray-50 rounded-lg p-2.5">
           <p className="text-[10px] text-gray-400 mb-0.5">Resultado</p>
-          <p className={`text-sm font-semibold ${showFinancials ? (drop.profit >= 0 ? "text-[#00903c]" : "text-red-500") : "text-gray-400"}`}>
+          <p
+            className={`text-sm font-semibold ${showFinancials ? (drop.profit >= 0 ? "text-[#E11D48]" : "text-red-500") : "text-gray-400"}`}
+          >
             {showFinancials ? fmt(drop.profit) : "—"}
           </p>
         </div>

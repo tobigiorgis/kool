@@ -18,11 +18,11 @@ interface CampaignInfo {
   brandColor: string
   formStatus: string
   fields: {
-    phone?:     FieldConfig
-    age?:       FieldConfig
-    city?:      FieldConfig
+    phone?: FieldConfig
+    age?: FieldConfig
+    city?: FieldConfig
     instagram?: FieldConfig
-    tiktok?:    FieldConfig
+    tiktok?: FieldConfig
   } | null
   giftingEnabled: boolean
   giftingDescription: string | null
@@ -63,8 +63,14 @@ export default function ApplyPage() {
   useEffect(() => {
     fetch(`/api/apply/${slug}/info`)
       .then(async (res) => {
-        if (res.status === 404) { setNotFound(true); return }
-        if (res.status === 410) { setClosed(true); return }
+        if (res.status === 404) {
+          setNotFound(true)
+          return
+        }
+        if (res.status === 410) {
+          setClosed(true)
+          return
+        }
         const data = await res.json()
         setCampaign(data.campaign)
       })
@@ -94,8 +100,14 @@ export default function ApplyPage() {
       })
       const data = await res.json()
 
-      if (res.status === 409) { setAlreadyApplied(true); return }
-      if (!res.ok) { setError(data.error ?? "Ocurrió un error. Intentá de nuevo."); return }
+      if (res.status === 409) {
+        setAlreadyApplied(true)
+        return
+      }
+      if (!res.ok) {
+        setError(data.error ?? "Ocurrió un error. Intentá de nuevo.")
+        return
+      }
 
       setSubmitted(true)
     } catch {
@@ -105,7 +117,7 @@ export default function ApplyPage() {
     }
   }
 
-  const color = campaign?.brandColor ?? "#00C46A"
+  const color = campaign?.brandColor ?? "#FB7185"
   const fields = campaign?.fields ?? {}
 
   const isEnabled = (key: keyof typeof fields) => fields[key]?.enabled !== false
@@ -136,7 +148,9 @@ export default function ApplyPage() {
         <div className="text-center max-w-sm">
           <AlertCircle size={40} className="mx-auto text-gray-300 mb-4" />
           <p className="text-xl font-semibold text-gray-900 mb-2">Aplicaciones cerradas</p>
-          <p className="text-gray-500 text-sm">Esta campaña ya no está aceptando nuevas aplicaciones.</p>
+          <p className="text-gray-500 text-sm">
+            Esta campaña ya no está aceptando nuevas aplicaciones.
+          </p>
         </div>
       </div>
     )
@@ -153,7 +167,9 @@ export default function ApplyPage() {
             <CheckCircle2 size={32} style={{ color }} />
           </div>
           <p className="text-xl font-semibold text-gray-900 mb-2">Ya aplicaste</p>
-          <p className="text-gray-500 text-sm">Ya enviaste tu aplicación a esta campaña. Te contactaremos pronto.</p>
+          <p className="text-gray-500 text-sm">
+            Ya enviaste tu aplicación a esta campaña. Te contactaremos pronto.
+          </p>
         </div>
       </div>
     )
@@ -171,7 +187,8 @@ export default function ApplyPage() {
           </div>
           <p className="text-xl font-semibold text-gray-900 mb-2">¡Aplicación enviada!</p>
           <p className="text-gray-500 text-sm">
-            Recibimos tu aplicación para <strong>{campaign?.name}</strong>. Revisá tu email — te confirmamos la recepción y te avisamos el resultado pronto.
+            Recibimos tu aplicación para <strong>{campaign?.name}</strong>. Revisá tu email — te
+            confirmamos la recepción y te avisamos el resultado pronto.
           </p>
         </div>
       </div>
@@ -205,9 +222,7 @@ export default function ApplyPage() {
             {campaign?.name}
           </h1>
           {campaign?.description && (
-            <p className="text-gray-500 mt-3 text-[15px] leading-relaxed">
-              {campaign.description}
-            </p>
+            <p className="text-gray-500 mt-3 text-[15px] leading-relaxed">{campaign.description}</p>
           )}
         </div>
 
@@ -218,7 +233,10 @@ export default function ApplyPage() {
             <div className="space-y-3">
               {campaign.giftingEnabled && (
                 <div className="flex items-start gap-3">
-                  <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5" style={{ backgroundColor: color + "20" }}>
+                  <div
+                    className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5"
+                    style={{ backgroundColor: color + "20" }}
+                  >
                     <Gift size={15} style={{ color }} />
                   </div>
                   <div>
@@ -312,7 +330,8 @@ export default function ApplyPage() {
                   value={form.age}
                   onChange={(e) => setForm((f) => ({ ...f, age: e.target.value }))}
                   required={isRequired("age")}
-                  min="13" max="99"
+                  min="13"
+                  max="99"
                   placeholder="25"
                   className="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:border-transparent"
                   style={{ "--tw-ring-color": color } as React.CSSProperties}
@@ -345,11 +364,15 @@ export default function ApplyPage() {
                   Instagram {isRequired("instagram") && <span className="text-red-400">*</span>}
                 </label>
                 <div className="relative">
-                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm text-gray-400">@</span>
+                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm text-gray-400">
+                    @
+                  </span>
                   <input
                     type="text"
                     value={form.instagram}
-                    onChange={(e) => setForm((f) => ({ ...f, instagram: e.target.value.replace("@", "") }))}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, instagram: e.target.value.replace("@", "") }))
+                    }
                     required={isRequired("instagram")}
                     placeholder="tuusuario"
                     className="w-full pl-7 pr-3.5 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:border-transparent"
@@ -366,11 +389,15 @@ export default function ApplyPage() {
                   TikTok {isRequired("tiktok") && <span className="text-red-400">*</span>}
                 </label>
                 <div className="relative">
-                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm text-gray-400">@</span>
+                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm text-gray-400">
+                    @
+                  </span>
                   <input
                     type="text"
                     value={form.tiktok}
-                    onChange={(e) => setForm((f) => ({ ...f, tiktok: e.target.value.replace("@", "") }))}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, tiktok: e.target.value.replace("@", "") }))
+                    }
                     required={isRequired("tiktok")}
                     placeholder="tuusuario"
                     className="w-full pl-7 pr-3.5 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:border-transparent"
@@ -384,7 +411,9 @@ export default function ApplyPage() {
             {campaign?.questions && campaign.questions.length > 0 && (
               <div className="pt-2 space-y-4">
                 <div className="border-t border-gray-100 pt-4">
-                  <h3 className="text-sm font-semibold text-gray-900 mb-4">Preguntas de la campaña</h3>
+                  <h3 className="text-sm font-semibold text-gray-900 mb-4">
+                    Preguntas de la campaña
+                  </h3>
                   {campaign.questions.map((q) => (
                     <div key={q.id} className="mb-4">
                       <label className="block text-xs font-medium text-gray-700 mb-1.5">
@@ -394,7 +423,9 @@ export default function ApplyPage() {
                       {q.type === "OPEN" ? (
                         <textarea
                           value={answers[q.id] || ""}
-                          onChange={(e) => setAnswers((prev) => ({ ...prev, [q.id]: e.target.value }))}
+                          onChange={(e) =>
+                            setAnswers((prev) => ({ ...prev, [q.id]: e.target.value }))
+                          }
                           required={q.required}
                           rows={3}
                           placeholder="Tu respuesta..."
@@ -411,7 +442,11 @@ export default function ApplyPage() {
                                   ? "border-current bg-opacity-5"
                                   : "border-gray-200 hover:border-gray-300"
                               }`}
-                              style={answers[q.id] === option ? { borderColor: color, backgroundColor: color + "10" } : {}}
+                              style={
+                                answers[q.id] === option
+                                  ? { borderColor: color, backgroundColor: color + "10" }
+                                  : {}
+                              }
                             >
                               <input
                                 type="radio"
@@ -453,8 +488,7 @@ export default function ApplyPage() {
         </div>
 
         <p className="text-center text-[11px] text-gray-400 mt-6">
-          Powered by{" "}
-          <span className="font-semibold text-gray-500">kool</span>
+          Powered by <span className="font-semibold text-gray-500">kool</span>
         </p>
       </div>
     </div>

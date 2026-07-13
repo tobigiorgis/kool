@@ -27,12 +27,12 @@ export default async function DashboardLayout({ children }: { children: React.Re
   return (
     <div className="flex h-screen bg-white">
       {/* Sidebar — solo desktop */}
-      <aside className="hidden lg:flex w-[220px] flex-shrink-0 border-r border-[#f0f0f0] flex-col bg-white">
+      <aside className="hidden lg:flex w-[220px] flex-shrink-0 flex-col bg-surface">
         {/* Logo */}
-        <div className="h-14 flex items-center px-5 border-b border-[#f0f0f0]">
+        <div className="h-14 flex items-center px-5">
           <Link href="/dashboard" className="flex items-center gap-1">
-            <span className="text-[17px] font-semibold tracking-tight text-gray-900">kool</span>
-            <span className="w-[5px] h-[5px] rounded-full bg-brand-400 mb-0.5 ml-0.5" />
+            <span className="text-[17px] font-medium tracking-[-0.03em] text-ink">kool</span>
+            <span className="kool-dot mb-0.5 ml-0.5" />
           </Link>
         </div>
 
@@ -40,12 +40,12 @@ export default async function DashboardLayout({ children }: { children: React.Re
         <DashboardNav />
 
         {/* Footer */}
-        <div className="px-4 py-4 border-t border-[#f0f0f0] flex items-center gap-2.5">
+        <div className="px-4 py-4 flex items-center gap-2.5">
           <UserButton afterSignOutUrl="/" />
           <div className="min-w-0">
             <Link
               href="/dashboard/settings?tab=billing"
-              className="text-[11px] text-gray-400 hover:text-gray-600 transition-colors"
+              className="text-[11px] text-ink-tertiary hover:text-ink-secondary transition-colors duration-fast"
             >
               Plan Free · Upgrade
             </Link>

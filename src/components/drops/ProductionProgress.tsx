@@ -37,7 +37,7 @@ export function ProductionProgress({
       )}
       <div className={`w-full bg-gray-100 rounded-full ${barHeight}`}>
         <div
-          className={`${barHeight} rounded-full transition-all ${barColor}`}
+          className={`${barHeight} rounded-full transition-colors duration-fast ${barColor}`}
           style={{ width: `${progress}%` }}
         />
       </div>

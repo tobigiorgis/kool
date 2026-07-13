@@ -84,7 +84,10 @@ export default function NewDropPage() {
   return (
     <div className="p-4 lg:p-8 max-w-2xl">
       <div className="flex items-center gap-3 mb-8">
-        <Link href="/dashboard/drops" className="text-gray-400 hover:text-gray-600 transition-colors">
+        <Link
+          href="/dashboard/drops"
+          className="text-gray-400 hover:text-gray-600 transition-colors"
+        >
           <ArrowLeft size={18} />
         </Link>
         <div>
@@ -105,7 +108,7 @@ export default function NewDropPage() {
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Ej: Colección Verano 2025"
-              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C46A]/30 focus:border-[#00C46A]"
+              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FB7185]/30 focus:border-[#FB7185]"
               required
             />
           </div>
@@ -117,39 +120,45 @@ export default function NewDropPage() {
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Descripción opcional del drop"
               rows={3}
-              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C46A]/30 focus:border-[#00C46A] resize-none"
+              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FB7185]/30 focus:border-[#FB7185] resize-none"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1.5">Cover image (URL)</label>
+            <label className="block text-xs font-medium text-gray-600 mb-1.5">
+              Cover image (URL)
+            </label>
             <input
               type="url"
               value={coverImage}
               onChange={(e) => setCoverImage(e.target.value)}
               placeholder="https://..."
-              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C46A]/30 focus:border-[#00C46A]"
+              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FB7185]/30 focus:border-[#FB7185]"
             />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1.5">Fecha de lanzamiento *</label>
+              <label className="block text-xs font-medium text-gray-600 mb-1.5">
+                Fecha de lanzamiento *
+              </label>
               <input
                 type="date"
                 value={launchDate}
                 onChange={(e) => setLaunchDate(e.target.value)}
-                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C46A]/30 focus:border-[#00C46A]"
+                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FB7185]/30 focus:border-[#FB7185]"
                 required
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1.5">Fecha de cierre</label>
+              <label className="block text-xs font-medium text-gray-600 mb-1.5">
+                Fecha de cierre
+              </label>
               <input
                 type="date"
                 value={closeDate}
                 onChange={(e) => setCloseDate(e.target.value)}
-                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C46A]/30 focus:border-[#00C46A]"
+                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FB7185]/30 focus:border-[#FB7185]"
               />
             </div>
           </div>
@@ -182,7 +191,7 @@ export default function NewDropPage() {
                     value={product.name}
                     onChange={(e) => updateProduct(index, "name", e.target.value)}
                     placeholder="Ej: Remera oversize negra"
-                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C46A]/30 focus:border-[#00C46A]"
+                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FB7185]/30 focus:border-[#FB7185]"
                   />
                 </div>
 
@@ -193,7 +202,7 @@ export default function NewDropPage() {
                     value={product.sku}
                     onChange={(e) => updateProduct(index, "sku", e.target.value)}
                     placeholder="Opcional"
-                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C46A]/30 focus:border-[#00C46A]"
+                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FB7185]/30 focus:border-[#FB7185]"
                   />
                 </div>
 
@@ -204,7 +213,7 @@ export default function NewDropPage() {
                     value={product.image}
                     onChange={(e) => updateProduct(index, "image", e.target.value)}
                     placeholder="https://..."
-                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C46A]/30 focus:border-[#00C46A]"
+                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FB7185]/30 focus:border-[#FB7185]"
                   />
                 </div>
 
@@ -217,7 +226,7 @@ export default function NewDropPage() {
                     value={product.price}
                     onChange={(e) => updateProduct(index, "price", e.target.value)}
                     placeholder="0"
-                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C46A]/30 focus:border-[#00C46A]"
+                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FB7185]/30 focus:border-[#FB7185]"
                   />
                 </div>
 
@@ -232,9 +241,11 @@ export default function NewDropPage() {
                     value={product.unitCost}
                     onChange={(e) => updateProduct(index, "unitCost", e.target.value)}
                     placeholder="Se calcula desde los gastos"
-                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C46A]/30 focus:border-[#00C46A]"
+                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FB7185]/30 focus:border-[#FB7185]"
                   />
-                  <p className="text-xs text-gray-400 mt-1">Si cargás gastos, se calcula automáticamente.</p>
+                  <p className="text-xs text-gray-400 mt-1">
+                    Si cargás gastos, se calcula automáticamente.
+                  </p>
                 </div>
 
                 <div>
@@ -245,7 +256,7 @@ export default function NewDropPage() {
                     value={product.initialStock}
                     onChange={(e) => updateProduct(index, "initialStock", e.target.value)}
                     placeholder="0"
-                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C46A]/30 focus:border-[#00C46A]"
+                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FB7185]/30 focus:border-[#FB7185]"
                   />
                 </div>
 
@@ -260,7 +271,7 @@ export default function NewDropPage() {
                           value={type}
                           checked={product.productionType === type}
                           onChange={() => updateProduct(index, "productionType", type)}
-                          className="accent-[#00C46A]"
+                          className="accent-[#FB7185]"
                         />
                         <span className="text-sm text-gray-700">
                           {type === "LOCAL" ? "Producción local" : "Importación"}
@@ -283,9 +294,7 @@ export default function NewDropPage() {
           </button>
         </div>
 
-        {error && (
-          <p className="text-sm text-red-500">{error}</p>
-        )}
+        {error && <p className="text-sm text-red-500">{error}</p>}
 
         <div className="flex items-center gap-3">
           <button
@@ -295,7 +304,10 @@ export default function NewDropPage() {
           >
             {saving ? "Creando..." : "Crear Drop"}
           </button>
-          <Link href="/dashboard/drops" className="text-sm text-gray-400 hover:text-gray-600 transition-colors">
+          <Link
+            href="/dashboard/drops"
+            className="text-sm text-gray-400 hover:text-gray-600 transition-colors"
+          >
             Cancelar
           </Link>
         </div>

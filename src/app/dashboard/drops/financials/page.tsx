@@ -31,7 +31,11 @@ interface DropSummary {
 }
 
 function fmt(n: number) {
-  return new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 }).format(n)
+  return new Intl.NumberFormat("es-AR", {
+    style: "currency",
+    currency: "ARS",
+    maximumFractionDigits: 0,
+  }).format(n)
 }
 
 function fmtDate(d: string | null) {
@@ -52,7 +56,7 @@ const STATUS_LABEL: Record<string, string> = {
 
 const STATUS_DOT: Record<string, string> = {
   PRE_LAUNCH: "bg-gray-300",
-  ACTIVE: "bg-[#00C46A]",
+  ACTIVE: "bg-[#FB7185]",
   CLOSED: "bg-gray-400",
 }
 
@@ -113,7 +117,9 @@ export default function DropsFinancialsPage() {
       <div className="p-4 lg:p-8">
         <div className="animate-pulse space-y-4">
           <div className="grid grid-cols-4 gap-4">
-            {[1, 2, 3, 4].map((i) => <div key={i} className="h-24 bg-gray-100 rounded-xl" />)}
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="h-24 bg-gray-100 rounded-xl" />
+            ))}
           </div>
           <div className="h-64 bg-gray-100 rounded-xl" />
         </div>
@@ -137,11 +143,19 @@ export default function DropsFinancialsPage() {
         </div>
         <div className="bg-white border border-gray-100 rounded-xl p-5">
           <p className="text-xs text-gray-400 mb-1">Ganancia neta</p>
-          <p className={`text-xl font-semibold ${totalProfit >= 0 ? "text-[#00903c]" : "text-red-500"}`}>{fmt(totalProfit)}</p>
+          <p
+            className={`text-xl font-semibold ${totalProfit >= 0 ? "text-[#E11D48]" : "text-red-500"}`}
+          >
+            {fmt(totalProfit)}
+          </p>
         </div>
         <div className="bg-white border border-gray-100 rounded-xl p-5">
           <p className="text-xs text-gray-400 mb-1">Deudas pendientes</p>
-          <p className={`text-xl font-semibold ${totalPendingDebt > 0 ? "text-amber-600" : "text-gray-900"}`}>{fmt(totalPendingDebt)}</p>
+          <p
+            className={`text-xl font-semibold ${totalPendingDebt > 0 ? "text-amber-600" : "text-gray-900"}`}
+          >
+            {fmt(totalPendingDebt)}
+          </p>
         </div>
         <div className="bg-white border border-gray-100 rounded-xl p-5">
           <p className="text-xs text-gray-400 mb-1">Caja total</p>
@@ -154,21 +168,42 @@ export default function DropsFinancialsPage() {
         <div className="bg-white border border-gray-100 rounded-xl p-12 text-center">
           <TrendingUp size={32} className="text-gray-200 mx-auto mb-3" />
           <p className="text-sm text-gray-400">No hay drops con datos financieros</p>
-          <Link href="/dashboard/drops/new" className="text-sm text-gray-600 underline mt-1 inline-block">Crear un drop</Link>
+          <Link
+            href="/dashboard/drops/new"
+            className="text-sm text-gray-600 underline mt-1 inline-block"
+          >
+            Crear un drop
+          </Link>
         </div>
       ) : (
         <div className="bg-white border border-gray-100 rounded-xl overflow-hidden">
           <table className="w-full">
             <thead>
               <tr className="border-b border-gray-100">
-                {["Drop", "Estado", "Ingresos", "Gastos", "Ganancia", "Deuda pendiente", "Caja", "Break-even", ""].map((h) => (
-                  <th key={h} className="text-left text-xs font-medium text-gray-400 px-4 py-3 whitespace-nowrap">{h}</th>
+                {[
+                  "Drop",
+                  "Estado",
+                  "Ingresos",
+                  "Gastos",
+                  "Ganancia",
+                  "Deuda pendiente",
+                  "Caja",
+                  "Break-even",
+                  "",
+                ].map((h) => (
+                  <th
+                    key={h}
+                    className="text-left text-xs font-medium text-gray-400 px-4 py-3 whitespace-nowrap"
+                  >
+                    {h}
+                  </th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {drops.map((drop) => {
-                const reachedBreakEven = drop.breakEvenPct !== null && (drop.soldPct * 100) >= drop.breakEvenPct
+                const reachedBreakEven =
+                  drop.breakEvenPct !== null && drop.soldPct * 100 >= drop.breakEvenPct
                 const isExpanded = expandedId === drop.id
                 const pendingDebts = drop.allDebts.filter((d) => !d.paidAt)
 
@@ -181,10 +216,11 @@ export default function DropsFinancialsPage() {
                     >
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-1.5">
-                          {isExpanded
-                            ? <ChevronDown size={13} className="text-gray-400 flex-shrink-0" />
-                            : <ChevronRight size={13} className="text-gray-300 flex-shrink-0" />
-                          }
+                          {isExpanded ? (
+                            <ChevronDown size={13} className="text-gray-400 flex-shrink-0" />
+                          ) : (
+                            <ChevronRight size={13} className="text-gray-300 flex-shrink-0" />
+                          )}
                           <p className="text-sm font-medium text-gray-900">{drop.name}</p>
                         </div>
                       </td>
@@ -194,10 +230,14 @@ export default function DropsFinancialsPage() {
                           <span className="text-xs text-gray-500">{STATUS_LABEL[drop.status]}</span>
                         </div>
                       </td>
-                      <td className="px-4 py-3 text-sm text-gray-900">{fmt(drop.currentRevenue)}</td>
+                      <td className="px-4 py-3 text-sm text-gray-900">
+                        {fmt(drop.currentRevenue)}
+                      </td>
                       <td className="px-4 py-3 text-sm text-gray-600">{fmt(drop.totalExpenses)}</td>
                       <td className="px-4 py-3">
-                        <span className={`text-sm font-medium ${drop.profit >= 0 ? "text-[#00903c]" : "text-red-500"}`}>
+                        <span
+                          className={`text-sm font-medium ${drop.profit >= 0 ? "text-[#E11D48]" : "text-red-500"}`}
+                        >
                           {fmt(drop.profit)}
                         </span>
                       </td>
@@ -205,25 +245,35 @@ export default function DropsFinancialsPage() {
                         {drop.totalPendingDebt > 0 ? (
                           <div className="flex items-center gap-1">
                             <AlertCircle size={12} className="text-amber-400" />
-                            <span className="text-sm text-amber-600">{fmt(drop.totalPendingDebt)}</span>
+                            <span className="text-sm text-amber-600">
+                              {fmt(drop.totalPendingDebt)}
+                            </span>
                           </div>
                         ) : (
                           <span className="text-sm text-gray-400">—</span>
                         )}
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-600">
-                        {drop.currentCash > 0 ? fmt(drop.currentCash) : <span className="text-gray-300">—</span>}
+                        {drop.currentCash > 0 ? (
+                          fmt(drop.currentCash)
+                        ) : (
+                          <span className="text-gray-300">—</span>
+                        )}
                       </td>
                       <td className="px-4 py-3">
                         {drop.breakEvenPct !== null ? (
                           <div className="flex items-center gap-2">
                             <div className="w-16 h-1.5 bg-gray-100 rounded-full overflow-hidden">
                               <div
-                                className={`h-1.5 rounded-full ${reachedBreakEven ? "bg-[#00C46A]" : "bg-amber-400"}`}
-                                style={{ width: `${Math.min((drop.soldPct / (drop.breakEvenPct / 100)) * 100, 100)}%` }}
+                                className={`h-1.5 rounded-full ${reachedBreakEven ? "bg-[#FB7185]" : "bg-amber-400"}`}
+                                style={{
+                                  width: `${Math.min((drop.soldPct / (drop.breakEvenPct / 100)) * 100, 100)}%`,
+                                }}
                               />
                             </div>
-                            <span className={`text-xs ${reachedBreakEven ? "text-[#00903c]" : "text-gray-500"}`}>
+                            <span
+                              className={`text-xs ${reachedBreakEven ? "text-[#E11D48]" : "text-gray-500"}`}
+                            >
                               {drop.breakEvenPct.toFixed(0)}%
                             </span>
                           </div>
@@ -244,7 +294,10 @@ export default function DropsFinancialsPage() {
 
                     {/* ── Fila expandida: deudas ── */}
                     {isExpanded && (
-                      <tr key={`${drop.id}-expanded`} className="border-b border-gray-50 bg-gray-50/30">
+                      <tr
+                        key={`${drop.id}-expanded`}
+                        className="border-b border-gray-50 bg-gray-50/30"
+                      >
                         <td colSpan={9} className="px-6 py-4">
                           {pendingDebts.length === 0 ? (
                             <p className="text-xs text-gray-400 py-1">Sin deudas pendientes</p>
@@ -260,23 +313,42 @@ export default function DropsFinancialsPage() {
                                     <div
                                       key={debt.id}
                                       className={`flex items-start gap-2.5 p-3 rounded-lg border text-xs ${
-                                        overdue ? "border-red-100 bg-red-50/60" : "border-gray-100 bg-white"
+                                        overdue
+                                          ? "border-red-100 bg-red-50/60"
+                                          : "border-gray-100 bg-white"
                                       }`}
                                     >
-                                      <div className={`mt-0.5 w-3 h-3 rounded-full flex-shrink-0 ${PRIORITY_COLOR[debt.priority] ?? PRIORITY_COLOR[2]}`} />
+                                      <div
+                                        className={`mt-0.5 w-3 h-3 rounded-full flex-shrink-0 ${PRIORITY_COLOR[debt.priority] ?? PRIORITY_COLOR[2]}`}
+                                      />
                                       <div className="flex-1 min-w-0">
-                                        <p className="font-medium text-gray-800 truncate">{debt.description}</p>
+                                        <p className="font-medium text-gray-800 truncate">
+                                          {debt.description}
+                                        </p>
                                         <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
-                                          <span className={`font-semibold ${overdue ? "text-red-600" : "text-gray-700"}`}>
+                                          <span
+                                            className={`font-semibold ${overdue ? "text-red-600" : "text-gray-700"}`}
+                                          >
                                             {fmt(debt.amount)}
                                           </span>
-                                          {debt.creditor && <span className="text-gray-400">{debt.creditor}</span>}
+                                          {debt.creditor && (
+                                            <span className="text-gray-400">{debt.creditor}</span>
+                                          )}
                                           {debt.dueDate && (
-                                            <span className={overdue ? "text-red-500 font-medium" : "text-gray-400"}>
-                                              {overdue ? "Vencida " : "Vence "}{fmtDate(debt.dueDate)}
+                                            <span
+                                              className={
+                                                overdue
+                                                  ? "text-red-500 font-medium"
+                                                  : "text-gray-400"
+                                              }
+                                            >
+                                              {overdue ? "Vencida " : "Vence "}
+                                              {fmtDate(debt.dueDate)}
                                             </span>
                                           )}
-                                          <span className={`px-1 py-0.5 rounded-full text-[10px] font-medium ${PRIORITY_COLOR[debt.priority] ?? PRIORITY_COLOR[2]}`}>
+                                          <span
+                                            className={`px-1 py-0.5 rounded-full text-[10px] font-medium ${PRIORITY_COLOR[debt.priority] ?? PRIORITY_COLOR[2]}`}
+                                          >
                                             {PRIORITY_LABEL[debt.priority] ?? "Media"}
                                           </span>
                                         </div>
@@ -289,8 +361,11 @@ export default function DropsFinancialsPage() {
                                 <span className="text-xs text-gray-400">
                                   {drop.allDebts.filter((d) => d.paidAt).length > 0 && (
                                     <span className="flex items-center gap-1">
-                                      <Check size={10} className="text-[#00C46A]" />
-                                      {drop.allDebts.filter((d) => d.paidAt).length} pagada{drop.allDebts.filter((d) => d.paidAt).length !== 1 ? "s" : ""}
+                                      <Check size={10} className="text-[#FB7185]" />
+                                      {drop.allDebts.filter((d) => d.paidAt).length} pagada
+                                      {drop.allDebts.filter((d) => d.paidAt).length !== 1
+                                        ? "s"
+                                        : ""}
                                     </span>
                                   )}
                                 </span>

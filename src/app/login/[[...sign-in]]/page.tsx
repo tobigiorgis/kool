@@ -14,7 +14,7 @@ export default function LoginPage() {
       <div className="mb-8 text-center">
         <div className="inline-flex items-center gap-1.5">
           <span className="text-2xl font-bold tracking-tight text-gray-900">kool</span>
-          <span className="w-2 h-2 rounded-full bg-[#00C46A] mb-0.5" />
+          <span className="w-2 h-2 rounded-full bg-[#FB7185] mb-0.5" />
         </div>
       </div>
 
@@ -23,7 +23,7 @@ export default function LoginPage() {
         <div className="flex bg-white border border-gray-200 rounded-xl p-1 mb-6 shadow-sm">
           <button
             onClick={() => setRole("brand")}
-            className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all ${
+            className={`flex-1 py-2 text-sm font-medium rounded-lg transition-colors duration-fast ${
               role === "brand"
                 ? "bg-gray-900 text-white shadow-sm"
                 : "text-gray-500 hover:text-gray-700"
@@ -33,7 +33,7 @@ export default function LoginPage() {
           </button>
           <button
             onClick={() => setRole("creator")}
-            className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all ${
+            className={`flex-1 py-2 text-sm font-medium rounded-lg transition-colors duration-fast ${
               role === "creator"
                 ? "bg-gray-900 text-white shadow-sm"
                 : "text-gray-500 hover:text-gray-700"

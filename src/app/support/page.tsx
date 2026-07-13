@@ -23,7 +23,7 @@ export default function SupportPage() {
         <div className="space-y-4">
           <a
             href="mailto:hi@joinkool.co"
-            className="flex items-start gap-4 p-5 rounded-xl border border-gray-100 hover:border-gray-200 hover:bg-gray-50 transition-all group"
+            className="flex items-start gap-4 p-5 rounded-xl border border-gray-100 hover:border-gray-200 hover:bg-gray-50 transition-colors duration-fast group"
           >
             <div className="w-9 h-9 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0 group-hover:bg-gray-200 transition-colors">
               <Mail size={16} className="text-gray-600" />
@@ -40,7 +40,7 @@ export default function SupportPage() {
             href="https://wa.me/message/kool"
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-start gap-4 p-5 rounded-xl border border-gray-100 hover:border-gray-200 hover:bg-gray-50 transition-all group"
+            className="flex items-start gap-4 p-5 rounded-xl border border-gray-100 hover:border-gray-200 hover:bg-gray-50 transition-colors duration-fast group"
           >
             <div className="w-9 h-9 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0 group-hover:bg-gray-200 transition-colors">
               <MessageCircle size={16} className="text-gray-600" />

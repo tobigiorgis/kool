@@ -60,7 +60,8 @@ export default async function AllProgramsPage() {
       <div className="mb-6">
         <h1 className="text-xl font-semibold text-gray-900 tracking-tight">Programs</h1>
         <p className="text-sm text-gray-400 mt-0.5">
-          {programs.length} programa{programs.length !== 1 ? "s" : ""} activo{programs.length !== 1 ? "s" : ""}
+          {programs.length} programa{programs.length !== 1 ? "s" : ""} activo
+          {programs.length !== 1 ? "s" : ""}
         </p>
       </div>
       <div className="border-t border-gray-200 mb-6" />
@@ -68,7 +69,9 @@ export default async function AllProgramsPage() {
       {programs.length === 0 && pendingInvites.length === 0 ? (
         <div className="text-center py-20">
           <p className="text-sm text-gray-400">No estás en ningún programa todavía.</p>
-          <p className="text-xs text-gray-300 mt-1">Revisá tu email para invitaciones pendientes.</p>
+          <p className="text-xs text-gray-300 mt-1">
+            Revisá tu email para invitaciones pendientes.
+          </p>
         </div>
       ) : (
         <div className="space-y-6">
@@ -76,10 +79,15 @@ export default async function AllProgramsPage() {
           {featured && (
             <Link
               href={creatorPath(`program/${featured.campaignId}`)}
-              className="block bg-white rounded-2xl border border-gray-200 p-5 hover:border-gray-300 hover:shadow-sm transition-all"
+              className="block bg-white rounded-2xl border border-gray-200 p-5 hover:border-gray-300 transition-[box-shadow,border-color] duration-base ease-out-strong hover:shadow-card"
             >
               <div className="flex items-center gap-3 mb-4">
-                <BrandLogo name={featured.brandName} logo={featured.brandLogo} color={featured.brandColor} size={44} />
+                <BrandLogo
+                  name={featured.brandName}
+                  logo={featured.brandLogo}
+                  color={featured.brandColor}
+                  size={44}
+                />
                 <div className="flex-1 min-w-0">
                   <p className="text-[15px] font-semibold text-gray-900">{featured.brandName}</p>
                   <p className="text-xs text-gray-400">{featured.campaignName}</p>
@@ -88,7 +96,9 @@ export default async function AllProgramsPage() {
               </div>
 
               {featured.links[0] && (
-                <p className="text-xs text-gray-400 font-mono mb-3">{shortUrlLabel(featured.links[0].slug)}</p>
+                <p className="text-xs text-gray-400 font-mono mb-3">
+                  {shortUrlLabel(featured.links[0].slug)}
+                </p>
               )}
 
               <div className="p-3 bg-gray-50 rounded-xl flex items-center justify-between">
@@ -105,7 +115,9 @@ export default async function AllProgramsPage() {
                       <span className="font-mono font-medium">{featured.discountCode}</span>
                     </div>
                   )}
-                  <p className="text-[11px] text-gray-400 mt-0.5">{featured.commissionPct}% comisión</p>
+                  <p className="text-[11px] text-gray-400 mt-0.5">
+                    {featured.commissionPct}% comisión
+                  </p>
                 </div>
               </div>
             </Link>
@@ -142,7 +154,9 @@ export default async function AllProgramsPage() {
                       size={36}
                     />
                     <div className="flex-1 min-w-0">
-                      <p className="text-[13px] font-medium text-gray-900">{inv.campaign.workspace.name}</p>
+                      <p className="text-[13px] font-medium text-gray-900">
+                        {inv.campaign.workspace.name}
+                      </p>
                       <p className="text-[11px] text-gray-400">{inv.campaign.name}</p>
                     </div>
                     <span className="text-[11px] font-medium text-amber-600 bg-amber-100 px-2 py-0.5 rounded-full shrink-0">
@@ -157,18 +171,27 @@ export default async function AllProgramsPage() {
           {/* Remaining programs */}
           {rest.length > 0 && (
             <div>
-              {featured && <p className="text-[13px] font-medium text-gray-900 mb-3">Otros programas</p>}
+              {featured && (
+                <p className="text-[13px] font-medium text-gray-900 mb-3">Otros programas</p>
+              )}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {rest.map((p) => (
                   <Link
                     key={p.campaignId}
                     href={creatorPath(`program/${p.campaignId}`)}
-                    className="bg-white rounded-2xl border border-gray-200 p-4 hover:border-gray-300 hover:shadow-sm transition-all flex items-center gap-3"
+                    className="bg-white rounded-2xl border border-gray-200 p-4 hover:border-gray-300 transition-[box-shadow,border-color] duration-base ease-out-strong hover:shadow-card flex items-center gap-3"
                   >
-                    <BrandLogo name={p.brandName} logo={p.brandLogo} color={p.brandColor} size={36} />
+                    <BrandLogo
+                      name={p.brandName}
+                      logo={p.brandLogo}
+                      color={p.brandColor}
+                      size={36}
+                    />
                     <div className="flex-1 min-w-0">
                       <p className="text-[14px] font-semibold text-gray-900">{p.brandName}</p>
-                      <p className="text-[11px] text-gray-400">{formatCurrency(p.totalEarnings)} ganados</p>
+                      <p className="text-[11px] text-gray-400">
+                        {formatCurrency(p.totalEarnings)} ganados
+                      </p>
                     </div>
                     <ArrowRight size={14} className="text-gray-300 shrink-0" />
                   </Link>
@@ -183,12 +206,25 @@ export default async function AllProgramsPage() {
 }
 
 function BrandLogo({
-  name, logo, color, size,
+  name,
+  logo,
+  color,
+  size,
 }: {
-  name: string; logo: string | null; color: string | null; size: number
+  name: string
+  logo: string | null
+  color: string | null
+  size: number
 }) {
   if (logo) {
-    return <img src={logo} className="rounded-xl object-cover shrink-0" style={{ width: size, height: size }} alt={name} />
+    return (
+      <img
+        src={logo}
+        className="rounded-xl object-cover shrink-0"
+        style={{ width: size, height: size }}
+        alt={name}
+      />
+    )
   }
   return (
     <div

@@ -35,33 +35,84 @@ function MobileCreatorNav({
   isInProgram: boolean
   pendingInvites: number
 }) {
-  const items = isInProgram && currentCampaignId
-    ? [
-        { href: creatorPath(`program/${currentCampaignId}`), label: "Overview", icon: Home, active: pathname === creatorPath(`program/${currentCampaignId}`) },
-        { href: creatorPath(`program/${currentCampaignId}/links`), label: "Links", icon: Link2, active: pathname.endsWith("/links") },
-        { href: creatorPath(`program/${currentCampaignId}/earnings`), label: "Earnings", icon: DollarSign, active: pathname.endsWith("/earnings") },
-        { href: creatorPath(`program/${currentCampaignId}/analytics`), label: "Analytics", icon: BarChart3, active: pathname.endsWith("/analytics") },
-        { href: creatorPath("profile"), label: "Profile", icon: User, active: pathname.includes("/profile") },
-      ]
-    : [
-        { href: creatorPath("programs"), label: "Programs", icon: LayoutGrid, active: pathname === creatorPath("programs") || pathname === creatorPath("") },
-        { href: creatorPath("programs/invitations"), label: "Invites", icon: UserPlus, active: pathname.includes("invitations"), badge: pendingInvites > 0 ? pendingInvites : undefined },
-        { href: creatorPath("payouts"), label: "Earnings", icon: Wallet, active: pathname.includes("/payouts") },
-        { href: creatorPath("profile"), label: "Profile", icon: User, active: pathname.includes("/profile") },
-      ]
+  const items =
+    isInProgram && currentCampaignId
+      ? [
+          {
+            href: creatorPath(`program/${currentCampaignId}`),
+            label: "Overview",
+            icon: Home,
+            active: pathname === creatorPath(`program/${currentCampaignId}`),
+          },
+          {
+            href: creatorPath(`program/${currentCampaignId}/links`),
+            label: "Links",
+            icon: Link2,
+            active: pathname.endsWith("/links"),
+          },
+          {
+            href: creatorPath(`program/${currentCampaignId}/earnings`),
+            label: "Earnings",
+            icon: DollarSign,
+            active: pathname.endsWith("/earnings"),
+          },
+          {
+            href: creatorPath(`program/${currentCampaignId}/analytics`),
+            label: "Analytics",
+            icon: BarChart3,
+            active: pathname.endsWith("/analytics"),
+          },
+          {
+            href: creatorPath("profile"),
+            label: "Profile",
+            icon: User,
+            active: pathname.includes("/profile"),
+          },
+        ]
+      : [
+          {
+            href: creatorPath("programs"),
+            label: "Programs",
+            icon: LayoutGrid,
+            active: pathname === creatorPath("programs") || pathname === creatorPath(""),
+          },
+          {
+            href: creatorPath("programs/invitations"),
+            label: "Invites",
+            icon: UserPlus,
+            active: pathname.includes("invitations"),
+            badge: pendingInvites > 0 ? pendingInvites : undefined,
+          },
+          {
+            href: creatorPath("payouts"),
+            label: "Earnings",
+            icon: Wallet,
+            active: pathname.includes("/payouts"),
+          },
+          {
+            href: creatorPath("profile"),
+            label: "Profile",
+            icon: User,
+            active: pathname.includes("/profile"),
+          },
+        ]
 
   return (
-    <nav className="lg:hidden fixed bottom-0 inset-x-0 bg-white border-t border-gray-100 z-50 flex items-stretch">
+    <nav className="lg:hidden fixed bottom-0 inset-x-0 bg-white/90 backdrop-blur-xl shadow-[0_-1px_0_#F5F4F4] z-50 flex items-stretch pb-[env(safe-area-inset-bottom)]">
       {items.map(({ href, label, icon: Icon, active, badge }) => (
         <Link
           key={href}
           href={href}
-          className={`flex-1 flex flex-col items-center justify-center gap-1 py-2 relative transition-colors ${active ? "text-gray-900" : "text-gray-400"}`}
+          className={`flex-1 flex flex-col items-center justify-center gap-1 py-2 relative transition-colors duration-fast ${active ? "text-ink" : "text-ink-tertiary"}`}
         >
-          <Icon size={20} className={active ? "text-brand-500" : "text-gray-400"} />
+          <Icon
+            size={20}
+            strokeWidth={1.5}
+            className={active ? "text-pink" : "text-ink-tertiary"}
+          />
           <span className="text-[9px] font-medium">{label}</span>
           {badge !== undefined && (
-            <span className="absolute top-1.5 right-[calc(50%-14px)] text-[9px] font-bold bg-rose-500 text-white rounded-full w-4 h-4 flex items-center justify-center">
+            <span className="absolute top-1.5 right-[calc(50%-14px)] text-[9px] font-semibold bg-pink text-white rounded-full w-4 h-4 flex items-center justify-center">
               {badge}
             </span>
           )}
@@ -105,200 +156,207 @@ export function CreatorSidebar({ creatorName, creatorAvatar, programs, pendingIn
 
   return (
     <>
-    <MobileCreatorNav
-      pathname={pathname}
-      currentCampaignId={currentCampaignId}
-      isInProgram={isInProgram}
-      pendingInvites={pendingInvites}
-    />
-    <aside className="hidden lg:flex w-[220px] bg-white border-r border-gray-100 flex-col h-full shrink-0">
-      {/* Logo */}
-      <div className="px-4 h-14 flex items-center border-b border-gray-100">
-        <Link href={creatorPath("")} className="flex items-center gap-1">
-          <span className="text-[17px] font-bold tracking-tight text-gray-900">kool</span>
-          <span className="w-[5px] h-[5px] rounded-full bg-[#00C46A] mb-0.5 ml-0.5" />
-        </Link>
-      </div>
+      <MobileCreatorNav
+        pathname={pathname}
+        currentCampaignId={currentCampaignId}
+        isInProgram={isInProgram}
+        pendingInvites={pendingInvites}
+      />
+      <aside className="hidden lg:flex w-[220px] bg-surface flex-col h-full shrink-0">
+        {/* Logo */}
+        <div className="px-4 h-14 flex items-center">
+          <Link href={creatorPath("")} className="flex items-center gap-1">
+            <span className="text-[17px] font-medium tracking-[-0.03em] text-ink">kool</span>
+            <span className="kool-dot mb-0.5 ml-0.5" />
+          </Link>
+        </div>
 
-      {/* Program selector */}
-      <div className="px-3 py-2.5 border-b border-gray-100 relative">
-        <button
-          onClick={() => setDropdownOpen(!dropdownOpen)}
-          className="w-full flex items-center justify-between gap-2 px-2 py-1.5 hover:bg-gray-50 rounded-lg transition-colors"
-        >
-          <div className="flex items-center gap-2 min-w-0">
-            {isInProgram && currentProgram ? (
-              <>
-                <BrandAvatar
-                  name={currentProgram.brandName}
-                  logo={currentProgram.brandLogo}
-                  size={22}
-                />
-                <span className="text-[13px] font-medium text-gray-900 truncate">
-                  {currentProgram.brandName}
-                </span>
-              </>
-            ) : (
-              <>
-                <div className="w-[22px] h-[22px] rounded-md bg-gray-100 flex items-center justify-center shrink-0">
-                  <LayoutGrid size={11} className="text-gray-500" />
-                </div>
-                <span className="text-[13px] font-medium text-gray-900">All programs</span>
-              </>
-            )}
-          </div>
-          <ChevronDown size={13} className="text-gray-400 shrink-0" />
-        </button>
-
-        {dropdownOpen && (
-          <>
-            <div className="fixed inset-0 z-40" onClick={() => setDropdownOpen(false)} />
-            <div className="absolute top-full left-2 right-2 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-50 py-1.5 max-h-72 overflow-y-auto">
-              <div className="px-2 pb-1.5">
-                <div className="relative">
-                  <Search
-                    size={12}
-                    className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400"
-                  />
-                  <input
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Find program..."
-                    className="w-full pl-7 pr-2.5 py-1.5 text-[12px] border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-brand-400"
-                    autoFocus
-                  />
-                </div>
-              </div>
-
-              {filteredPrograms.length > 0 && (
+        {/* Program selector */}
+        <div className="px-3 py-2.5 relative">
+          <button
+            onClick={() => setDropdownOpen(!dropdownOpen)}
+            className="w-full flex items-center justify-between gap-2 px-2 py-1.5 hover:bg-surface-hover rounded-field transition-colors duration-fast pressable"
+          >
+            <div className="flex items-center gap-2 min-w-0">
+              {isInProgram && currentProgram ? (
                 <>
-                  <div className="border-t border-gray-100 my-1" />
-                  <p className="px-3 py-0.5 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">
-                    Programs
-                  </p>
-                  {filteredPrograms.map((p) => (
-                    <Link
-                      key={p.campaignId}
-                      href={creatorPath(`program/${p.campaignId}`)}
-                      onClick={() => {
-                        setDropdownOpen(false)
-                        setSearchQuery("")
-                      }}
-                      className="flex items-center gap-2 px-2.5 py-1.5 text-[13px] hover:bg-gray-50 mx-1 rounded-lg"
-                    >
-                      <BrandAvatar name={p.brandName} logo={p.brandLogo} size={18} />
-                      <span className="flex-1 truncate">{p.brandName}</span>
-                      {currentCampaignId === p.campaignId && (
-                        <Check size={13} className="text-brand-500 shrink-0" />
-                      )}
-                    </Link>
-                  ))}
+                  <BrandAvatar
+                    name={currentProgram.brandName}
+                    logo={currentProgram.brandLogo}
+                    size={22}
+                  />
+                  <span className="text-[13px] font-medium text-ink truncate">
+                    {currentProgram.brandName}
+                  </span>
+                </>
+              ) : (
+                <>
+                  <div className="w-[22px] h-[22px] rounded-md bg-pink-fill flex items-center justify-center shrink-0">
+                    <LayoutGrid size={11} strokeWidth={1.5} className="text-pink-deep" />
+                  </div>
+                  <span className="text-[13px] font-medium text-ink">All programs</span>
                 </>
               )}
-
-              <div className="border-t border-gray-100 my-1" />
-              <Link
-                href={creatorPath("programs")}
-                onClick={() => {
-                  setDropdownOpen(false)
-                  setSearchQuery("")
-                }}
-                className="flex items-center gap-2 px-2.5 py-1.5 text-[13px] hover:bg-gray-50 mx-1 rounded-lg"
-              >
-                <div className="w-[18px] h-[18px] rounded bg-gray-100 flex items-center justify-center shrink-0">
-                  <LayoutGrid size={10} className="text-gray-500" />
-                </div>
-                <span className="flex-1">All programs</span>
-                {!isInProgram && <Check size={13} className="text-brand-500 shrink-0" />}
-              </Link>
             </div>
-          </>
-        )}
-      </div>
+            <ChevronDown size={13} strokeWidth={1.5} className="text-ink-tertiary shrink-0" />
+          </button>
 
-      {/* Nav */}
-      <nav className="flex-1 p-2 space-y-0.5 overflow-y-auto">
-        {!isInProgram ? (
-          <>
-            <NavItem
-              href={creatorPath("programs")}
-              icon={LayoutGrid}
-              label="Programs"
-              active={pathname === creatorPath("programs") || pathname === creatorPath("")}
-            />
-            <NavItem
-              href={creatorPath("programs/invitations")}
-              icon={UserPlus}
-              label="Invitations"
-              active={pathname.includes("invitations")}
-              badge={pendingInvites > 0 ? pendingInvites : undefined}
-            />
-          </>
-        ) : (
-          <>
-            <NavItem
-              href={creatorPath(`program/${currentCampaignId}`)}
-              icon={Home}
-              label="Overview"
-              active={pathname === creatorPath(`program/${currentCampaignId}`)}
-            />
-            <NavItem
-              href={creatorPath(`program/${currentCampaignId}/links`)}
-              icon={Link2}
-              label="Links"
-              active={pathname.endsWith("/links")}
-            />
-            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider px-3 pt-3 pb-0.5">
-              Insights
-            </p>
-            <NavItem
-              href={creatorPath(`program/${currentCampaignId}/earnings`)}
-              icon={DollarSign}
-              label="Earnings"
-              active={pathname.endsWith("/earnings")}
-            />
-            <NavItem
-              href={creatorPath(`program/${currentCampaignId}/analytics`)}
-              icon={BarChart3}
-              label="Analytics"
-              active={pathname.endsWith("/analytics")}
-            />
-            <NavItem
-              href={creatorPath(`program/${currentCampaignId}/events`)}
-              icon={Zap}
-              label="Events"
-              active={pathname.endsWith("/events")}
-            />
-          </>
-        )}
-      </nav>
+          {dropdownOpen && (
+            <>
+              <div className="fixed inset-0 z-40" onClick={() => setDropdownOpen(false)} />
+              <div className="absolute top-full left-2 right-2 mt-1 bg-white shadow-overlay rounded-card z-50 py-1.5 max-h-72 overflow-y-auto animate-scale-in origin-top">
+                <div className="px-2 pb-1.5">
+                  <div className="relative">
+                    <Search
+                      size={12}
+                      className="absolute left-2.5 top-1/2 -translate-y-1/2 text-ink-tertiary"
+                    />
+                    <input
+                      type="text"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      placeholder="Find program..."
+                      className="w-full pl-7 pr-2.5 py-1.5 text-[12px] bg-surface rounded-field focus:outline-none focus:bg-white focus:shadow-[0_0_0_2px_rgba(251,113,133,0.35)] transition-[background-color,box-shadow] duration-fast"
+                      autoFocus
+                    />
+                  </div>
+                </div>
 
-      {/* Footer */}
-      <div className="border-t border-gray-100 p-2 space-y-0.5">
-        <NavItem href={creatorPath("programs")} icon={Megaphone} label="Programs" active={false} />
-        <NavItem
-          href={creatorPath("payouts")}
-          icon={Wallet}
-          label="Earnings"
-          active={pathname.includes("/payouts")}
-        />
-        <NavItem
-          href={creatorPath("profile")}
-          icon={User}
-          label="Profile"
-          active={pathname.includes("/profile")}
-        />
-        <div className="border-t border-gray-50 mt-2 pt-2">
-          <SignOutButton>
-            <button className="flex items-center gap-3 px-3 py-1.5 text-[13px] text-gray-500 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors w-full">
-              <LogOut size={14} />
-              Log out
-            </button>
-          </SignOutButton>
+                {filteredPrograms.length > 0 && (
+                  <>
+                    <div className="border-t border-hairline my-1" />
+                    <p className="px-3 py-0.5 text-[10px] font-medium text-ink-tertiary uppercase tracking-wider">
+                      Programs
+                    </p>
+                    {filteredPrograms.map((p) => (
+                      <Link
+                        key={p.campaignId}
+                        href={creatorPath(`program/${p.campaignId}`)}
+                        onClick={() => {
+                          setDropdownOpen(false)
+                          setSearchQuery("")
+                        }}
+                        className="flex items-center gap-2 px-2.5 py-1.5 text-[13px] text-ink hover:bg-surface mx-1 rounded-field transition-colors duration-fast"
+                      >
+                        <BrandAvatar name={p.brandName} logo={p.brandLogo} size={18} />
+                        <span className="flex-1 truncate">{p.brandName}</span>
+                        {currentCampaignId === p.campaignId && (
+                          <Check size={13} strokeWidth={1.5} className="text-pink shrink-0" />
+                        )}
+                      </Link>
+                    ))}
+                  </>
+                )}
+
+                <div className="border-t border-hairline my-1" />
+                <Link
+                  href={creatorPath("programs")}
+                  onClick={() => {
+                    setDropdownOpen(false)
+                    setSearchQuery("")
+                  }}
+                  className="flex items-center gap-2 px-2.5 py-1.5 text-[13px] text-ink hover:bg-surface mx-1 rounded-field transition-colors duration-fast"
+                >
+                  <div className="w-[18px] h-[18px] rounded bg-pink-fill flex items-center justify-center shrink-0">
+                    <LayoutGrid size={10} strokeWidth={1.5} className="text-pink-deep" />
+                  </div>
+                  <span className="flex-1">All programs</span>
+                  {!isInProgram && (
+                    <Check size={13} strokeWidth={1.5} className="text-pink shrink-0" />
+                  )}
+                </Link>
+              </div>
+            </>
+          )}
         </div>
-      </div>
-    </aside>
+
+        {/* Nav */}
+        <nav className="flex-1 p-2 space-y-0.5 overflow-y-auto">
+          {!isInProgram ? (
+            <>
+              <NavItem
+                href={creatorPath("programs")}
+                icon={LayoutGrid}
+                label="Programs"
+                active={pathname === creatorPath("programs") || pathname === creatorPath("")}
+              />
+              <NavItem
+                href={creatorPath("programs/invitations")}
+                icon={UserPlus}
+                label="Invitations"
+                active={pathname.includes("invitations")}
+                badge={pendingInvites > 0 ? pendingInvites : undefined}
+              />
+            </>
+          ) : (
+            <>
+              <NavItem
+                href={creatorPath(`program/${currentCampaignId}`)}
+                icon={Home}
+                label="Overview"
+                active={pathname === creatorPath(`program/${currentCampaignId}`)}
+              />
+              <NavItem
+                href={creatorPath(`program/${currentCampaignId}/links`)}
+                icon={Link2}
+                label="Links"
+                active={pathname.endsWith("/links")}
+              />
+              <p className="text-[10px] font-medium text-ink-tertiary uppercase tracking-wider px-3 pt-3 pb-0.5">
+                Insights
+              </p>
+              <NavItem
+                href={creatorPath(`program/${currentCampaignId}/earnings`)}
+                icon={DollarSign}
+                label="Earnings"
+                active={pathname.endsWith("/earnings")}
+              />
+              <NavItem
+                href={creatorPath(`program/${currentCampaignId}/analytics`)}
+                icon={BarChart3}
+                label="Analytics"
+                active={pathname.endsWith("/analytics")}
+              />
+              <NavItem
+                href={creatorPath(`program/${currentCampaignId}/events`)}
+                icon={Zap}
+                label="Events"
+                active={pathname.endsWith("/events")}
+              />
+            </>
+          )}
+        </nav>
+
+        {/* Footer */}
+        <div className="border-t border-hairline p-2 space-y-0.5">
+          <NavItem
+            href={creatorPath("programs")}
+            icon={Megaphone}
+            label="Programs"
+            active={false}
+          />
+          <NavItem
+            href={creatorPath("payouts")}
+            icon={Wallet}
+            label="Earnings"
+            active={pathname.includes("/payouts")}
+          />
+          <NavItem
+            href={creatorPath("profile")}
+            icon={User}
+            label="Profile"
+            active={pathname.includes("/profile")}
+          />
+          <div className="border-t border-hairline mt-2 pt-2">
+            <SignOutButton>
+              <button className="flex items-center gap-3 px-3 py-1.5 text-[13px] text-ink-secondary hover:text-[#E5484D] hover:bg-[#FEF2F2] rounded-pill transition-colors duration-fast w-full">
+                <LogOut size={14} strokeWidth={1.5} />
+                Log out
+              </button>
+            </SignOutButton>
+          </div>
+        </div>
+      </aside>
     </>
   )
 }
@@ -316,11 +374,11 @@ function BrandAvatar({ name, logo, size }: { name: string; logo: string | null; 
   }
   return (
     <div
-      className="rounded-md bg-gray-900 flex items-center justify-center shrink-0"
+      className="rounded-md bg-pink-fill flex items-center justify-center shrink-0"
       style={{ width: size, height: size }}
     >
       <span
-        className="text-white font-bold"
+        className="text-pink-deep font-medium"
         style={{ fontSize: Math.max(8, Math.round(size * 0.44)) }}
       >
         {name[0]?.toUpperCase()}
@@ -345,16 +403,23 @@ function NavItem({
   return (
     <Link
       href={href}
-      className={`flex items-center gap-2.5 px-3 py-1.5 text-[13px] rounded-lg transition-colors ${
+      className={`flex items-center gap-2.5 px-3 py-[7px] text-[13px] rounded-pill transition-colors duration-fast ease-out-strong ${
         active
-          ? "text-gray-900 bg-gray-100 font-medium"
-          : "text-gray-500 hover:text-gray-900 hover:bg-gray-50"
+          ? "text-ink bg-pink-fill font-medium"
+          : "text-ink-secondary hover:text-ink hover:bg-surface-hover"
       }`}
     >
-      <Icon size={14} className={active ? "text-gray-700" : "text-gray-400"} />
+      <Icon
+        size={14}
+        strokeWidth={1.5}
+        className={active ? "text-pink-deep" : "text-ink-tertiary"}
+      />
       <span className="flex-1">{label}</span>
+      {active && badge === undefined && (
+        <span className="kool-dot" style={{ width: 4, height: 4 }} />
+      )}
       {badge !== undefined && (
-        <span className="text-[10px] font-semibold bg-rose-100 text-rose-600 px-1.5 py-0.5 rounded-full min-w-[18px] text-center">
+        <span className="text-[10px] font-medium bg-pink text-white px-1.5 py-0.5 rounded-full min-w-[18px] text-center font-mono tnum">
           {badge}
         </span>
       )}

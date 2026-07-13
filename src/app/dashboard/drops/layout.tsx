@@ -26,7 +26,7 @@ export default function DropsLayout({ children }: { children: React.ReactNode })
 
   return (
     <div className="flex flex-col h-full">
-      <div className="border-b border-[#f0f0f0] px-4 lg:px-8 flex items-center gap-0 overflow-x-auto">
+      <div className="border-b border-hairline px-4 lg:px-8 flex items-center gap-0 overflow-x-auto">
         {TABS.map(({ href, label }) => {
           const active = isActive(href)
           return (
@@ -35,7 +35,7 @@ export default function DropsLayout({ children }: { children: React.ReactNode })
               href={href}
               className={`px-4 py-3.5 text-sm font-medium border-b-2 -mb-px transition-colors ${
                 active
-                  ? "border-[#00C46A] text-gray-900"
+                  ? "border-[#FB7185] text-gray-900"
                   : "border-transparent text-gray-400 hover:text-gray-700"
               }`}
             >
@@ -44,9 +44,7 @@ export default function DropsLayout({ children }: { children: React.ReactNode })
           )
         })}
       </div>
-      <div className="flex-1 overflow-auto">
-        {children}
-      </div>
+      <div className="flex-1 overflow-auto">{children}</div>
     </div>
   )
 }

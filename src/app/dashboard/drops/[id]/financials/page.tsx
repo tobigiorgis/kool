@@ -48,12 +48,20 @@ interface DropFinancials {
 }
 
 function fmt(n: number) {
-  return new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 }).format(n)
+  return new Intl.NumberFormat("es-AR", {
+    style: "currency",
+    currency: "ARS",
+    maximumFractionDigits: 0,
+  }).format(n)
 }
 
 function fmtDate(d: string | null) {
   if (!d) return null
-  return new Date(d).toLocaleDateString("es-AR", { day: "numeric", month: "short", year: "numeric" })
+  return new Date(d).toLocaleDateString("es-AR", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  })
 }
 
 function isOverdue(dueDate: string | null) {
@@ -139,8 +147,12 @@ function DebtModal({
     <div className="fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-md max-h-[90vh] flex flex-col">
         <div className="flex items-center justify-between p-5 border-b border-gray-100 flex-shrink-0">
-          <h3 className="text-sm font-semibold text-gray-900">{isEdit ? "Editar deuda" : "Agregar deuda"}</h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors"><X size={16} /></button>
+          <h3 className="text-sm font-semibold text-gray-900">
+            {isEdit ? "Editar deuda" : "Agregar deuda"}
+          </h3>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors">
+            <X size={16} />
+          </button>
         </div>
         <form onSubmit={handleSubmit} className="p-5 space-y-3 overflow-y-auto">
           {isExpenseDebt && (
@@ -150,23 +162,43 @@ function DebtModal({
           )}
           {!isExpenseDebt && (
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1.5">Descripción *</label>
-              <input type="text" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Ej: Saldo pendiente taller" required
-                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C46A]/30 focus:border-[#00C46A]" />
+              <label className="block text-xs font-medium text-gray-600 mb-1.5">
+                Descripción *
+              </label>
+              <input
+                type="text"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Ej: Saldo pendiente taller"
+                required
+                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FB7185]/30 focus:border-[#FB7185]"
+              />
             </div>
           )}
           <div className={`grid gap-3 ${!isExpenseDebt ? "grid-cols-2" : "grid-cols-1"}`}>
             {!isExpenseDebt && (
               <div>
                 <label className="block text-xs font-medium text-gray-600 mb-1.5">Monto *</label>
-                <input type="number" min="0" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0" required
-                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C46A]/30 focus:border-[#00C46A]" />
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                  placeholder="0"
+                  required
+                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FB7185]/30 focus:border-[#FB7185]"
+                />
               </div>
             )}
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1.5">Fecha límite</label>
-              <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)}
-                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C46A]/30 focus:border-[#00C46A]" />
+              <input
+                type="date"
+                value={dueDate}
+                onChange={(e) => setDueDate(e.target.value)}
+                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FB7185]/30 focus:border-[#FB7185]"
+              />
             </div>
           </div>
           {!isExpenseDebt && (
@@ -180,7 +212,11 @@ function DebtModal({
                     onClick={() => setPriority(p)}
                     className={`flex-1 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
                       priority === p
-                        ? p === 1 ? "bg-red-100 border-red-300 text-red-700" : p === 2 ? "bg-amber-100 border-amber-300 text-amber-700" : "bg-gray-100 border-gray-300 text-gray-600"
+                        ? p === 1
+                          ? "bg-red-100 border-red-300 text-red-700"
+                          : p === 2
+                            ? "bg-amber-100 border-amber-300 text-amber-700"
+                            : "bg-gray-100 border-gray-300 text-gray-600"
                         : "border-gray-200 text-gray-400 hover:bg-gray-50"
                     }`}
                   >
@@ -192,20 +228,37 @@ function DebtModal({
           )}
           <div>
             <label className="block text-xs font-medium text-gray-600 mb-1.5">Acreedor</label>
-            <input type="text" value={creditor} onChange={(e) => setCreditor(e.target.value)} placeholder="Ej: Taller San Martín"
-              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C46A]/30 focus:border-[#00C46A]" />
+            <input
+              type="text"
+              value={creditor}
+              onChange={(e) => setCreditor(e.target.value)}
+              placeholder="Ej: Taller San Martín"
+              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FB7185]/30 focus:border-[#FB7185]"
+            />
           </div>
           <div>
             <label className="block text-xs font-medium text-gray-600 mb-1.5">Notas</label>
-            <textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Opcional" rows={2}
-              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C46A]/30 focus:border-[#00C46A] resize-none" />
+            <textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Opcional"
+              rows={2}
+              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FB7185]/30 focus:border-[#FB7185] resize-none"
+            />
           </div>
           <div className="flex gap-3 pt-1">
-            <button type="submit" disabled={saving || !description || !amount}
-              className="flex-1 bg-gray-900 text-white py-2.5 rounded-lg text-sm font-medium hover:bg-gray-800 disabled:opacity-50 transition-colors">
+            <button
+              type="submit"
+              disabled={saving || !description || !amount}
+              className="flex-1 bg-gray-900 text-white py-2.5 rounded-lg text-sm font-medium hover:bg-gray-800 disabled:opacity-50 transition-colors"
+            >
               {saving ? "Guardando..." : isEdit ? "Guardar cambios" : "Agregar deuda"}
             </button>
-            <button type="button" onClick={onClose} className="px-4 text-sm text-gray-500 hover:text-gray-700 transition-colors">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 text-sm text-gray-500 hover:text-gray-700 transition-colors"
+            >
               Cancelar
             </button>
           </div>
@@ -240,7 +293,9 @@ export default function DropFinancialsPage() {
       .finally(() => setLoading(false))
   }
 
-  useEffect(() => { load() }, [dropId])
+  useEffect(() => {
+    load()
+  }, [dropId])
 
   const handleSaveCash = async () => {
     setSavingCash(true)
@@ -294,7 +349,10 @@ export default function DropFinancialsPage() {
   const forecast = useMemo(() => {
     if (!data) return null
     const pct = forecastSlider / 100
-    const projectedRevenue = data.products.reduce((sum, p) => sum + p.price * Math.round(p.initialStock * pct), 0)
+    const projectedRevenue = data.products.reduce(
+      (sum, p) => sum + p.price * Math.round(p.initialStock * pct),
+      0
+    )
     const projectedProfit = projectedRevenue - data.totalExpenses
     const projectedMargin = projectedRevenue > 0 ? (projectedProfit / projectedRevenue) * 100 : 0
     const projectedUnits = Math.round(data.totalStock * pct)
@@ -307,7 +365,9 @@ export default function DropFinancialsPage() {
         <div className="animate-pulse space-y-4">
           <div className="h-8 bg-gray-100 rounded w-1/4" />
           <div className="grid grid-cols-2 gap-4">
-            {[1, 2, 3, 4].map((i) => <div key={i} className="h-36 bg-gray-100 rounded-xl" />)}
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="h-36 bg-gray-100 rounded-xl" />
+            ))}
           </div>
         </div>
       </div>
@@ -320,20 +380,24 @@ export default function DropFinancialsPage() {
   const paidDebts = data.allDebts.filter((d) => d.paidAt)
 
   const profitColor = forecast
-    ? forecast.projectedProfit >= 0 ? "text-[#00903c]" : "text-red-500"
+    ? forecast.projectedProfit >= 0
+      ? "text-[#E11D48]"
+      : "text-red-500"
     : "text-gray-900"
 
   return (
     <div className="p-4 lg:p-8 max-w-5xl mx-auto">
       <div className="flex items-center gap-3 mb-8">
-        <Link href={`/dashboard/drops/${dropId}`} className="text-gray-400 hover:text-gray-600 transition-colors">
+        <Link
+          href={`/dashboard/drops/${dropId}`}
+          className="text-gray-400 hover:text-gray-600 transition-colors"
+        >
           <ArrowLeft size={18} />
         </Link>
         <h1 className="text-xl font-semibold text-gray-900">Financiero del Drop</h1>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-
         {/* ── Bloque 1: Caja ─────────────────────────────────────────────── */}
         <div className="bg-white border border-gray-100 rounded-xl p-5">
           <h2 className="text-sm font-semibold text-gray-900 mb-1">Caja actual</h2>
@@ -341,7 +405,9 @@ export default function DropFinancialsPage() {
 
           <div className="flex items-center gap-3 mb-4">
             <div className="relative flex-1">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400">$</span>
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400">
+                $
+              </span>
               <input
                 type="number"
                 min="0"
@@ -349,7 +415,7 @@ export default function DropFinancialsPage() {
                 value={cashInput}
                 onChange={(e) => setCashInput(e.target.value)}
                 placeholder="0"
-                className="w-full pl-7 pr-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C46A]/30 focus:border-[#00C46A]"
+                className="w-full pl-7 pr-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FB7185]/30 focus:border-[#FB7185]"
               />
             </div>
             <button
@@ -368,7 +434,9 @@ export default function DropFinancialsPage() {
             </div>
             <div className="bg-gray-50 rounded-lg p-3">
               <p className="text-xs text-gray-400 mb-0.5">Deuda pendiente</p>
-              <p className={`text-base font-semibold ${data.totalPendingDebt > 0 ? "text-amber-600" : "text-gray-900"}`}>
+              <p
+                className={`text-base font-semibold ${data.totalPendingDebt > 0 ? "text-amber-600" : "text-gray-900"}`}
+              >
                 {fmt(data.totalPendingDebt)}
               </p>
             </div>
@@ -378,7 +446,9 @@ export default function DropFinancialsPage() {
             <div className="mt-3 p-3 bg-amber-50 border border-amber-100 rounded-lg flex items-start gap-2">
               <AlertCircle size={14} className="text-amber-500 flex-shrink-0 mt-0.5" />
               <p className="text-xs text-amber-700">
-                Caja neta estimada: <span className="font-medium">{fmt(data.currentCash - data.totalPendingDebt)}</span> al pagar todas las deudas
+                Caja neta estimada:{" "}
+                <span className="font-medium">{fmt(data.currentCash - data.totalPendingDebt)}</span>{" "}
+                al pagar todas las deudas
               </p>
             </div>
           )}
@@ -397,7 +467,9 @@ export default function DropFinancialsPage() {
             </button>
           </div>
           <p className="text-xs text-gray-400 mb-4">
-            {pendingDebts.length === 0 ? "Sin deudas pendientes" : `${pendingDebts.length} pendiente${pendingDebts.length !== 1 ? "s" : ""} · ${fmt(data.totalPendingDebt)}`}
+            {pendingDebts.length === 0
+              ? "Sin deudas pendientes"
+              : `${pendingDebts.length} pendiente${pendingDebts.length !== 1 ? "s" : ""} · ${fmt(data.totalPendingDebt)}`}
           </p>
 
           <div className="space-y-2 max-h-[320px] overflow-y-auto pr-0.5">
@@ -407,27 +479,43 @@ export default function DropFinancialsPage() {
             {pendingDebts.map((debt) => {
               const overdue = isOverdue(debt.dueDate)
               return (
-                <div key={debt.id} className={`flex items-start gap-3 p-3 rounded-lg border transition-colors ${overdue ? "border-red-100 bg-red-50" : "border-gray-100 bg-gray-50"}`}>
+                <div
+                  key={debt.id}
+                  className={`flex items-start gap-3 p-3 rounded-lg border transition-colors ${overdue ? "border-red-100 bg-red-50" : "border-gray-100 bg-gray-50"}`}
+                >
                   <button
                     onClick={() => handleToggleDebt(debt)}
                     disabled={togglingDebt === debt.id}
                     className={`mt-0.5 w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 transition-colors ${
-                      togglingDebt === debt.id ? "opacity-50" : "border-gray-300 hover:border-[#00C46A]"
+                      togglingDebt === debt.id
+                        ? "opacity-50"
+                        : "border-gray-300 hover:border-[#FB7185]"
                     }`}
                   />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5 flex-wrap">
                       <p className="text-sm text-gray-900 truncate">{debt.description}</p>
-                      <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${PRIORITY_COLOR[debt.priority] ?? PRIORITY_COLOR[2]}`}>
+                      <span
+                        className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${PRIORITY_COLOR[debt.priority] ?? PRIORITY_COLOR[2]}`}
+                      >
                         {PRIORITY_LABEL[debt.priority] ?? "Media"}
                       </span>
                     </div>
                     <div className="flex items-center gap-2 flex-wrap mt-0.5">
-                      <span className={`text-xs font-medium ${overdue ? "text-red-600" : "text-gray-700"}`}>{fmt(debt.amount)}</span>
-                      {debt.creditor && <span className="text-xs text-gray-400">{debt.creditor}</span>}
+                      <span
+                        className={`text-xs font-medium ${overdue ? "text-red-600" : "text-gray-700"}`}
+                      >
+                        {fmt(debt.amount)}
+                      </span>
+                      {debt.creditor && (
+                        <span className="text-xs text-gray-400">{debt.creditor}</span>
+                      )}
                       {debt.dueDate && (
-                        <span className={`text-xs ${overdue ? "text-red-500 font-medium" : "text-gray-400"}`}>
-                          {overdue ? "Vencida " : "Vence "}{fmtDate(debt.dueDate)}
+                        <span
+                          className={`text-xs ${overdue ? "text-red-500 font-medium" : "text-gray-400"}`}
+                        >
+                          {overdue ? "Vencida " : "Vence "}
+                          {fmtDate(debt.dueDate)}
                         </span>
                       )}
                     </div>
@@ -451,7 +539,10 @@ export default function DropFinancialsPage() {
                       </button>
                     )}
                     {debt.sourceType === "debt" && (
-                      <button onClick={() => handleDeleteDebt(debt)} className="text-gray-200 hover:text-red-400 transition-colors p-0.5">
+                      <button
+                        onClick={() => handleDeleteDebt(debt)}
+                        className="text-gray-200 hover:text-red-400 transition-colors p-0.5"
+                      >
                         <Trash2 size={11} />
                       </button>
                     )}
@@ -463,16 +554,21 @@ export default function DropFinancialsPage() {
               <div className="pt-2">
                 <p className="text-xs text-gray-400 mb-2">Pagadas</p>
                 {paidDebts.map((debt) => (
-                  <div key={debt.id} className="flex items-start gap-3 p-3 rounded-lg border border-gray-100 opacity-50 mb-2">
+                  <div
+                    key={debt.id}
+                    className="flex items-start gap-3 p-3 rounded-lg border border-gray-100 opacity-50 mb-2"
+                  >
                     <button
                       onClick={() => handleToggleDebt(debt)}
                       disabled={togglingDebt === debt.id}
-                      className="mt-0.5 w-4 h-4 rounded border border-[#00C46A] bg-[#00C46A] flex items-center justify-center flex-shrink-0"
+                      className="mt-0.5 w-4 h-4 rounded border border-[#FB7185] bg-[#FB7185] flex items-center justify-center flex-shrink-0"
                     >
                       <Check size={10} className="text-white" />
                     </button>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm text-gray-600 line-through truncate">{debt.description}</p>
+                      <p className="text-sm text-gray-600 line-through truncate">
+                        {debt.description}
+                      </p>
                       <span className="text-xs text-gray-400">{fmt(debt.amount)}</span>
                     </div>
                   </div>
@@ -485,7 +581,9 @@ export default function DropFinancialsPage() {
         {/* ── Bloque 3: Pronóstico interactivo ──────────────────────────── */}
         <div className="bg-white border border-gray-100 rounded-xl p-5">
           <h2 className="text-sm font-semibold text-gray-900 mb-1">Pronóstico interactivo</h2>
-          <p className="text-xs text-gray-400 mb-5">¿Qué pasa si vendés el {forecastSlider}% del stock?</p>
+          <p className="text-xs text-gray-400 mb-5">
+            ¿Qué pasa si vendés el {forecastSlider}% del stock?
+          </p>
 
           <div className="mb-5">
             <div className="flex items-center justify-between mb-2">
@@ -499,7 +597,7 @@ export default function DropFinancialsPage() {
               step="1"
               value={forecastSlider}
               onChange={(e) => setForecastSlider(parseInt(e.target.value))}
-              className="w-full accent-[#00C46A]"
+              className="w-full accent-[#FB7185]"
             />
             <div className="flex justify-between text-xs text-gray-300 mt-1">
               <span>0%</span>
@@ -510,51 +608,77 @@ export default function DropFinancialsPage() {
             </div>
           </div>
 
-          {forecast && (() => {
-            const resultado = forecast.projectedProfit - data.totalPendingDebt
-            const resultadoColor = resultado >= 0 ? "text-[#00903c]" : "text-red-500"
-            return (
-              <div className="grid grid-cols-2 gap-3">
-                <div className="bg-gray-50 rounded-lg p-3">
-                  <p className="text-xs text-gray-400 mb-0.5">Ingresos proyectados</p>
-                  <p className="text-base font-semibold text-gray-900">{fmt(forecast.projectedRevenue)}</p>
-                  <p className="text-xs text-gray-400">{forecast.projectedUnits} u. vendidas</p>
+          {forecast &&
+            (() => {
+              const resultado = forecast.projectedProfit - data.totalPendingDebt
+              const resultadoColor = resultado >= 0 ? "text-[#E11D48]" : "text-red-500"
+              return (
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="bg-gray-50 rounded-lg p-3">
+                    <p className="text-xs text-gray-400 mb-0.5">Ingresos proyectados</p>
+                    <p className="text-base font-semibold text-gray-900">
+                      {fmt(forecast.projectedRevenue)}
+                    </p>
+                    <p className="text-xs text-gray-400">{forecast.projectedUnits} u. vendidas</p>
+                  </div>
+                  <div
+                    className={`rounded-lg p-3 ${forecast.projectedProfit >= 0 ? "bg-[#FFF1F2]" : "bg-red-50"}`}
+                  >
+                    <p className="text-xs text-gray-400 mb-0.5">Ganancia neta</p>
+                    <p className={`text-base font-semibold ${profitColor}`}>
+                      {fmt(forecast.projectedProfit)}
+                    </p>
+                    <p
+                      className={`text-xs ${forecast.projectedProfit >= 0 ? "text-[#E11D48]" : "text-red-400"}`}
+                    >
+                      Margen {forecast.projectedMargin.toFixed(1)}%
+                    </p>
+                  </div>
+                  <div className="bg-gray-50 rounded-lg p-3">
+                    <p className="text-xs text-gray-400 mb-0.5">Gastos fijos</p>
+                    <p className="text-base font-semibold text-gray-900">
+                      {fmt(data.totalExpenses)}
+                    </p>
+                  </div>
+                  <div
+                    className={`bg-gray-50 rounded-lg p-3 ${data.totalPendingDebt > 0 ? "border border-amber-100" : ""}`}
+                  >
+                    <p className="text-xs text-gray-400 mb-0.5">Deuda pendiente</p>
+                    <p
+                      className={`text-base font-semibold ${data.totalPendingDebt > 0 ? "text-amber-600" : "text-gray-400"}`}
+                    >
+                      {data.totalPendingDebt > 0 ? `− ${fmt(data.totalPendingDebt)}` : "—"}
+                    </p>
+                  </div>
+                  <div
+                    className={`rounded-lg p-3 col-span-2 border ${resultado >= 0 ? "bg-[#FFF1F2] border-[#b3f0d4]" : "bg-red-50 border-red-100"}`}
+                  >
+                    <p className="text-xs text-gray-500 mb-0.5">
+                      Resultado final (ganancia − deuda)
+                    </p>
+                    <p className={`text-lg font-bold ${resultadoColor}`}>{fmt(resultado)}</p>
+                    <p className="text-xs text-gray-400 mt-0.5">
+                      {resultado >= 0
+                        ? "Cubrís gastos y deudas con este pronóstico"
+                        : "No alcanza para cubrir gastos y deudas"}
+                    </p>
+                  </div>
                 </div>
-                <div className={`rounded-lg p-3 ${forecast.projectedProfit >= 0 ? "bg-[#e6faf0]" : "bg-red-50"}`}>
-                  <p className="text-xs text-gray-400 mb-0.5">Ganancia neta</p>
-                  <p className={`text-base font-semibold ${profitColor}`}>{fmt(forecast.projectedProfit)}</p>
-                  <p className={`text-xs ${forecast.projectedProfit >= 0 ? "text-[#00903c]" : "text-red-400"}`}>
-                    Margen {forecast.projectedMargin.toFixed(1)}%
-                  </p>
-                </div>
-                <div className="bg-gray-50 rounded-lg p-3">
-                  <p className="text-xs text-gray-400 mb-0.5">Gastos fijos</p>
-                  <p className="text-base font-semibold text-gray-900">{fmt(data.totalExpenses)}</p>
-                </div>
-                <div className={`bg-gray-50 rounded-lg p-3 ${data.totalPendingDebt > 0 ? "border border-amber-100" : ""}`}>
-                  <p className="text-xs text-gray-400 mb-0.5">Deuda pendiente</p>
-                  <p className={`text-base font-semibold ${data.totalPendingDebt > 0 ? "text-amber-600" : "text-gray-400"}`}>
-                    {data.totalPendingDebt > 0 ? `− ${fmt(data.totalPendingDebt)}` : "—"}
-                  </p>
-                </div>
-                <div className={`rounded-lg p-3 col-span-2 border ${resultado >= 0 ? "bg-[#e6faf0] border-[#b3f0d4]" : "bg-red-50 border-red-100"}`}>
-                  <p className="text-xs text-gray-500 mb-0.5">Resultado final (ganancia − deuda)</p>
-                  <p className={`text-lg font-bold ${resultadoColor}`}>{fmt(resultado)}</p>
-                  <p className="text-xs text-gray-400 mt-0.5">
-                    {resultado >= 0 ? "Cubrís gastos y deudas con este pronóstico" : "No alcanza para cubrir gastos y deudas"}
-                  </p>
-                </div>
-              </div>
-            )
-          })()}
+              )
+            })()}
 
           <div className="mt-4">
             <div className="flex items-center justify-between mb-1">
               <span className="text-xs text-gray-400">Ventas actuales</span>
-              <span className="text-xs text-gray-500">{(data.soldPct * 100).toFixed(0)}% vendido</span>
+              <span className="text-xs text-gray-500">
+                {(data.soldPct * 100).toFixed(0)}% vendido
+              </span>
             </div>
             <div className="relative w-full h-2 bg-gray-100 rounded-full">
-              <div className="h-2 rounded-full bg-[#00C46A]" style={{ width: `${data.soldPct * 100}%` }} />
+              <div
+                className="h-2 rounded-full bg-[#FB7185]"
+                style={{ width: `${data.soldPct * 100}%` }}
+              />
               <div
                 className="absolute top-0 w-0.5 h-2 bg-gray-900"
                 style={{ left: `${forecastSlider}%`, transform: "translateX(-50%)" }}
@@ -570,12 +694,17 @@ export default function DropFinancialsPage() {
         {/* ── Bloque 4: Punto de equilibrio ────────────────────────────── */}
         <div className="bg-white border border-gray-100 rounded-xl p-5">
           <h2 className="text-sm font-semibold text-gray-900 mb-1">Punto de equilibrio</h2>
-          <p className="text-xs text-gray-400 mb-5">Mínimo de ventas para cubrir todos los gastos</p>
+          <p className="text-xs text-gray-400 mb-5">
+            Mínimo de ventas para cubrir todos los gastos
+          </p>
 
           {data.breakEvenUnits === null ? (
             <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-100 rounded-lg">
               <AlertCircle size={14} className="text-amber-500 flex-shrink-0 mt-0.5" />
-              <p className="text-xs text-amber-700">No se puede calcular — cargá gastos al drop y asegurate de que los productos tengan precio.</p>
+              <p className="text-xs text-amber-700">
+                No se puede calcular — cargá gastos al drop y asegurate de que los productos tengan
+                precio.
+              </p>
             </div>
           ) : (
             <>
@@ -589,13 +718,17 @@ export default function DropFinancialsPage() {
                   <p className="text-xs text-gray-400 mb-1">Ingresos</p>
                   <p className="text-sm font-bold text-gray-900">{fmt(data.breakEvenRevenue!)}</p>
                 </div>
-                <div className={`rounded-lg p-3 text-center ${(data.soldPct * 100) >= data.breakEvenPct! ? "bg-[#e6faf0]" : "bg-gray-50"}`}>
+                <div
+                  className={`rounded-lg p-3 text-center ${data.soldPct * 100 >= data.breakEvenPct! ? "bg-[#FFF1F2]" : "bg-gray-50"}`}
+                >
                   <p className="text-xs text-gray-400 mb-1">% del stock</p>
-                  <p className={`text-xl font-bold ${(data.soldPct * 100) >= data.breakEvenPct! ? "text-[#00903c]" : "text-gray-900"}`}>
+                  <p
+                    className={`text-xl font-bold ${data.soldPct * 100 >= data.breakEvenPct! ? "text-[#E11D48]" : "text-gray-900"}`}
+                  >
                     {data.breakEvenPct!.toFixed(0)}%
                   </p>
-                  {(data.soldPct * 100) >= data.breakEvenPct! && (
-                    <p className="text-xs text-[#00903c] font-medium">Superado</p>
+                  {data.soldPct * 100 >= data.breakEvenPct! && (
+                    <p className="text-xs text-[#E11D48] font-medium">Superado</p>
                   )}
                 </div>
               </div>
@@ -609,8 +742,10 @@ export default function DropFinancialsPage() {
                 </div>
                 <div className="relative w-full h-3 bg-gray-100 rounded-full overflow-hidden">
                   <div
-                    className={`h-3 rounded-full transition-all ${(data.soldPct * 100) >= data.breakEvenPct! ? "bg-[#00C46A]" : "bg-amber-400"}`}
-                    style={{ width: `${Math.min((data.soldPct / (data.breakEvenPct! / 100)) * 100, 100)}%` }}
+                    className={`h-3 rounded-full transition-colors duration-fast ${data.soldPct * 100 >= data.breakEvenPct! ? "bg-[#FB7185]" : "bg-amber-400"}`}
+                    style={{
+                      width: `${Math.min((data.soldPct / (data.breakEvenPct! / 100)) * 100, 100)}%`,
+                    }}
                   />
                 </div>
                 <div className="flex justify-between text-xs text-gray-400 mt-1">
@@ -627,7 +762,9 @@ export default function DropFinancialsPage() {
                       .sort(([, a], [, b]) => b - a)
                       .map(([cat, amount]) => (
                         <div key={cat} className="flex items-center justify-between">
-                          <span className="text-xs text-gray-500">{cat.charAt(0) + cat.slice(1).toLowerCase().replace(/_/g, " ")}</span>
+                          <span className="text-xs text-gray-500">
+                            {cat.charAt(0) + cat.slice(1).toLowerCase().replace(/_/g, " ")}
+                          </span>
                           <span className="text-xs font-medium text-gray-700">{fmt(amount)}</span>
                         </div>
                       ))}
@@ -644,7 +781,10 @@ export default function DropFinancialsPage() {
           dropId={dropId}
           debt={debtModal.debt}
           onClose={() => setDebtModal({ open: false })}
-          onSaved={() => { setDebtModal({ open: false }); load() }}
+          onSaved={() => {
+            setDebtModal({ open: false })
+            load()
+          }}
         />
       )}
     </div>

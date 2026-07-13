@@ -4,7 +4,49 @@
 
 @layer base {
   :root {
-    --radius: 0.5rem;
+    /* ── Superficies ─────────────────────────────── */
+    --bg: #ffffff;
+    --surface: #fbfafa; /* sidebar, fondos suaves */
+    --surface-hover: #f6f5f5;
+
+    /* ── Tinta ───────────────────────────────────── */
+    --ink: #1d1d1f; /* texto principal (Apple near-black) */
+    --ink-secondary: #86868b; /* texto secundario */
+    --ink-tertiary: #b4b2b8; /* placeholders, metadata */
+
+    /* ── Rosa (brand) ────────────────────────────── */
+    --pink-fill: #fff1f2; /* superficies suaves */
+    --pink-fill-hover: #ffe4e6;
+    --pink: #fb7185; /* interactivo: dots, botones, acentos */
+    --pink-strong: #f43f5e; /* hover de interactivo */
+    --pink-text: #e11d48; /* rosa legible sobre blanco */
+    --pink-deep: #be123c; /* texto sobre fills rosa */
+
+    /* ── Semántico ───────────────────────────────── */
+    --amber: #f5a623; /* pending, paused */
+    --red: #e5484d; /* error, danger */
+
+    /* ── Profundidad (Cosmos: sombras, no bordes) ── */
+    --shadow-card: 0 1px 2px rgba(29, 29, 31, 0.04), 0 8px 24px rgba(29, 29, 31, 0.05);
+    --shadow-card-hover: 0 2px 4px rgba(29, 29, 31, 0.05), 0 16px 40px rgba(29, 29, 31, 0.08);
+    --shadow-pill: 0 1px 2px rgba(29, 29, 31, 0.04);
+    --shadow-overlay: 0 4px 12px rgba(29, 29, 31, 0.08), 0 24px 64px rgba(29, 29, 31, 0.16);
+    --hairline: #f5f4f4; /* único borde permitido: divisores internos */
+
+    /* ── Radios ──────────────────────────────────── */
+    --radius: 16px; /* cards */
+    --radius-sm: 10px; /* inputs, elementos chicos */
+    --radius-pill: 100px; /* botones, nav, badges */
+
+    /* ── Motion (Emil / Apple) ───────────────────── */
+    --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+    --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+    --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+    --ease-spring: cubic-bezier(0.34, 1.4, 0.64, 1); /* rebote sutil estilo Amie */
+    --dur-press: 140ms;
+    --dur-fast: 180ms;
+    --dur-base: 240ms;
+    --dur-drawer: 380ms;
   }
 
   html {
@@ -13,12 +55,121 @@
   }
 
   body {
-    @apply bg-white text-gray-900;
+    background: var(--bg);
+    color: var(--ink);
+  }
+
+  /* Numerales tabulares para todo dato */
+  .tnum {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+@layer utilities {
+  /* Dot de kool: la firma del sistema */
+  .kool-dot {
+    @apply inline-block rounded-full bg-pink;
+    width: 5px;
+    height: 5px;
+  }
+
+  .kool-dot-pulse {
+    animation: kool-pulse 2s var(--ease-out) infinite;
+  }
+
+  /* Press feedback universal (Emil: los botones responden al tacto) */
+  .pressable {
+    transition: transform var(--dur-press) var(--ease-out);
+  }
+  .pressable:active {
+    transform: scale(0.97);
+  }
+}
+
+@keyframes kool-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(251, 113, 133, 0.4);
+  }
+  70% {
+    box-shadow: 0 0 0 6px rgba(251, 113, 133, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(251, 113, 133, 0);
+  }
+}
+
+@keyframes kool-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes kool-scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes kool-slide-in-right {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes kool-slide-up {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+@keyframes kool-overlay-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
   }
 }
 
 /* Scrollbar sutil */
-::-webkit-scrollbar { width: 5px; height: 5px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #e5e5e5; border-radius: 4px; }
-::-webkit-scrollbar-thumb:hover { background: #d4d4d4; }
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #e8e6e6;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #d8d6d6;
+}
+
+/* Reduced motion: sin animaciones decorativas */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

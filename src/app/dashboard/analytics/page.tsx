@@ -65,21 +65,63 @@ const METRICS: {
   bg: string
   textColor: string
 }[] = [
-  { key: "clicks",       label: "Clics totales",      stroke: "#00C46A", icon: <MousePointerClick size={15} className="text-brand-500" />,  bg: "bg-brand-50",   textColor: "text-brand-600" },
-  { key: "unique_clicks",label: "Clics únicos",        stroke: "#3b82f6", dash: "4 2", icon: <Users size={15} className="text-blue-500" />,  bg: "bg-blue-50",    textColor: "text-blue-600"  },
-  { key: "conversions",  label: "Conversiones",        stroke: "#a855f7", icon: <ShoppingCart size={15} className="text-purple-500" />,      bg: "bg-purple-50",  textColor: "text-purple-600"},
-  { key: "convRate",     label: "Tasa de conversión",  stroke: "#f59e0b", dash: "4 2", icon: <TrendingUp size={15} className="text-orange-500" />, bg: "bg-orange-50", textColor: "text-orange-600"},
+  {
+    key: "clicks",
+    label: "Clics totales",
+    stroke: "#FB7185",
+    icon: <MousePointerClick size={15} className="text-brand-500" />,
+    bg: "bg-brand-50",
+    textColor: "text-brand-600",
+  },
+  {
+    key: "unique_clicks",
+    label: "Clics únicos",
+    stroke: "#3b82f6",
+    dash: "4 2",
+    icon: <Users size={15} className="text-blue-500" />,
+    bg: "bg-blue-50",
+    textColor: "text-blue-600",
+  },
+  {
+    key: "conversions",
+    label: "Conversiones",
+    stroke: "#a855f7",
+    icon: <ShoppingCart size={15} className="text-purple-500" />,
+    bg: "bg-purple-50",
+    textColor: "text-purple-600",
+  },
+  {
+    key: "convRate",
+    label: "Tasa de conversión",
+    stroke: "#f59e0b",
+    dash: "4 2",
+    icon: <TrendingUp size={15} className="text-orange-500" />,
+    bg: "bg-orange-50",
+    textColor: "text-orange-600",
+  },
 ]
 
 const DEVICE_COLORS: Record<string, string> = {
-  mobile: "#00C46A", desktop: "#3b82f6", tablet: "#f59e0b",
+  mobile: "#FB7185",
+  desktop: "#3b82f6",
+  tablet: "#f59e0b",
 }
 const SOURCE_COLORS: Record<string, string> = {
-  instagram: "#e1306c", tiktok: "#000000", whatsapp: "#25d366", direct: "#6366f1", other: "#9ca3af",
+  instagram: "#e1306c",
+  tiktok: "#000000",
+  whatsapp: "#25d366",
+  direct: "#6366f1",
+  other: "#9ca3af",
 }
 const COUNTRY_NAMES: Record<string, string> = {
-  AR: "Argentina", MX: "México", CL: "Chile", CO: "Colombia",
-  PE: "Perú", UY: "Uruguay", BR: "Brasil", ES: "España",
+  AR: "Argentina",
+  MX: "México",
+  CL: "Chile",
+  CO: "Colombia",
+  PE: "Perú",
+  UY: "Uruguay",
+  BR: "Brasil",
+  ES: "España",
 }
 const PERIOD_LABELS: Record<Period, string> = { "7d": "7 días", "30d": "30 días", "90d": "90 días" }
 
@@ -123,7 +165,9 @@ function AnalyticsContent() {
     }
   }, [period, buildApiUrl])
 
-  useEffect(() => { fetchData() }, [fetchData])
+  useEffect(() => {
+    fetchData()
+  }, [fetchData])
 
   const toggleMetric = (key: MetricKey) => {
     setSelected((prev) => {
@@ -145,7 +189,7 @@ function AnalyticsContent() {
   const filterLabel = data?.filterInfo
     ? data.filterInfo.linkSlug
       ? shortUrlLabel(data.filterInfo.linkSlug)
-      : data.filterInfo.campaignName ?? data.filterInfo.creatorName ?? ""
+      : (data.filterInfo.campaignName ?? data.filterInfo.creatorName ?? "")
     : ""
 
   const getTitle = () => {
@@ -177,10 +221,18 @@ function AnalyticsContent() {
         <div>
           {hasFilter && (
             <div className="flex items-center gap-2 mb-2">
-              <Link href="/dashboard/analytics" className="text-xs text-gray-400 hover:text-gray-600 transition-colors">Analytics</Link>
+              <Link
+                href="/dashboard/analytics"
+                className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                Analytics
+              </Link>
               <span className="text-xs text-gray-300">/</span>
               <span className="text-xs text-gray-700 font-medium">{filterLabel}</span>
-              <Link href="/dashboard/analytics" className="ml-1 flex items-center gap-0.5 text-xs text-gray-400 hover:text-red-400 transition-colors">
+              <Link
+                href="/dashboard/analytics"
+                className="ml-1 flex items-center gap-0.5 text-xs text-gray-400 hover:text-red-400 transition-colors"
+              >
                 <X size={11} />
               </Link>
             </div>
@@ -194,7 +246,9 @@ function AnalyticsContent() {
               key={p}
               onClick={() => setPeriod(p)}
               className={`px-3 py-1.5 text-sm rounded-md font-medium transition-colors ${
-                period === p ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"
+                period === p
+                  ? "bg-white text-gray-900 shadow-sm"
+                  : "text-gray-500 hover:text-gray-700"
               }`}
             >
               {PERIOD_LABELS[p]}
@@ -211,7 +265,7 @@ function AnalyticsContent() {
             <button
               key={m.key}
               onClick={() => toggleMetric(m.key)}
-              className={`text-left bg-white rounded-xl border p-4 lg:p-5 transition-all ${
+              className={`text-left bg-white rounded-xl border p-4 lg:p-5 transition-colors duration-fast ${
                 isSelected
                   ? "border-gray-300 shadow-sm ring-1 ring-gray-200"
                   : "border-gray-100 hover:border-gray-200"
@@ -223,12 +277,25 @@ function AnalyticsContent() {
                   {m.icon}
                 </div>
               </div>
-              <p className={`text-xl lg:text-2xl font-semibold tracking-tight ${isSelected ? m.textColor : "text-gray-900"}`}>
+              <p
+                className={`text-xl lg:text-2xl font-semibold tracking-tight ${isSelected ? m.textColor : "text-gray-900"}`}
+              >
                 {totals[m.key]}
               </p>
               {isSelected && (
                 <div className="mt-2 flex items-center gap-1.5">
-                  <div className="w-4 h-0.5 rounded" style={{ backgroundColor: m.stroke, ...(m.dash ? { backgroundImage: `repeating-linear-gradient(90deg, ${m.stroke} 0, ${m.stroke} 4px, transparent 4px, transparent 6px)`, backgroundColor: "transparent" } : {}) }} />
+                  <div
+                    className="w-4 h-0.5 rounded"
+                    style={{
+                      backgroundColor: m.stroke,
+                      ...(m.dash
+                        ? {
+                            backgroundImage: `repeating-linear-gradient(90deg, ${m.stroke} 0, ${m.stroke} 4px, transparent 4px, transparent 6px)`,
+                            backgroundColor: "transparent",
+                          }
+                        : {}),
+                    }}
+                  />
                   <span className="text-[10px] text-gray-400">visible</span>
                 </div>
               )}
@@ -306,23 +373,34 @@ function AnalyticsContent() {
             <Globe size={15} className="text-gray-400" />
             <h2 className="text-sm font-semibold text-gray-900">Top países</h2>
           </div>
-          {loading ? <Skeleton /> : (
+          {loading ? (
+            <Skeleton />
+          ) : (
             <div className="space-y-2.5">
               {(data?.countries ?? []).map(({ country, clicks }) => {
                 const max = data?.countries[0]?.clicks || 1
                 return (
                   <div key={country}>
                     <div className="flex items-center justify-between mb-1">
-                      <span className="text-xs text-gray-700">{COUNTRY_NAMES[country] ?? country}</span>
-                      <span className="text-xs font-medium text-gray-900">{clicks.toLocaleString()}</span>
+                      <span className="text-xs text-gray-700">
+                        {COUNTRY_NAMES[country] ?? country}
+                      </span>
+                      <span className="text-xs font-medium text-gray-900">
+                        {clicks.toLocaleString()}
+                      </span>
                     </div>
                     <div className="h-1.5 bg-gray-100 rounded-full">
-                      <div className="h-1.5 rounded-full bg-brand-400" style={{ width: `${(clicks / max) * 100}%` }} />
+                      <div
+                        className="h-1.5 rounded-full bg-brand-400"
+                        style={{ width: `${(clicks / max) * 100}%` }}
+                      />
                     </div>
                   </div>
                 )
               })}
-              {(data?.countries ?? []).length === 0 && <p className="text-xs text-gray-400">Sin datos para el período.</p>}
+              {(data?.countries ?? []).length === 0 && (
+                <p className="text-xs text-gray-400">Sin datos para el período.</p>
+              )}
             </div>
           )}
         </div>
@@ -333,29 +411,48 @@ function AnalyticsContent() {
             <Smartphone size={15} className="text-gray-400" />
             <h2 className="text-sm font-semibold text-gray-900">Dispositivos</h2>
           </div>
-          {loading ? <Skeleton /> : (
+          {loading ? (
+            <Skeleton />
+          ) : (
             <>
               <ResponsiveContainer width="100%" height={120}>
                 <PieChart>
-                  <Pie data={data?.devices ?? []} dataKey="clicks" nameKey="device" cx="50%" cy="50%" innerRadius={35} outerRadius={55} paddingAngle={3}>
+                  <Pie
+                    data={data?.devices ?? []}
+                    dataKey="clicks"
+                    nameKey="device"
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={35}
+                    outerRadius={55}
+                    paddingAngle={3}
+                  >
                     {(data?.devices ?? []).map(({ device }) => (
                       <Cell key={device} fill={DEVICE_COLORS[device] ?? "#9ca3af"} />
                     ))}
                   </Pie>
-                  <Tooltip formatter={(v: number) => [v.toLocaleString(), "Clics"]} contentStyle={{ borderRadius: 8, border: "1px solid #e5e7eb", fontSize: 12 }} />
+                  <Tooltip
+                    formatter={(v: number) => [v.toLocaleString(), "Clics"]}
+                    contentStyle={{ borderRadius: 8, border: "1px solid #e5e7eb", fontSize: 12 }}
+                  />
                 </PieChart>
               </ResponsiveContainer>
               <div className="space-y-1.5 mt-2">
                 {(data?.devices ?? []).map(({ device, percentage }) => (
                   <div key={device} className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 rounded-full" style={{ background: DEVICE_COLORS[device] ?? "#9ca3af" }} />
+                      <div
+                        className="w-2 h-2 rounded-full"
+                        style={{ background: DEVICE_COLORS[device] ?? "#9ca3af" }}
+                      />
                       <span className="text-xs text-gray-600 capitalize">{device}</span>
                     </div>
                     <span className="text-xs font-medium text-gray-900">{percentage}%</span>
                   </div>
                 ))}
-                {(data?.devices ?? []).length === 0 && <p className="text-xs text-gray-400">Sin datos para el período.</p>}
+                {(data?.devices ?? []).length === 0 && (
+                  <p className="text-xs text-gray-400">Sin datos para el período.</p>
+                )}
               </div>
             </>
           )}
@@ -367,7 +464,9 @@ function AnalyticsContent() {
             <Wifi size={15} className="text-gray-400" />
             <h2 className="text-sm font-semibold text-gray-900">Fuentes</h2>
           </div>
-          {loading ? <Skeleton /> : (
+          {loading ? (
+            <Skeleton />
+          ) : (
             <div className="space-y-2.5">
               {(data?.sources ?? []).map(({ source, percentage }) => (
                 <div key={source}>
@@ -376,11 +475,19 @@ function AnalyticsContent() {
                     <span className="text-xs font-medium text-gray-900">{percentage}%</span>
                   </div>
                   <div className="h-1.5 bg-gray-100 rounded-full">
-                    <div className="h-1.5 rounded-full" style={{ width: `${percentage}%`, background: SOURCE_COLORS[source] ?? "#9ca3af" }} />
+                    <div
+                      className="h-1.5 rounded-full"
+                      style={{
+                        width: `${percentage}%`,
+                        background: SOURCE_COLORS[source] ?? "#9ca3af",
+                      }}
+                    />
                   </div>
                 </div>
               ))}
-              {(data?.sources ?? []).length === 0 && <p className="text-xs text-gray-400">Sin datos para el período.</p>}
+              {(data?.sources ?? []).length === 0 && (
+                <p className="text-xs text-gray-400">Sin datos para el período.</p>
+              )}
             </div>
           )}
         </div>

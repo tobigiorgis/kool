@@ -35,26 +35,30 @@ interface ProductRow {
 
 function fmt(n: number) {
   return new Intl.NumberFormat("es-AR", {
-    style: "currency", currency: "ARS", maximumFractionDigits: 0,
+    style: "currency",
+    currency: "ARS",
+    maximumFractionDigits: 0,
   }).format(n)
 }
 
-function pct(n: number) { return `${n.toFixed(1)}%` }
+function pct(n: number) {
+  return `${n.toFixed(1)}%`
+}
 
 function MarginBadge({ margin }: { margin: number }) {
   const color =
-    margin >= 30 ? "text-[#00903c] bg-[#e6faf0]"
-    : margin >= 10 ? "text-amber-700 bg-amber-50"
-    : "text-red-600 bg-red-50"
+    margin >= 30
+      ? "text-[#E11D48] bg-[#FFF1F2]"
+      : margin >= 10
+        ? "text-amber-700 bg-amber-50"
+        : "text-red-600 bg-red-50"
   return (
-    <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${color}`}>
-      {pct(margin)}
-    </span>
+    <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${color}`}>{pct(margin)}</span>
   )
 }
 
 function MarginBar({ margin }: { margin: number }) {
-  const color = margin >= 30 ? "bg-[#00C46A]" : margin >= 10 ? "bg-amber-400" : "bg-red-400"
+  const color = margin >= 30 ? "bg-[#FB7185]" : margin >= 10 ? "bg-amber-400" : "bg-red-400"
   return (
     <div className="flex items-center gap-2">
       <div className="w-24 h-1.5 bg-gray-100 rounded-full">
@@ -69,7 +73,9 @@ function MarginBar({ margin }: { margin: number }) {
 }
 
 const STATUS_LABEL: Record<string, string> = {
-  DRAFT: "Borrador", ACTIVE: "Activo", CLOSED: "Cerrado",
+  DRAFT: "Borrador",
+  ACTIVE: "Activo",
+  CLOSED: "Cerrado",
 }
 
 // ─── Component ───────────────────────────────────────────────────────────────
@@ -106,7 +112,9 @@ export default function ProfitabilityPage() {
               key={v}
               onClick={() => setView(v)}
               className={`px-3 py-1.5 text-sm rounded-md font-medium transition-colors ${
-                view === v ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"
+                view === v
+                  ? "bg-white text-gray-900 shadow-sm"
+                  : "text-gray-500 hover:text-gray-700"
               }`}
             >
               {v === "drops" ? "Por Drop" : "Por Producto"}
@@ -145,31 +153,58 @@ function DropsTable({ drops }: { drops: DropRow[] }) {
         <table className="w-full">
           <thead>
             <tr className="border-b border-gray-100">
-              {["#", "Drop", "Estado", "Lanzamiento", "Productos", "Ingresos", "Gastos", "Margen ($)", "Margen (%)"].map((h) => (
-                <th key={h} className="text-left text-xs font-medium text-gray-400 px-4 py-3 whitespace-nowrap">{h}</th>
+              {[
+                "#",
+                "Drop",
+                "Estado",
+                "Lanzamiento",
+                "Productos",
+                "Ingresos",
+                "Gastos",
+                "Margen ($)",
+                "Margen (%)",
+              ].map((h) => (
+                <th
+                  key={h}
+                  className="text-left text-xs font-medium text-gray-400 px-4 py-3 whitespace-nowrap"
+                >
+                  {h}
+                </th>
               ))}
             </tr>
           </thead>
           <tbody>
             {drops.map((drop, i) => (
-              <tr key={drop.id} className="border-b border-gray-50 last:border-0 hover:bg-gray-50/50 transition-colors">
+              <tr
+                key={drop.id}
+                className="border-b border-gray-50 last:border-0 hover:bg-gray-50/50 transition-colors"
+              >
                 <td className="px-4 py-3 text-xs text-gray-400">{i + 1}</td>
                 <td className="px-4 py-3">
-                  <Link href={`/dashboard/drops/${drop.id}`} className="text-sm font-medium text-gray-900 hover:text-[#00903c] transition-colors">
+                  <Link
+                    href={`/dashboard/drops/${drop.id}`}
+                    className="text-sm font-medium text-gray-900 hover:text-[#E11D48] transition-colors"
+                  >
                     {drop.name}
                   </Link>
                 </td>
                 <td className="px-4 py-3">
-                  <span className="text-xs text-gray-500">{STATUS_LABEL[drop.status] || drop.status}</span>
+                  <span className="text-xs text-gray-500">
+                    {STATUS_LABEL[drop.status] || drop.status}
+                  </span>
                 </td>
                 <td className="px-4 py-3 text-sm text-gray-500 whitespace-nowrap">
-                  {new Date(drop.launchDate).toLocaleDateString("es-AR", { day: "numeric", month: "short", year: "2-digit" })}
+                  {new Date(drop.launchDate).toLocaleDateString("es-AR", {
+                    day: "numeric",
+                    month: "short",
+                    year: "2-digit",
+                  })}
                 </td>
                 <td className="px-4 py-3 text-sm text-gray-600">{drop.productCount}</td>
                 <td className="px-4 py-3 text-sm text-gray-900">{fmt(drop.totalRevenue)}</td>
                 <td className="px-4 py-3 text-sm text-gray-600">{fmt(drop.totalCosts)}</td>
                 <td className="px-4 py-3 text-sm font-medium">
-                  <span className={drop.totalProfit >= 0 ? "text-[#00903c]" : "text-red-500"}>
+                  <span className={drop.totalProfit >= 0 ? "text-[#E11D48]" : "text-red-500"}>
                     {fmt(drop.totalProfit)}
                   </span>
                 </td>
@@ -200,18 +235,38 @@ function ProductsTable({ products }: { products: ProductRow[] }) {
         <table className="w-full">
           <thead>
             <tr className="border-b border-gray-100">
-              {["#", "Producto", "Drop", "Unidades", "Ingresos", "Costos", "Margen ($)", "Margen (%)"].map((h) => (
-                <th key={h} className="text-left text-xs font-medium text-gray-400 px-4 py-3 whitespace-nowrap">{h}</th>
+              {[
+                "#",
+                "Producto",
+                "Drop",
+                "Unidades",
+                "Ingresos",
+                "Costos",
+                "Margen ($)",
+                "Margen (%)",
+              ].map((h) => (
+                <th
+                  key={h}
+                  className="text-left text-xs font-medium text-gray-400 px-4 py-3 whitespace-nowrap"
+                >
+                  {h}
+                </th>
               ))}
             </tr>
           </thead>
           <tbody>
             {products.map((p, i) => (
-              <tr key={p.productId} className="border-b border-gray-50 last:border-0 hover:bg-gray-50/50 transition-colors">
+              <tr
+                key={p.productId}
+                className="border-b border-gray-50 last:border-0 hover:bg-gray-50/50 transition-colors"
+              >
                 <td className="px-4 py-3 text-xs text-gray-400">{i + 1}</td>
                 <td className="px-4 py-3 text-sm font-medium text-gray-900">{p.productName}</td>
                 <td className="px-4 py-3">
-                  <Link href={`/dashboard/drops/${p.dropId}`} className="text-sm text-gray-500 hover:text-[#00903c] transition-colors">
+                  <Link
+                    href={`/dashboard/drops/${p.dropId}`}
+                    className="text-sm text-gray-500 hover:text-[#E11D48] transition-colors"
+                  >
                     {p.dropName}
                   </Link>
                 </td>
@@ -219,7 +274,7 @@ function ProductsTable({ products }: { products: ProductRow[] }) {
                 <td className="px-4 py-3 text-sm text-gray-900">{fmt(p.revenue)}</td>
                 <td className="px-4 py-3 text-sm text-gray-600">{fmt(p.totalCosts)}</td>
                 <td className="px-4 py-3 text-sm font-medium">
-                  <span className={p.profit >= 0 ? "text-[#00903c]" : "text-red-500"}>
+                  <span className={p.profit >= 0 ? "text-[#E11D48]" : "text-red-500"}>
                     {fmt(p.profit)}
                   </span>
                 </td>

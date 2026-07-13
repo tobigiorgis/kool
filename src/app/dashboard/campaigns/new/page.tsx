@@ -19,27 +19,27 @@ interface Question {
 }
 
 interface Fields {
-  phone:     FieldState
-  age:       FieldState
-  city:      FieldState
+  phone: FieldState
+  age: FieldState
+  city: FieldState
   instagram: FieldState
-  tiktok:    FieldState
+  tiktok: FieldState
 }
 
 const DEFAULT_FIELDS: Fields = {
-  phone:     { enabled: true,  required: false },
-  age:       { enabled: false, required: false },
-  city:      { enabled: true,  required: false },
-  instagram: { enabled: true,  required: true  },
-  tiktok:    { enabled: false, required: false },
+  phone: { enabled: true, required: false },
+  age: { enabled: false, required: false },
+  city: { enabled: true, required: false },
+  instagram: { enabled: true, required: true },
+  tiktok: { enabled: false, required: false },
 }
 
 const FIELD_LABELS: Record<keyof Fields, string> = {
-  phone:     "Teléfono",
-  age:       "Edad",
-  city:      "Ciudad",
+  phone: "Teléfono",
+  age: "Edad",
+  city: "Ciudad",
   instagram: "Instagram",
-  tiktok:    "TikTok",
+  tiktok: "TikTok",
 }
 
 function slugify(str: string) {
@@ -66,7 +66,7 @@ export default function NewCampaignPage() {
     name: "",
     description: "",
     slug: "",
-    brandColor: "#00C46A",
+    brandColor: "#FB7185",
   })
   const [fields, setFields] = useState<Fields>(DEFAULT_FIELDS)
   const [slugManuallyEdited, setSlugManuallyEdited] = useState(false)
@@ -77,14 +77,17 @@ export default function NewCampaignPage() {
   const [questions, setQuestions] = useState<Question[]>([])
 
   const addQuestion = () => {
-    setQuestions((prev) => [...prev, {
-      id: crypto.randomUUID(),
-      question: "",
-      type: "OPEN",
-      required: false,
-      options: [],
-      newOption: "",
-    }])
+    setQuestions((prev) => [
+      ...prev,
+      {
+        id: crypto.randomUUID(),
+        question: "",
+        type: "OPEN",
+        required: false,
+        options: [],
+        newOption: "",
+      },
+    ])
   }
 
   const removeQuestion = (id: string) => {
@@ -92,21 +95,25 @@ export default function NewCampaignPage() {
   }
 
   const updateQuestion = (id: string, updates: Partial<Question>) => {
-    setQuestions((prev) => prev.map((q) => q.id === id ? { ...q, ...updates } : q))
+    setQuestions((prev) => prev.map((q) => (q.id === id ? { ...q, ...updates } : q)))
   }
 
   const addOption = (questionId: string) => {
-    setQuestions((prev) => prev.map((q) => {
-      if (q.id !== questionId || !q.newOption.trim()) return q
-      return { ...q, options: [...q.options, q.newOption.trim()], newOption: "" }
-    }))
+    setQuestions((prev) =>
+      prev.map((q) => {
+        if (q.id !== questionId || !q.newOption.trim()) return q
+        return { ...q, options: [...q.options, q.newOption.trim()], newOption: "" }
+      })
+    )
   }
 
   const removeOption = (questionId: string, optionIndex: number) => {
-    setQuestions((prev) => prev.map((q) => {
-      if (q.id !== questionId) return q
-      return { ...q, options: q.options.filter((_, i) => i !== optionIndex) }
-    }))
+    setQuestions((prev) =>
+      prev.map((q) => {
+        if (q.id !== questionId) return q
+        return { ...q, options: q.options.filter((_, i) => i !== optionIndex) }
+      })
+    )
   }
 
   useEffect(() => {
@@ -126,7 +133,13 @@ export default function NewCampaignPage() {
     setFields((prev) => {
       const current = prev[key]
       if (prop === "enabled") {
-        return { ...prev, [key]: { enabled: !current.enabled, required: !current.enabled ? current.required : false } }
+        return {
+          ...prev,
+          [key]: {
+            enabled: !current.enabled,
+            required: !current.enabled ? current.required : false,
+          },
+        }
       }
       // Can only set required if enabled
       if (!current.enabled) return prev
@@ -163,7 +176,8 @@ export default function NewCampaignPage() {
           giftingEnabled,
           giftingDescription: giftingEnabled ? giftingDescription : null,
           commissionEnabled,
-          commissionMaxPct: commissionEnabled && commissionMaxPct ? parseFloat(commissionMaxPct) : null,
+          commissionMaxPct:
+            commissionEnabled && commissionMaxPct ? parseFloat(commissionMaxPct) : null,
           questions: questions
             .filter((q) => q.question.trim())
             .map((q, i) => ({
@@ -199,7 +213,9 @@ export default function NewCampaignPage() {
       </button>
 
       <h1 className="text-2xl font-semibold text-gray-900 mb-1">Nueva campaña</h1>
-      <p className="text-sm text-gray-500 mb-8">Configurá el formulario público para que creators apliquen.</p>
+      <p className="text-sm text-gray-500 mb-8">
+        Configurá el formulario público para que creators apliquen.
+      </p>
 
       <form onSubmit={handleSubmit} className="space-y-8">
         {/* Sección 1: Info */}
@@ -238,7 +254,10 @@ export default function NewCampaignPage() {
               value={form.slug}
               onChange={(e) => {
                 setSlugManuallyEdited(true)
-                setForm((f) => ({ ...f, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "") }))
+                setForm((f) => ({
+                  ...f,
+                  slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""),
+                }))
               }}
               required
               pattern="[a-z0-9-]+"
@@ -248,7 +267,9 @@ export default function NewCampaignPage() {
             <div className="flex items-center justify-between mt-2">
               <p className="text-[11px] text-gray-400">
                 URL pública:{" "}
-                <span className="text-gray-600 font-medium">{BASE_URL}/apply/{form.slug || "tu-slug"}</span>
+                <span className="text-gray-600 font-medium">
+                  {BASE_URL}/apply/{form.slug || "tu-slug"}
+                </span>
               </p>
               <button
                 type="button"
@@ -263,7 +284,9 @@ export default function NewCampaignPage() {
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1.5">Color de la marca</label>
+            <label className="block text-xs font-medium text-gray-700 mb-1.5">
+              Color de la marca
+            </label>
             <div className="flex items-center gap-3">
               <input
                 type="color"
@@ -291,8 +314,12 @@ export default function NewCampaignPage() {
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-100">
                   <th className="text-left px-4 py-2.5 text-xs font-medium text-gray-500">Campo</th>
-                  <th className="text-center px-4 py-2.5 text-xs font-medium text-gray-500">Habilitar</th>
-                  <th className="text-center px-4 py-2.5 text-xs font-medium text-gray-500">Obligatorio</th>
+                  <th className="text-center px-4 py-2.5 text-xs font-medium text-gray-500">
+                    Habilitar
+                  </th>
+                  <th className="text-center px-4 py-2.5 text-xs font-medium text-gray-500">
+                    Obligatorio
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
@@ -345,9 +372,11 @@ export default function NewCampaignPage() {
 
           <div className="space-y-3">
             {/* Gifting */}
-            <div className={`border rounded-xl p-4 transition-colors ${
-              giftingEnabled ? "border-brand-300 bg-brand-50" : "border-gray-200 bg-white"
-            }`}>
+            <div
+              className={`border rounded-xl p-4 transition-colors ${
+                giftingEnabled ? "border-brand-300 bg-brand-50" : "border-gray-200 bg-white"
+              }`}
+            >
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
                   <Gift size={15} className={giftingEnabled ? "text-brand-500" : "text-gray-400"} />
@@ -375,12 +404,17 @@ export default function NewCampaignPage() {
             </div>
 
             {/* Comisión */}
-            <div className={`border rounded-xl p-4 transition-colors ${
-              commissionEnabled ? "border-brand-300 bg-brand-50" : "border-gray-200 bg-white"
-            }`}>
+            <div
+              className={`border rounded-xl p-4 transition-colors ${
+                commissionEnabled ? "border-brand-300 bg-brand-50" : "border-gray-200 bg-white"
+              }`}
+            >
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
-                  <DollarSign size={15} className={commissionEnabled ? "text-brand-500" : "text-gray-400"} />
+                  <DollarSign
+                    size={15}
+                    className={commissionEnabled ? "text-brand-500" : "text-gray-400"}
+                  />
                   <span className="text-sm font-medium text-gray-900">Comisión</span>
                 </div>
                 <ToggleSwitch
@@ -407,7 +441,8 @@ export default function NewCampaignPage() {
                     <span className="text-sm text-gray-500">% por venta</span>
                   </div>
                   <p className="text-xs text-gray-400 mt-1.5">
-                    El creator verá &quot;Hasta {commissionMaxPct || "X"}% por venta&quot; en la landing.
+                    El creator verá &quot;Hasta {commissionMaxPct || "X"}% por venta&quot; en la
+                    landing.
                   </p>
                 </div>
               )}
@@ -441,7 +476,9 @@ export default function NewCampaignPage() {
               className="w-full border-2 border-dashed border-gray-200 rounded-xl py-8 text-center hover:border-brand-300 hover:bg-brand-50 transition-colors group"
             >
               <Plus size={18} className="text-gray-300 group-hover:text-brand-400 mx-auto mb-2" />
-              <p className="text-sm text-gray-400 group-hover:text-brand-500">Agregar primera pregunta</p>
+              <p className="text-sm text-gray-400 group-hover:text-brand-500">
+                Agregar primera pregunta
+              </p>
             </button>
           ) : (
             <div className="space-y-4">
@@ -524,7 +561,10 @@ export default function NewCampaignPage() {
                           value={q.newOption}
                           onChange={(e) => updateQuestion(q.id, { newOption: e.target.value })}
                           onKeyDown={(e) => {
-                            if (e.key === "Enter") { e.preventDefault(); addOption(q.id) }
+                            if (e.key === "Enter") {
+                              e.preventDefault()
+                              addOption(q.id)
+                            }
                           }}
                           placeholder="Agregar opción..."
                           className="flex-1 text-sm text-gray-600 placeholder-gray-300 border-none outline-none bg-transparent"
@@ -559,9 +599,7 @@ export default function NewCampaignPage() {
           )}
         </div>
 
-        {error && (
-          <p className="text-xs text-red-600 bg-red-50 px-3 py-2 rounded-lg">{error}</p>
-        )}
+        {error && <p className="text-xs text-red-600 bg-red-50 px-3 py-2 rounded-lg">{error}</p>}
 
         <div className="flex gap-3">
           <button

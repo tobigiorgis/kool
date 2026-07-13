@@ -59,10 +59,10 @@ function baseTemplate(content: string, brandName?: string): string {
     .container { max-width: 580px; margin: 40px auto; background: white; border-radius: 12px; overflow: hidden; border: 1px solid #e5e7eb; }
     .header { background: #0F1117; padding: 24px 32px; }
     .logo { color: white; font-size: 20px; font-weight: 700; letter-spacing: -0.5px; }
-    .logo span { color: #00C46A; }
+    .logo span { color: #FB7185; }
     .body { padding: 32px; color: #374151; font-size: 15px; line-height: 1.6; }
     .body h1 { color: #111827; font-size: 22px; font-weight: 600; margin: 0 0 16px; }
-    .btn { display: inline-block; background: #00C46A; color: white !important; text-decoration: none; padding: 12px 24px; border-radius: 8px; font-weight: 600; font-size: 14px; margin: 16px 0; }
+    .btn { display: inline-block; background: #FB7185; color: white !important; text-decoration: none; padding: 12px 24px; border-radius: 8px; font-weight: 600; font-size: 14px; margin: 16px 0; }
     .divider { border: none; border-top: 1px solid #e5e7eb; margin: 24px 0; }
     .footer { padding: 16px 32px; background: #f9fafb; color: #9ca3af; font-size: 12px; text-align: center; }
     .pill { display: inline-block; background: #f3f4f6; border-radius: 6px; padding: 6px 12px; font-size: 13px; font-weight: 600; color: #111827; letter-spacing: 1px; }
@@ -502,7 +502,7 @@ export async function sendSaleGenerated({
     <p>Hola ${creatorName},</p>
     <p>Alguien compró en <strong>${brandName}</strong> usando tu link o código. ¡Felicitaciones!</p>
     <div style="text-align:center; margin: 24px 0;">
-      <div style="font-size: 36px; font-weight: 700; color: #00C46A;">${fmt(commissionAmount)}</div>
+      <div style="font-size: 36px; font-weight: 700; color: #FB7185;">${fmt(commissionAmount)}</div>
       <div style="color:#6b7280; font-size:13px; margin-top:4px;">comisión generada · pendiente de aprobación</div>
     </div>
     <p style="background:#f9fafb; padding: 12px 16px; border-radius:8px; font-size:13px; color:#6b7280; text-align:center;">
@@ -546,7 +546,7 @@ export async function sendBountyAchieved({
     <p>Hola ${creatorName},</p>
     <p>¡Felicitaciones! Alcanzaste el objetivo <strong>${bountyName}</strong> de <strong>${brandName}</strong>.</p>
     <div style="text-align:center; margin: 24px 0;">
-      <div style="font-size: 22px; font-weight: 700; color: #00C46A;">${reward}</div>
+      <div style="font-size: 22px; font-weight: 700; color: #FB7185;">${reward}</div>
       <div style="color:#6b7280; font-size:13px; margin-top:4px;">tu recompensa · la marca coordinará la entrega</div>
     </div>
     <hr class="divider">

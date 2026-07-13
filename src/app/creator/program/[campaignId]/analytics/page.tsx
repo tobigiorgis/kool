@@ -14,11 +14,41 @@ interface ChartPoint {
 type Period = "1d" | "7d" | "30d"
 type MetricKey = "clicks" | "uniqueClicks" | "conversions" | "convRate"
 
-const METRICS: { key: MetricKey; label: string; color: string; barColor: string; trackColor: string }[] = [
-  { key: "clicks",       label: "Clicks totales", color: "text-violet-600", barColor: "bg-violet-400", trackColor: "bg-violet-100" },
-  { key: "uniqueClicks", label: "Clicks únicos",  color: "text-blue-600",   barColor: "bg-blue-400",   trackColor: "bg-blue-100"   },
-  { key: "conversions",  label: "Conversiones",   color: "text-green-600",  barColor: "bg-green-400",  trackColor: "bg-green-100"  },
-  { key: "convRate",     label: "Tasa de conv.",  color: "text-amber-600",  barColor: "bg-amber-400",  trackColor: "bg-amber-100"  },
+const METRICS: {
+  key: MetricKey
+  label: string
+  color: string
+  barColor: string
+  trackColor: string
+}[] = [
+  {
+    key: "clicks",
+    label: "Clicks totales",
+    color: "text-violet-600",
+    barColor: "bg-violet-400",
+    trackColor: "bg-violet-100",
+  },
+  {
+    key: "uniqueClicks",
+    label: "Clicks únicos",
+    color: "text-blue-600",
+    barColor: "bg-blue-400",
+    trackColor: "bg-blue-100",
+  },
+  {
+    key: "conversions",
+    label: "Conversiones",
+    color: "text-green-600",
+    barColor: "bg-green-400",
+    trackColor: "bg-green-100",
+  },
+  {
+    key: "convRate",
+    label: "Tasa de conv.",
+    color: "text-amber-600",
+    barColor: "bg-amber-400",
+    trackColor: "bg-amber-100",
+  },
 ]
 
 function getValue(point: ChartPoint, key: MetricKey): number {
@@ -94,7 +124,9 @@ export default function AnalyticsPage() {
             key={p}
             onClick={() => setPeriod(p)}
             className={`px-4 py-1.5 rounded-lg text-[13px] font-medium transition-colors ${
-              period === p ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"
+              period === p
+                ? "bg-white text-gray-900 shadow-sm"
+                : "text-gray-500 hover:text-gray-700"
             }`}
           >
             {p === "1d" ? "24h" : p === "7d" ? "7 días" : "30 días"}
@@ -110,7 +142,7 @@ export default function AnalyticsPage() {
             <button
               key={m.key}
               onClick={() => toggleMetric(m.key)}
-              className={`text-left p-4 rounded-2xl border transition-all ${
+              className={`text-left p-4 rounded-2xl border transition-colors duration-fast ${
                 isSelected
                   ? "border-gray-300 bg-white shadow-sm ring-1 ring-gray-200"
                   : "border-gray-200 bg-white hover:border-gray-300"
@@ -118,11 +150,11 @@ export default function AnalyticsPage() {
             >
               <div className="flex items-center justify-between mb-1">
                 <p className="text-[11px] text-gray-400">{m.label}</p>
-                {isSelected && (
-                  <span className={`w-2 h-2 rounded-full ${m.barColor}`} />
-                )}
+                {isSelected && <span className={`w-2 h-2 rounded-full ${m.barColor}`} />}
               </div>
-              <p className={`text-xl font-semibold tracking-tight ${isSelected ? m.color : "text-gray-900"}`}>
+              <p
+                className={`text-xl font-semibold tracking-tight ${isSelected ? m.color : "text-gray-900"}`}
+              >
                 {formatValue(totals[m.key], m.key)}
               </p>
             </button>
@@ -172,7 +204,7 @@ export default function AnalyticsPage() {
                           style={{ height: "108px" }}
                         >
                           <div
-                            className={`absolute bottom-0 w-full rounded-t-sm ${m.barColor} transition-all`}
+                            className={`absolute bottom-0 w-full rounded-t-sm ${m.barColor} transition-colors duration-fast`}
                             style={{ height: `${pct}%` }}
                           />
                           {/* Tooltip */}
@@ -183,7 +215,9 @@ export default function AnalyticsPage() {
                       )
                     })}
                   </div>
-                  <span className="text-[9px] text-gray-400 truncate w-full text-center">{label}</span>
+                  <span className="text-[9px] text-gray-400 truncate w-full text-center">
+                    {label}
+                  </span>
                 </div>
               )
             })}

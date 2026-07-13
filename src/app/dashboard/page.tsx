@@ -3,9 +3,9 @@ import { prisma } from "@/lib/prisma"
 import { getWorkspaceStats } from "@/lib/tinybird"
 import { getDateRange, formatNumber, formatCurrency } from "@/lib/utils"
 import { MetricCard } from "./metric-card"
-import { Zap, ArrowUpRight, CheckCircle2, XCircle, Megaphone } from "lucide-react"
 import Link from "next/link"
 import { shortUrlLabel } from "@/lib/links"
+import { StatusDot, type DotStatus } from "@/components/ui"
 
 /** Deterministic sparkline from a seed value */
 function generateSparkline(seed: number, points = 14): number[] {
@@ -25,10 +25,10 @@ const STATUS_LABEL: Record<string, string> = {
   CLOSED: "Cerrada",
 }
 
-const STATUS_STYLE: Record<string, string> = {
-  ACTIVE: "bg-brand-100 text-brand-600",
-  PAUSED: "bg-yellow-50 text-yellow-600",
-  CLOSED: "bg-gray-100 text-gray-500",
+const STATUS_DOT: Record<string, DotStatus> = {
+  ACTIVE: "active",
+  PAUSED: "pending",
+  CLOSED: "inactive",
 }
 
 export default async function DashboardPage() {
@@ -78,53 +78,50 @@ export default async function DashboardPage() {
   const connected = !!workspace.tiendanubeConnection
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-6 lg:px-8 lg:py-10">
+    <div className="max-w-5xl mx-auto px-4 py-6 lg:px-8 lg:py-10 animate-fade-up">
       {/* Header */}
       <div className="flex items-start justify-between mb-6 lg:mb-8">
         <div>
-          <h1 className="text-xl font-semibold text-gray-900">{workspace.name}</h1>
-          <p className="text-sm text-gray-400 mt-0.5">Últimos 30 días</p>
+          <h1 className="text-xl font-medium tracking-[-0.02em] text-ink">{workspace.name}</h1>
+          <p className="text-[13px] text-ink-tertiary mt-0.5">Últimos 30 días</p>
         </div>
         {connected ? (
-          <span className="flex items-center gap-1.5 text-[12px] font-medium text-brand-600 bg-brand-50 border border-brand-100 px-3 py-1.5 rounded-full">
-            <CheckCircle2 size={12} />
-            <span className="hidden sm:inline">Tiendanube conectada</span>
+          <span className="flex items-center gap-1.5 text-[12px] text-ink bg-surface shadow-pill px-3.5 py-1.5 rounded-pill">
+            <span className="kool-dot" style={{ width: 6, height: 6 }} />
+            <span className="hidden sm:inline">Tiendanube</span>
             <span className="sm:hidden">Conectada</span>
           </span>
         ) : (
           <Link
             href="/dashboard/settings?tab=integrations"
-            className="flex items-center gap-1.5 text-[12px] font-medium text-gray-500 bg-[#fafafa] border border-[#f0f0f0] px-3 py-1.5 rounded-full hover:text-gray-800 transition-colors"
+            className="flex items-center gap-1.5 text-[12px] font-medium text-pink-text bg-pink-fill px-3.5 py-1.5 rounded-pill hover:bg-pink-fill-hover transition-colors duration-fast pressable"
           >
-            <XCircle size={12} className="text-gray-400" />
             <span className="hidden sm:inline">Conectar Tiendanube</span>
             <span className="sm:hidden">Conectar</span>
-            <ArrowUpRight size={11} />
           </Link>
         )}
       </div>
 
       {/* Metric cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 lg:gap-4 mb-6 lg:mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6 lg:mb-8">
         <MetricCard
-          label="Clics"
+          label="Clicks"
           value={formatNumber(stats.clicks)}
           sub={`${formatNumber(stats.unique_clicks)} únicos`}
-          color="rose"
+          featured
+          live={stats.clicks > 0}
           data={generateSparkline(stats.clicks)}
         />
         <MetricCard
           label="Leads"
           value={formatNumber(leadsCount)}
           sub="aplicaciones recibidas"
-          color="violet"
           data={generateSparkline(leadsCount)}
         />
         <MetricCard
           label="Comisiones"
           value={formatCurrency(totalCommissions)}
           sub="acumuladas"
-          color="green"
           data={generateSparkline(totalCommissions)}
         />
       </div>
@@ -132,55 +129,55 @@ export default async function DashboardPage() {
       {/* Recent campaigns */}
       <div className="mb-6 lg:mb-8">
         <div className="flex items-center justify-between mb-3">
-          <span className="text-[13px] font-medium text-gray-900">Campañas recientes</span>
+          <span className="text-[13px] font-medium text-ink">Campañas recientes</span>
           <Link
             href="/dashboard/campaigns"
-            className="text-[12px] text-gray-400 hover:text-gray-700 transition-colors"
+            className="text-[12px] font-medium text-pink-text bg-pink-fill px-3 py-1 rounded-pill hover:bg-pink-fill-hover transition-colors duration-fast"
           >
-            Ver todas →
+            Ver todas
           </Link>
         </div>
 
         {recentCampaigns.length === 0 ? (
-          <div className="border border-[#f0f0f0] rounded-xl px-5 py-10 text-center">
-            <Megaphone size={16} className="text-gray-300 mx-auto mb-3" />
-            <p className="text-[13px] text-gray-400 mb-3">Todavía no creaste ninguna campaña.</p>
+          <div className="bg-surface rounded-card px-5 py-12 text-center">
+            <span
+              className="kool-dot mx-auto mb-4 block opacity-60"
+              style={{ width: 8, height: 8 }}
+            />
+            <p className="text-[13px] text-ink-secondary mb-4">
+              Todavía no creaste ninguna campaña.
+            </p>
             <Link
               href="/dashboard/campaigns/new"
-              className="inline-block text-[13px] font-medium text-brand-500 hover:text-brand-600 transition-colors"
+              className="inline-block text-[13px] font-medium text-white bg-pink px-4 py-2 rounded-pill hover:bg-pink-strong transition-colors duration-fast pressable"
             >
-              Crear primera campaña →
+              Crear primera campaña
             </Link>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 lg:gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {recentCampaigns.map((campaign) => (
               <Link
                 key={campaign.id}
                 href={`/dashboard/campaigns/${campaign.id}`}
-                className="group border border-[#f0f0f0] rounded-xl p-5 hover:border-gray-200 hover:shadow-sm transition-all"
+                className="bg-white shadow-card rounded-card p-5 transition-[box-shadow,transform] duration-base ease-out-strong hover:shadow-card-hover hover:-translate-y-px"
               >
-                <div className="flex items-start justify-between mb-3">
-                  <p className="text-[13px] font-medium text-gray-900 leading-snug line-clamp-2 flex-1 mr-2">
+                <div className="flex items-start justify-between mb-3 gap-2">
+                  <p className="text-[13px] font-medium text-ink leading-snug line-clamp-2 flex-1">
                     {campaign.name}
                   </p>
-                  <span
-                    className={`flex-shrink-0 text-[10px] font-medium px-2 py-0.5 rounded-full ${
-                      STATUS_STYLE[campaign.formStatus] ?? "bg-gray-100 text-gray-500"
-                    }`}
-                  >
-                    {STATUS_LABEL[campaign.formStatus] ?? campaign.formStatus}
-                  </span>
+                  <StatusDot
+                    status={STATUS_DOT[campaign.formStatus] ?? "inactive"}
+                    label={STATUS_LABEL[campaign.formStatus] ?? campaign.formStatus}
+                    className="shrink-0 text-[11px]"
+                  />
                 </div>
-                <div className="flex items-center gap-3 mt-auto">
-                  <span className="text-[11px] text-gray-400">
-                    {campaign._count.creators} creator{campaign._count.creators !== 1 ? "s" : ""}
-                  </span>
-                  <span className="text-gray-200 text-[10px]">·</span>
-                  <span className="text-[11px] text-gray-400">
-                    {campaign._count.applications} aplicacion
-                    {campaign._count.applications !== 1 ? "es" : ""}
-                  </span>
+                <div className="flex items-center gap-2 mt-auto text-[11px] text-ink-tertiary">
+                  <span className="font-mono tnum">{campaign._count.creators}</span>
+                  <span>creator{campaign._count.creators !== 1 ? "s" : ""}</span>
+                  <span className="opacity-50">·</span>
+                  <span className="font-mono tnum">{campaign._count.applications}</span>
+                  <span>aplicacion{campaign._count.applications !== 1 ? "es" : ""}</span>
                 </div>
               </Link>
             ))}
@@ -191,32 +188,34 @@ export default async function DashboardPage() {
       {/* Recent events */}
       <div>
         <div className="flex items-center justify-between mb-3">
-          <span className="text-[13px] font-medium text-gray-900">Eventos recientes</span>
+          <span className="text-[13px] font-medium text-ink">Eventos recientes</span>
         </div>
 
-        <div className="border border-[#f0f0f0] rounded-xl overflow-hidden">
+        <div className="bg-white shadow-card rounded-card overflow-hidden">
           {recentEvents.length === 0 ? (
-            <div className="px-5 py-10 text-center">
-              <p className="text-[13px] text-gray-400">Todavía no hay comisiones registradas.</p>
+            <div className="px-5 py-12 text-center">
+              <p className="text-[13px] text-ink-secondary">
+                Todavía no hay comisiones registradas.
+              </p>
             </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full min-w-[500px]">
                 <thead>
-                  <tr className="border-b border-[#f0f0f0]">
-                    <th className="text-left text-[11px] font-medium text-gray-400 px-4 py-3">
+                  <tr className="border-b border-hairline">
+                    <th className="text-left text-[11px] font-medium text-ink-tertiary px-4 py-3">
                       Creator
                     </th>
-                    <th className="text-left text-[11px] font-medium text-gray-400 px-4 py-3">
+                    <th className="text-left text-[11px] font-medium text-ink-tertiary px-4 py-3">
                       Link
                     </th>
-                    <th className="text-left text-[11px] font-medium text-gray-400 px-4 py-3 hidden sm:table-cell">
+                    <th className="text-left text-[11px] font-medium text-ink-tertiary px-4 py-3 hidden sm:table-cell">
                       Campaña
                     </th>
-                    <th className="text-right text-[11px] font-medium text-gray-400 px-4 py-3">
+                    <th className="text-right text-[11px] font-medium text-ink-tertiary px-4 py-3">
                       Orden
                     </th>
-                    <th className="text-right text-[11px] font-medium text-gray-400 px-4 py-3">
+                    <th className="text-right text-[11px] font-medium text-ink-tertiary px-4 py-3">
                       Comisión
                     </th>
                   </tr>
@@ -225,23 +224,21 @@ export default async function DashboardPage() {
                   {recentEvents.map((commission, i) => (
                     <tr
                       key={commission.id}
-                      className={i < recentEvents.length - 1 ? "border-b border-[#f0f0f0]" : ""}
+                      className={i < recentEvents.length - 1 ? "border-b border-hairline" : ""}
                     >
-                      <td className="px-4 py-3 text-[13px] text-gray-900">
-                        {commission.creator.name}
-                      </td>
-                      <td className="px-4 py-3 text-[12px] font-mono text-gray-500">
+                      <td className="px-4 py-3 text-[13px] text-ink">{commission.creator.name}</td>
+                      <td className="px-4 py-3 text-[11.5px] font-mono text-ink-secondary">
                         {commission.conversion.link
                           ? shortUrlLabel(commission.conversion.link.slug)
                           : "—"}
                       </td>
-                      <td className="px-4 py-3 text-[12px] text-gray-500 hidden sm:table-cell">
+                      <td className="px-4 py-3 text-[12px] text-ink-secondary hidden sm:table-cell">
                         {commission.conversion.link?.campaign?.name ?? "—"}
                       </td>
-                      <td className="px-4 py-3 text-[12px] text-gray-700 text-right">
+                      <td className="px-4 py-3 text-[12px] font-mono tnum text-ink-secondary text-right">
                         {formatCurrency(commission.orderAmount)}
                       </td>
-                      <td className="px-4 py-3 text-[12px] font-medium text-brand-500 text-right">
+                      <td className="px-4 py-3 text-[12px] font-mono tnum font-medium text-pink-text text-right">
                         {formatCurrency(commission.amount)}
                       </td>
                     </tr>
@@ -259,17 +256,19 @@ export default async function DashboardPage() {
 function OnboardingPrompt() {
   return (
     <div className="flex items-center justify-center h-full">
-      <div className="text-center max-w-xs">
-        <div className="w-10 h-10 border border-[#f0f0f0] rounded-xl flex items-center justify-center mx-auto mb-4">
-          <Zap size={16} className="text-brand-400" />
+      <div className="text-center max-w-xs animate-fade-up">
+        <div className="w-10 h-10 bg-pink-fill rounded-card flex items-center justify-center mx-auto mb-4">
+          <span className="kool-dot" style={{ width: 7, height: 7 }} />
         </div>
-        <h2 className="text-base font-semibold text-gray-900 mb-2">Configurá tu workspace</h2>
-        <p className="text-[13px] text-gray-400 mb-6">
+        <h2 className="text-base font-medium tracking-[-0.01em] text-ink mb-2">
+          Configurá tu workspace
+        </h2>
+        <p className="text-[13px] text-ink-secondary mb-6">
           Necesitás crear un workspace para empezar a usar Kool.
         </p>
         <Link
           href="/onboarding"
-          className="inline-block bg-gray-900 text-white text-[13px] font-medium px-4 py-2.5 rounded-lg hover:bg-gray-800 transition-colors"
+          className="inline-block bg-pink text-white text-[13px] font-medium px-5 py-2.5 rounded-pill hover:bg-pink-strong transition-colors duration-fast pressable"
         >
           Crear workspace
         </Link>

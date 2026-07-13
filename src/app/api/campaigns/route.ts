@@ -89,7 +89,7 @@ export async function POST(request: NextRequest) {
         fields: data.fields,
         brandLogo: data.brandLogo,
         coverImage: data.coverImage,
-        brandColor: data.brandColor ?? "#00C46A",
+        brandColor: data.brandColor ?? "#FB7185",
         formStatus: data.formStatus,
         giftingEnabled: data.giftingEnabled,
         giftingDescription: data.giftingEnabled ? data.giftingDescription : null,
