@@ -4,6 +4,7 @@ import { Suspense, useEffect, useState } from "react"
 import { useSearchParams } from "next/navigation"
 import { CheckCircle, AlertCircle, Loader2, ChevronRight } from "lucide-react"
 import { NicheSelector } from "@/components/creator/NicheSelector"
+import { LocationSelector } from "@/components/creator/LocationSelector"
 import { creatorUrl } from "@/lib/host"
 
 interface CreatorInfo {
@@ -291,28 +292,12 @@ function CreatorOnboardingForm() {
                   />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className={labelCls}>Ciudad</label>
-                  <input
-                    type="text"
-                    value={form.city}
-                    onChange={(e) => setForm((f) => ({ ...f, city: e.target.value }))}
-                    placeholder="Buenos Aires"
-                    className={inputCls}
-                  />
-                </div>
-                <div>
-                  <label className={labelCls}>Provincia</label>
-                  <input
-                    type="text"
-                    value={form.province}
-                    onChange={(e) => setForm((f) => ({ ...f, province: e.target.value }))}
-                    placeholder="CABA"
-                    className={inputCls}
-                  />
-                </div>
-              </div>
+              <LocationSelector
+                province={form.province}
+                city={form.city}
+                onProvinceChange={(v) => setForm((f) => ({ ...f, province: v }))}
+                onCityChange={(v) => setForm((f) => ({ ...f, city: v }))}
+              />
             </section>
 
             {/* Niches */}
@@ -365,37 +350,21 @@ function CreatorOnboardingForm() {
                   className={inputCls}
                 />
               </div>
-              <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <label className={labelCls}>Ciudad</label>
-                  <input
-                    type="text"
-                    value={form.shippingCity}
-                    onChange={(e) => setForm((f) => ({ ...f, shippingCity: e.target.value }))}
-                    placeholder="Buenos Aires"
-                    className={inputCls}
-                  />
-                </div>
-                <div>
-                  <label className={labelCls}>Provincia</label>
-                  <input
-                    type="text"
-                    value={form.shippingProvince}
-                    onChange={(e) => setForm((f) => ({ ...f, shippingProvince: e.target.value }))}
-                    placeholder="CABA"
-                    className={inputCls}
-                  />
-                </div>
-                <div>
-                  <label className={labelCls}>Código postal</label>
-                  <input
-                    type="text"
-                    value={form.shippingZipCode}
-                    onChange={(e) => setForm((f) => ({ ...f, shippingZipCode: e.target.value }))}
-                    placeholder="1043"
-                    className={inputCls}
-                  />
-                </div>
+              <LocationSelector
+                province={form.shippingProvince}
+                city={form.shippingCity}
+                onProvinceChange={(v) => setForm((f) => ({ ...f, shippingProvince: v }))}
+                onCityChange={(v) => setForm((f) => ({ ...f, shippingCity: v }))}
+              />
+              <div>
+                <label className={labelCls}>Código postal</label>
+                <input
+                  type="text"
+                  value={form.shippingZipCode}
+                  onChange={(e) => setForm((f) => ({ ...f, shippingZipCode: e.target.value }))}
+                  placeholder="1043"
+                  className={inputCls}
+                />
               </div>
             </section>
 

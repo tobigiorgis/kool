@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import { Loader2, Check, LogOut } from "lucide-react"
 import { useClerk } from "@clerk/nextjs"
+import { LocationSelector } from "@/components/creator/LocationSelector"
 
 interface CreatorProfile {
   name: string
@@ -88,10 +89,12 @@ export default function ProfilePage() {
       {/* Shipping */}
       <Section title="Dirección de envío">
         <Field label="Dirección" value={form.shippingAddress ?? ""} onChange={(v) => set("shippingAddress", v)} placeholder="Av. Corrientes 1234" />
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="Ciudad" value={form.shippingCity ?? ""} onChange={(v) => set("shippingCity", v)} placeholder="Buenos Aires" />
-          <Field label="Provincia" value={form.shippingProvince ?? ""} onChange={(v) => set("shippingProvince", v)} placeholder="CABA" />
-        </div>
+        <LocationSelector
+          province={form.shippingProvince ?? ""}
+          city={form.shippingCity ?? ""}
+          onProvinceChange={(v) => set("shippingProvince", v)}
+          onCityChange={(v) => set("shippingCity", v)}
+        />
         <Field label="Código postal" value={form.shippingZipCode ?? ""} onChange={(v) => set("shippingZipCode", v)} placeholder="C1000" />
       </Section>
 
