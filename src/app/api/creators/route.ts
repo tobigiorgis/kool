@@ -9,6 +9,8 @@ import { z } from "zod"
 const InviteCreatorSchema = z.object({
   workspaceId: z.string(),
   name: z.string().min(1),
+  firstName: z.string().optional(),
+  lastName: z.string().optional(),
   email: z.string().email(),
   instagram: z.string().optional(),
   commissionPct: z.number().min(1).max(50).default(10),
@@ -36,6 +38,8 @@ export async function POST(request: NextRequest) {
       data: {
         workspaceId: data.workspaceId,
         name: data.name,
+        firstName: data.firstName,
+        lastName: data.lastName,
         email: data.email,
         instagram: data.instagram,
         commissionPct: data.commissionPct,

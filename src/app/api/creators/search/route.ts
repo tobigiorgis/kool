@@ -10,6 +10,7 @@ export async function GET(request: NextRequest) {
 
     const q = request.nextUrl.searchParams.get("q") || ""
     const campaignId = request.nextUrl.searchParams.get("campaignId") || ""
+    const workspaceId = request.nextUrl.searchParams.get("workspaceId") || ""
 
     if (q.length < 2) {
       return NextResponse.json({ creators: [] })
@@ -38,6 +39,16 @@ export async function GET(request: NextRequest) {
       inCampaignSet = new Set(existing.map((cc) => cc.creatorId))
     }
 
+    // Check which creators are already in this workspace
+    let inWorkspaceEmails = new Set<string>()
+    if (workspaceId && creatorsRaw.length > 0) {
+      const existing = await prisma.creator.findMany({
+        where: { workspaceId, email: { in: creatorsRaw.map((c) => c.email) } },
+        select: { email: true },
+      })
+      inWorkspaceEmails = new Set(existing.map((c) => c.email))
+    }
+
     return NextResponse.json({
       creators: creatorsRaw.map((c) => ({
         id: c.id,
@@ -47,6 +58,7 @@ export async function GET(request: NextRequest) {
         email: c.email,
         instagram: c.instagram,
         alreadyInCampaign: inCampaignSet.has(c.id),
+        alreadyInWorkspace: workspaceId ? inWorkspaceEmails.has(c.email) : false,
       })),
     })
   } catch (error) {

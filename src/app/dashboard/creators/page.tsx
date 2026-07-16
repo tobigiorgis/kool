@@ -323,6 +323,16 @@ export default function CreatorsPage() {
 
 // ── Invite Modal ───────────────────────────────────────────────────────────────
 
+interface CreatorSearchResult {
+  id: string
+  name: string
+  firstName: string | null
+  lastName: string | null
+  email: string
+  instagram: string | null
+  alreadyInWorkspace: boolean
+}
+
 function InviteCreatorModal({
   workspaceId,
   onClose,
@@ -332,30 +342,63 @@ function InviteCreatorModal({
   onClose: () => void
   onCreated: () => void
 }) {
-  const [form, setForm] = useState({ name: "", email: "", instagram: "", commissionPct: "10" })
+  const [mode, setMode] = useState<"search" | "invite">("invite")
+  const [query, setQuery] = useState("")
+  const [results, setResults] = useState<CreatorSearchResult[]>([])
+  const [selected, setSelected] = useState<CreatorSearchResult | null>(null)
+  const [searching, setSearching] = useState(false)
+  const [firstName, setFirstName] = useState("")
+  const [lastName, setLastName] = useState("")
+  const [email, setEmail] = useState("")
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+  useEffect(() => {
+    if (mode !== "search" || query.length < 2) { setResults([]); return }
+    const t = setTimeout(async () => {
+      setSearching(true)
+      try {
+        const res = await fetch(`/api/creators/search?q=${encodeURIComponent(query)}&workspaceId=${workspaceId}`)
+        const data = await res.json()
+        setResults(data.creators || [])
+      } finally { setSearching(false) }
+    }, 300)
+    return () => clearTimeout(t)
+  }, [query, mode, workspaceId])
+
+  const handleSubmit = async () => {
     setLoading(true)
     setError("")
     try {
-      const res = await fetch("/api/creators", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          workspaceId,
-          name: form.name,
-          email: form.email,
-          instagram: form.instagram || undefined,
-          commissionPct: parseFloat(form.commissionPct),
-        }),
-      })
-      const data = await res.json()
-      if (!res.ok) {
-        setError(data.error ?? "Error al invitar creator")
-        return
+      if (mode === "search" && selected) {
+        const res = await fetch("/api/creators", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            workspaceId,
+            name: selected.firstName ? `${selected.firstName} ${selected.lastName || ""}`.trim() : selected.name,
+            firstName: selected.firstName,
+            lastName: selected.lastName,
+            email: selected.email,
+            instagram: selected.instagram || undefined,
+          }),
+        })
+        const data = await res.json()
+        if (!res.ok) { setError(data.error ?? "Error al agregar creator"); return }
+      } else {
+        const res = await fetch("/api/creators", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            workspaceId,
+            name: `${firstName} ${lastName}`.trim(),
+            firstName,
+            lastName,
+            email,
+          }),
+        })
+        const data = await res.json()
+        if (!res.ok) { setError(data.error ?? "Error al invitar creator"); return }
       }
       onCreated()
       onClose()
@@ -366,94 +409,160 @@ function InviteCreatorModal({
     }
   }
 
+  const canSubmit =
+    !loading &&
+    (mode === "search" ? !!selected && !selected.alreadyInWorkspace : !!firstName && !!email)
+
   return (
     <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-md">
         <div className="px-6 py-5 border-b border-gray-100 flex items-center justify-between">
-          <div>
-            <h2 className="text-[15px] font-semibold text-gray-900">Invite creator</h2>
-            <p className="text-xs text-gray-400 mt-0.5">
-              El código de descuento se asigna por campaña.
-            </p>
-          </div>
-          <button
-            onClick={onClose}
-            className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg"
-          >
+          <h2 className="text-[15px] font-semibold text-gray-900">Agregar creator</h2>
+          <button onClick={onClose} className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg">
             <X size={16} />
           </button>
         </div>
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1.5">Nombre</label>
-              <input
-                type="text"
-                value={form.name}
-                onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-                placeholder="Camila Ruiz"
-                required
-                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1.5">Email</label>
-              <input
-                type="email"
-                value={form.email}
-                onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
-                placeholder="camila@email.com"
-                required
-                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400"
-              />
-            </div>
+
+        <div className="p-6 space-y-4">
+          {/* Tab toggle */}
+          <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1 text-xs">
+            <button
+              onClick={() => { setMode("invite"); setSelected(null); setQuery("") }}
+              className={`flex-1 px-3 py-1.5 rounded-md transition-colors ${mode === "invite" ? "bg-white shadow-sm text-gray-900 font-medium" : "text-gray-500 hover:text-gray-700"}`}
+            >
+              Invitar nuevo
+            </button>
+            <button
+              onClick={() => { setMode("search"); setSelected(null) }}
+              className={`flex-1 px-3 py-1.5 rounded-md transition-colors ${mode === "search" ? "bg-white shadow-sm text-gray-900 font-medium" : "text-gray-500 hover:text-gray-700"}`}
+            >
+              Ya tiene cuenta
+            </button>
           </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1.5">Instagram</label>
-            <div className="flex">
-              <span className="px-3 py-2 bg-gray-50 border border-r-0 border-gray-200 rounded-l-lg text-sm text-gray-400">
-                @
-              </span>
-              <input
-                type="text"
-                value={form.instagram}
-                onChange={(e) => setForm((f) => ({ ...f, instagram: e.target.value }))}
-                placeholder="camilaruiz"
-                className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-r-lg focus:outline-none focus:ring-2 focus:ring-brand-400"
-              />
+
+          {/* Invite new */}
+          {mode === "invite" && (
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1.5">Nombre *</label>
+                  <input
+                    type="text"
+                    value={firstName}
+                    onChange={(e) => setFirstName(e.target.value)}
+                    placeholder="Camila"
+                    autoFocus
+                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1.5">Apellido</label>
+                  <input
+                    type="text"
+                    value={lastName}
+                    onChange={(e) => setLastName(e.target.value)}
+                    placeholder="Ruiz"
+                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1.5">Email *</label>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="camila@email.com"
+                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400"
+                />
+              </div>
+              <p className="text-xs text-gray-400">Le llegará un email para crear su cuenta.</p>
             </div>
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1.5">
-              Comisión % por defecto
-            </label>
-            <input
-              type="number"
-              value={form.commissionPct}
-              onChange={(e) => setForm((f) => ({ ...f, commissionPct: e.target.value }))}
-              min="1"
-              max="50"
-              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400"
-            />
-          </div>
+          )}
+
+          {/* Search existing */}
+          {mode === "search" && (
+            <div className="space-y-3">
+              {!selected ? (
+                <div>
+                  <div className="relative">
+                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                    <input
+                      type="text"
+                      value={query}
+                      onChange={(e) => setQuery(e.target.value)}
+                      placeholder="Buscar por nombre o email..."
+                      autoFocus
+                      className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400"
+                    />
+                  </div>
+                  {results.length > 0 && (
+                    <div className="border border-gray-100 rounded-lg overflow-hidden max-h-52 overflow-y-auto">
+                      {results.map((c) => (
+                        <button
+                          key={c.id}
+                          onClick={() => !c.alreadyInWorkspace && setSelected(c)}
+                          disabled={c.alreadyInWorkspace}
+                          className={`w-full flex items-center gap-3 px-4 py-3 text-left border-b border-gray-50 last:border-0 transition-colors ${c.alreadyInWorkspace ? "opacity-40 cursor-not-allowed" : "hover:bg-gray-50"}`}
+                        >
+                          <div className="w-8 h-8 rounded-full bg-rose-50 flex items-center justify-center text-rose-400 text-xs font-semibold shrink-0">
+                            {(c.firstName?.[0] || c.name?.[0] || "?").toUpperCase()}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-gray-900">
+                              {c.firstName ? `${c.firstName} ${c.lastName || ""}`.trim() : c.name}
+                            </p>
+                            <p className="text-xs text-gray-400">{c.email}</p>
+                          </div>
+                          {c.alreadyInWorkspace && (
+                            <span className="text-[10px] text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full shrink-0">Ya está</span>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {query.length >= 2 && !searching && results.length === 0 && (
+                    <p className="text-xs text-gray-400 text-center py-3">
+                      No se encontraron resultados.{" "}
+                      <button onClick={() => setMode("invite")} className="text-brand-600 font-medium">Invitar nuevo →</button>
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <div className="flex items-center gap-3 p-3 bg-brand-50 rounded-lg border border-brand-100">
+                  <div className="w-9 h-9 rounded-full bg-brand-100 flex items-center justify-center text-brand-700 text-sm font-semibold shrink-0">
+                    {(selected.firstName?.[0] || selected.name?.[0] || "?").toUpperCase()}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-900">
+                      {selected.firstName ? `${selected.firstName} ${selected.lastName || ""}`.trim() : selected.name}
+                    </p>
+                    <p className="text-xs text-gray-500">{selected.email}</p>
+                  </div>
+                  <button onClick={() => setSelected(null)} className="text-xs text-gray-400 hover:text-gray-600">Cambiar</button>
+                </div>
+              )}
+            </div>
+          )}
+
           {error && <p className="text-xs text-red-600 bg-red-50 p-2 rounded-lg">{error}</p>}
-          <div className="flex gap-3 pt-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex-1 px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
-            >
-              Cancelar
-            </button>
-            <button
-              type="submit"
-              disabled={loading}
-              className="flex-1 px-4 py-2 text-sm font-medium bg-gray-900 text-white rounded-lg hover:bg-gray-800 disabled:opacity-50 transition-colors"
-            >
-              {loading ? "Enviando..." : "Enviar invitación"}
-            </button>
-          </div>
-        </form>
+        </div>
+
+        <div className="px-6 py-4 border-t border-gray-100 flex gap-3">
+          <button
+            onClick={onClose}
+            className="flex-1 px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+          >
+            Cancelar
+          </button>
+          <button
+            onClick={handleSubmit}
+            disabled={!canSubmit}
+            className="flex-1 px-4 py-2 text-sm font-medium bg-gray-900 text-white rounded-lg hover:bg-gray-800 disabled:opacity-50 transition-colors"
+          >
+            {loading ? "Guardando..." : mode === "invite" ? "Enviar invitación" : "Agregar creator"}
+          </button>
+        </div>
       </div>
     </div>
   )
