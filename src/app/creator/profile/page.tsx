@@ -24,6 +24,9 @@ export default function ProfilePage() {
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [form, setForm] = useState<Partial<CreatorProfile>>({})
+  const [shippingStreet, setShippingStreet] = useState("")
+  const [shippingNumber, setShippingNumber] = useState("")
+  const [shippingFloor, setShippingFloor] = useState("")
   const { signOut } = useClerk()
 
   useEffect(() => {
@@ -32,6 +35,8 @@ export default function ProfilePage() {
       .then((d) => {
         setProfile(d)
         setForm(d)
+        // Pre-fill street from existing address (best effort)
+        if (d.shippingAddress) setShippingStreet(d.shippingAddress)
       })
       .finally(() => setLoading(false))
   }, [])
@@ -42,7 +47,10 @@ export default function ProfilePage() {
       await fetch("/api/creator/me", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify({
+          ...form,
+          shippingAddress: [shippingStreet, shippingNumber, shippingFloor].filter(Boolean).join(" "),
+        }),
       })
       setSaved(true)
       setTimeout(() => setSaved(false), 2500)
@@ -88,7 +96,13 @@ export default function ProfilePage() {
 
       {/* Shipping */}
       <Section title="Dirección de envío">
-        <Field label="Dirección" value={form.shippingAddress ?? ""} onChange={(v) => set("shippingAddress", v)} placeholder="Av. Corrientes 1234" />
+        <div className="grid grid-cols-3 gap-3">
+          <div className="col-span-2">
+            <Field label="Calle" value={shippingStreet} onChange={setShippingStreet} placeholder="Av. Corrientes" />
+          </div>
+          <Field label="Número" value={shippingNumber} onChange={setShippingNumber} placeholder="1234" />
+        </div>
+        <Field label="Piso / Depto (opcional)" value={shippingFloor} onChange={setShippingFloor} placeholder="Piso 3 Dto A" />
         <LocationSelector
           province={form.shippingProvince ?? ""}
           city={form.shippingCity ?? ""}

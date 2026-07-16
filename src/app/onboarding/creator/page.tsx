@@ -41,6 +41,9 @@ function CreatorOnboardingForm() {
     city: "",
     province: "",
     niches: [] as string[],
+    shippingStreet: "",
+    shippingNumber: "",
+    shippingFloor: "",
     shippingAddress: "",
     shippingCity: "",
     shippingProvince: "",
@@ -93,7 +96,13 @@ function CreatorOnboardingForm() {
       const res = await fetch("/api/onboarding/creator", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token: token ?? undefined, ...form }),
+        body: JSON.stringify({
+          token: token ?? undefined,
+          ...form,
+          shippingAddress: [form.shippingStreet, form.shippingNumber, form.shippingFloor]
+            .filter(Boolean)
+            .join(" "),
+        }),
       })
       const data = await res.json()
       if (!res.ok) {
@@ -340,13 +349,35 @@ function CreatorOnboardingForm() {
               <h2 className="text-[12px] font-semibold text-gray-400 uppercase tracking-wide">
                 Dirección de envío
               </h2>
+              <div className="grid grid-cols-3 gap-3">
+                <div className="col-span-2">
+                  <label className={labelCls}>Calle</label>
+                  <input
+                    type="text"
+                    value={form.shippingStreet}
+                    onChange={(e) => setForm((f) => ({ ...f, shippingStreet: e.target.value }))}
+                    placeholder="Av. Corrientes"
+                    className={inputCls}
+                  />
+                </div>
+                <div>
+                  <label className={labelCls}>Número</label>
+                  <input
+                    type="text"
+                    value={form.shippingNumber}
+                    onChange={(e) => setForm((f) => ({ ...f, shippingNumber: e.target.value }))}
+                    placeholder="1234"
+                    className={inputCls}
+                  />
+                </div>
+              </div>
               <div>
-                <label className={labelCls}>Calle y número</label>
+                <label className={labelCls}>Piso / Depto <span className="text-gray-400 font-normal">(opcional)</span></label>
                 <input
                   type="text"
-                  value={form.shippingAddress}
-                  onChange={(e) => setForm((f) => ({ ...f, shippingAddress: e.target.value }))}
-                  placeholder="Av. Corrientes 1234, Piso 3 Dto A"
+                  value={form.shippingFloor}
+                  onChange={(e) => setForm((f) => ({ ...f, shippingFloor: e.target.value }))}
+                  placeholder="Piso 3 Dto A"
                   className={inputCls}
                 />
               </div>
