@@ -85,7 +85,7 @@ describe("POST campaigns/[id]/creators — invite by email", () => {
         campaignName: "Verano",
         discountCode: "ANA20",
         commissionPct: 20,
-        registerUrl: expect.stringContaining("https://app.kool.co/register?token="),
+        registerUrl: expect.stringContaining("https://app.kool.co/register?role=creator&token="),
       })
     )
     expect(sendCampaignInviteExisting).not.toHaveBeenCalled()
