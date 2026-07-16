@@ -118,8 +118,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     if ("email" in body) {
       const data = InviteCreatorSchema.parse(body)
       const name = `${data.firstName} ${data.lastName}`
-      const discountCode =
-        data.discountCode || generateDiscountCode(data.firstName, data.commissionPct ?? 10)
+      const discountCode = data.discountCode || null
 
       // Find or create creator
       let creator = await prisma.creator.findFirst({
