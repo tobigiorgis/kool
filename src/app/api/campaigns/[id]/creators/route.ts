@@ -226,7 +226,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
           dashboardUrl: creatorUrl(""),
         })
       } else {
-        const registerUrl = `${appUrl}/register?token=${inviteToken}`
+        const registerUrl = `${appUrl}/register?role=creator&token=${inviteToken}`
         await sendCampaignInviteNew({
           to: data.email,
           creatorName: data.firstName,
