@@ -79,8 +79,13 @@ export async function evaluateBounties(
   creatorId: string,
   campaignId: string
 ): Promise<NewAchievement[]> {
+  const now = new Date()
   const bounties = await prisma.bounty.findMany({
-    where: { campaignId, status: "ACTIVE" },
+    where: {
+      campaignId,
+      status: "ACTIVE",
+      OR: [{ endDate: null }, { endDate: { gt: now } }],
+    },
     include: { tiers: true },
   })
   if (bounties.length === 0) return []
