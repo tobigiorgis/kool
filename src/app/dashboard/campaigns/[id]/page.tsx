@@ -457,6 +457,7 @@ export default function CampaignDetailPage() {
       {tab === "creators" && (
         <CreatorsTab
           campaign={campaign}
+          links={campaign.links}
           onAdd={() => setShowAddCreators(true)}
           onRemove={removeCreator}
           onRefresh={loadData}
@@ -963,11 +964,13 @@ function OverviewTab({
 function CreatorRow({
   cc,
   campaignId,
+  links,
   onRemove,
   onUpdated,
 }: {
   cc: CampaignCreator
   campaignId: string
+  links: CampaignLink[]
   onRemove: (id: string) => void
   onUpdated: () => void
 }) {
@@ -975,6 +978,10 @@ function CreatorRow({
   const [commission, setCommission] = useState(cc.commissionPct?.toString() ?? "")
   const [discount, setDiscount] = useState(cc.discountCode ?? "")
   const [saving, setSaving] = useState(false)
+  const [creatingLink, setCreatingLink] = useState(false)
+
+  const creatorLink = links.find((l) => l.creatorId === cc.creator.id)
+  const hasLink = !!creatorLink
 
   const save = async () => {
     setSaving(true)
@@ -989,6 +996,13 @@ function CreatorRow({
     })
     setSaving(false)
     setEditing(false)
+    onUpdated()
+  }
+
+  const createLink = async () => {
+    setCreatingLink(true)
+    await fetch(`/api/tiendanube/generate-links`, { method: "POST" })
+    setCreatingLink(false)
     onUpdated()
   }
 
@@ -1015,6 +1029,22 @@ function CreatorRow({
           </span>
         </td>
         <td className="px-6 py-4 text-sm text-gray-700">{displayCommission}</td>
+        <td className="px-6 py-4">
+          {hasLink ? (
+            <span className="flex items-center gap-1 text-xs text-green-700 bg-green-100 px-2 py-0.5 rounded-full w-fit">
+              <Check size={11} /> Creado
+            </span>
+          ) : (
+            <button
+              onClick={createLink}
+              disabled={creatingLink}
+              className="flex items-center gap-1 text-xs text-gray-600 border border-gray-200 px-2 py-0.5 rounded-full hover:bg-gray-50 disabled:opacity-50 transition-colors"
+            >
+              <Link2 size={11} />
+              {creatingLink ? "Creando..." : "Crear link"}
+            </button>
+          )}
+        </td>
         <td className="px-6 py-4">
           <div className="flex items-center gap-1 justify-end">
             <button
@@ -1087,11 +1117,13 @@ function CreatorRow({
 
 function CreatorsTab({
   campaign,
+  links,
   onAdd,
   onRemove,
   onRefresh,
 }: {
   campaign: CampaignDetail
+  links: CampaignLink[]
   onAdd: () => void
   onRemove: (id: string) => void
   onRefresh: () => void
@@ -1128,6 +1160,7 @@ function CreatorsTab({
                 <th className="text-left px-6 py-3 text-xs font-medium text-gray-500">Creator</th>
                 <th className="text-left px-6 py-3 text-xs font-medium text-gray-500">Código</th>
                 <th className="text-left px-6 py-3 text-xs font-medium text-gray-500">Comisión</th>
+                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500">Link</th>
                 <th className="px-6 py-3" />
               </tr>
             </thead>
@@ -1137,6 +1170,7 @@ function CreatorsTab({
                   key={cc.id}
                   cc={cc}
                   campaignId={campaign.id}
+                  links={links}
                   onRemove={onRemove}
                   onUpdated={onRefresh}
                 />
