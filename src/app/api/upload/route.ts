@@ -35,9 +35,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "El archivo supera el límite de 10MB" }, { status: 400 })
     }
 
-    const token = env.BRIEF_READ_WRITE_TOKEN
+    const token = env.BLOB_READ_WRITE_TOKEN
     if (!token)
-      return NextResponse.json({ error: "BRIEF_READ_WRITE_TOKEN no configurado" }, { status: 500 })
+      return NextResponse.json({ error: "BLOB_READ_WRITE_TOKEN no configurado" }, { status: 500 })
 
     const filename = `briefings/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`
     const blob = await put(filename, file, { access: "public", token })
