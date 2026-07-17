@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@clerk/nextjs/server"
 import { prisma } from "@/lib/prisma"
+import { sendBriefing } from "@/lib/email"
 import { handleError } from "@/lib/api/response"
+import { logger } from "@/lib/logger"
 import { z } from "zod"
 
 const UpdateBriefingSchema = z.object({
@@ -11,6 +13,7 @@ const UpdateBriefingSchema = z.object({
   startDate: z.string().optional(),
   endDate: z.string().optional(),
   assets: z.array(z.object({ name: z.string(), url: z.string(), type: z.string() })).optional(),
+  notify: z.boolean().optional(),
 })
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -22,7 +25,10 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   try {
     const briefing = await prisma.briefing.findUnique({
       where: { id },
-      include: { workspace: { include: { members: { where: { userId } } } } },
+      include: {
+        workspace: { include: { members: { where: { userId } } } },
+        recipients: { include: { creator: { select: { id: true, name: true, email: true } } } },
+      },
     })
 
     if (!briefing || briefing.workspace.members.length === 0) {
@@ -47,6 +53,20 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
         ...(data.assets !== undefined && { assets: data.assets }),
       },
     })
+
+    if (data.notify && briefing.recipients.length > 0) {
+      const campaignName = data.campaignName ?? briefing.campaignName ?? briefing.subject
+      const bodyText = data.body ?? briefing.body
+      for (const recipient of briefing.recipients) {
+        await sendBriefing({
+          to: recipient.creator.email,
+          creatorName: recipient.creator.name,
+          brandName: briefing.workspace.name,
+          campaignName,
+          briefingHtml: `<p><strong>El briefing fue actualizado.</strong></p><p>${bodyText.replace(/\n/g, "<br>")}</p>`,
+        }).catch((err) => logger.error("[Briefing] Update email error", err))
+      }
+    }
 
     return NextResponse.json({ ok: true, briefing: updated })
   } catch (error) {

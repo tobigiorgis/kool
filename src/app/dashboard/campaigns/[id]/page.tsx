@@ -483,7 +483,7 @@ export default function CampaignDetailPage() {
       {tab === "bounties" && <BountiesTab campaignId={campaign.id} />}
 
       {tab === "briefings" && (
-        <BriefingsTab campaign={campaign} onCreateBriefing={() => setShowCreateBriefing(true)} />
+        <BriefingsTab campaign={campaign} onCreateBriefing={() => setShowCreateBriefing(true)} onRefresh={loadData} />
       )}
 
       {tab === "analytics" && <CampaignAnalyticsTab campaign={campaign} analytics={analytics} />}
@@ -2374,11 +2374,14 @@ function CreateCampaignGiftingModal({
 function BriefingsTab({
   campaign,
   onCreateBriefing,
+  onRefresh,
 }: {
   campaign: CampaignDetail
   onCreateBriefing: () => void
+  onRefresh: () => void
 }) {
   const briefings = campaign.briefings
+  const [editingBriefing, setEditingBriefing] = useState<CampaignBriefing | null>(null)
 
   return (
     <div>
@@ -2458,11 +2461,26 @@ function BriefingsTab({
                       </div>
                     )}
                   </div>
+                  <button
+                    onClick={() => setEditingBriefing(b)}
+                    className="flex-shrink-0 text-[12px] text-gray-400 hover:text-gray-700 border border-gray-200 px-2.5 py-1 rounded-lg hover:bg-gray-50 transition-colors"
+                  >
+                    Editar
+                  </button>
                 </div>
               </div>
             )
           })}
         </div>
+      )}
+
+      {editingBriefing && (
+        <EditBriefingModal
+          briefing={editingBriefing}
+          campaignName={campaign.name}
+          onClose={() => setEditingBriefing(null)}
+          onSaved={() => { setEditingBriefing(null); onRefresh() }}
+        />
       )}
     </div>
   )
@@ -2692,6 +2710,165 @@ function CreateBriefingModal({
               {submitting
                 ? "Enviando..."
                 : `Enviar a ${creatorCount} creator${creatorCount !== 1 ? "s" : ""}`}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────
+// EDIT BRIEFING MODAL
+// ─────────────────────────────────────────────
+
+function EditBriefingModal({
+  briefing,
+  campaignName,
+  onClose,
+  onSaved,
+}: {
+  briefing: CampaignBriefing
+  campaignName: string
+  onClose: () => void
+  onSaved: () => void
+}) {
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [subject, setSubject] = useState(briefing.subject)
+  const [body, setBody] = useState(briefing.body)
+  const [assets, setAssets] = useState<BriefingAsset[]>(briefing.assets ?? [])
+  const [uploading, setUploading] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState("")
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploading(true)
+    setError("")
+    try {
+      const fd = new FormData()
+      fd.append("file", file)
+      const res = await fetch("/api/upload", { method: "POST", body: fd })
+      const data = await res.json()
+      if (!res.ok) { setError(data.error ?? "Error al subir el archivo"); return }
+      setAssets((prev) => [...prev, { name: data.name, url: data.url, type: data.type }])
+    } catch {
+      setError("Error de conexión al subir el archivo")
+    } finally {
+      setUploading(false)
+      if (fileInputRef.current) fileInputRef.current.value = ""
+    }
+  }
+
+  const handleSave = async (notify: boolean) => {
+    setSubmitting(true)
+    setError("")
+    try {
+      const res = await fetch(`/api/briefing/${briefing.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ subject, body, assets, campaignName, notify }),
+      })
+      const data = await res.json()
+      if (!res.ok) { setError(data.error ?? "Error al guardar"); return }
+      onSaved()
+    } catch {
+      setError("Error de conexión")
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] flex flex-col">
+        <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100">
+          <div>
+            <h2 className="text-base font-semibold text-gray-900">Editar briefing</h2>
+            <p className="text-xs text-gray-500 mt-0.5">{campaignName}</p>
+          </div>
+          <button onClick={onClose} className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg">
+            <X size={16} />
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-auto p-6 space-y-4">
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1.5">Asunto *</label>
+            <input
+              type="text"
+              value={subject}
+              onChange={(e) => setSubject(e.target.value)}
+              required
+              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-transparent"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1.5">Contenido *</label>
+            <textarea
+              value={body}
+              onChange={(e) => setBody(e.target.value)}
+              required
+              rows={6}
+              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-transparent resize-none"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1.5">Documentos adjuntos</label>
+            <div className="space-y-2">
+              {assets.map((asset, i) => (
+                <div key={i} className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2 gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Paperclip size={13} className="text-gray-400 flex-shrink-0" />
+                    <span className="text-[13px] text-gray-700 truncate">{asset.name}</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setAssets((prev) => prev.filter((_, j) => j !== i))}
+                    className="p-1 text-gray-400 hover:text-red-500 flex-shrink-0"
+                  >
+                    <X size={13} />
+                  </button>
+                </div>
+              ))}
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploading}
+                className="flex items-center gap-2 w-full border border-dashed border-gray-200 rounded-lg px-3 py-2.5 text-[13px] text-gray-500 hover:border-gray-300 hover:text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
+              >
+                {uploading ? <RefreshCw size={13} className="animate-spin" /> : <Upload size={13} />}
+                {uploading ? "Subiendo..." : "Adjuntar PDF u otro documento"}
+              </button>
+              <input ref={fileInputRef} type="file" accept=".pdf,.doc,.docx,image/*" className="hidden" onChange={handleFileChange} />
+              <p className="text-[11px] text-gray-400">PDF, Word o imagen · Máx 10MB</p>
+            </div>
+          </div>
+
+          {error && <p className="text-xs text-red-600 bg-red-50 p-2 rounded-lg">{error}</p>}
+        </div>
+
+        <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-between gap-3">
+          <button type="button" onClick={onClose} className="text-[13px] text-gray-500 hover:text-gray-700">
+            Cancelar
+          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={() => handleSave(false)}
+              disabled={submitting || !subject || !body}
+              className="px-4 py-2 text-[13px] text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+            >
+              {submitting ? "Guardando..." : "Guardar"}
+            </button>
+            <button
+              onClick={() => handleSave(true)}
+              disabled={submitting || !subject || !body}
+              className="px-4 py-2 text-[13px] font-medium bg-gray-900 text-white rounded-lg hover:bg-gray-800 disabled:opacity-50"
+            >
+              {submitting ? "Enviando..." : `Guardar y notificar creators`}
             </button>
           </div>
         </div>
