@@ -116,8 +116,6 @@ function IntegrationsTab({
 }) {
   const [connecting, setConnecting] = useState(false)
   const [reinstalling, setReinstalling] = useState(false)
-  const [generatingLinks, setGeneratingLinks] = useState(false)
-  const [linksResult, setLinksResult] = useState<string | null>(null)
 
   const handleConnect = () => {
     setConnecting(true)
@@ -225,26 +223,6 @@ function IntegrationsTab({
               >
                 {reinstalling ? "Verificando..." : "Verificar webhooks"}
               </button>
-              <button
-                onClick={async () => {
-                  setGeneratingLinks(true)
-                  setLinksResult(null)
-                  try {
-                    const res = await fetch("/api/tiendanube/generate-links", { method: "POST" })
-                    const data = await res.json()
-                    setLinksResult(data.created === 0 ? "Todos los links ya existían." : `${data.created} link${data.created !== 1 ? "s" : ""} creados.`)
-                  } catch {
-                    setLinksResult("Error al generar links.")
-                  } finally {
-                    setGeneratingLinks(false)
-                  }
-                }}
-                disabled={generatingLinks}
-                className="text-xs text-gray-500 underline disabled:opacity-50"
-              >
-                {generatingLinks ? "Generando..." : "Generar links para creators existentes"}
-              </button>
-              {linksResult && <span className="text-xs text-green-600">{linksResult}</span>}
             </div>
           </div>
         )}
