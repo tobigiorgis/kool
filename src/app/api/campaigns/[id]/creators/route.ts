@@ -245,14 +245,37 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
     const results = await Promise.all(
       data.creatorIds.map(async (creatorId) => {
-        const creator = await prisma.creator.findUnique({ where: { id: creatorId } })
-        if (!creator) return null
+        const sourceCreator = await prisma.creator.findUnique({ where: { id: creatorId } })
+        if (!sourceCreator) return null
+
+        // Ensure creator exists in this workspace
+        let creator = sourceCreator
+        if (sourceCreator.workspaceId !== campaign.workspaceId) {
+          creator = await prisma.creator.upsert({
+            where: { workspaceId_email: { workspaceId: campaign.workspaceId, email: sourceCreator.email } },
+            create: {
+              workspaceId: campaign.workspaceId,
+              name: sourceCreator.name,
+              firstName: sourceCreator.firstName,
+              lastName: sourceCreator.lastName,
+              email: sourceCreator.email,
+              instagram: sourceCreator.instagram,
+              tiktok: sourceCreator.tiktok,
+              status: sourceCreator.status,
+              commissionPct: data.commissionPct ?? sourceCreator.commissionPct,
+              discountCode: data.discountCode ?? sourceCreator.discountCode,
+            },
+            update: {},
+          })
+        }
+
+        const resolvedCreatorId = creator.id
 
         const cc = await prisma.campaignCreator.upsert({
-          where: { campaignId_creatorId: { campaignId, creatorId } },
+          where: { campaignId_creatorId: { campaignId, creatorId: resolvedCreatorId } },
           create: {
             campaignId,
-            creatorId,
+            creatorId: resolvedCreatorId,
             commissionPct: data.commissionPct,
             discountCode: data.discountCode,
           },
@@ -263,19 +286,19 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         })
 
         await prisma.campaignInvite.upsert({
-          where: { campaignId_creatorId: { campaignId, creatorId } },
-          create: { campaignId, creatorId, status: "PENDING", sentAt: new Date() },
+          where: { campaignId_creatorId: { campaignId, creatorId: resolvedCreatorId } },
+          create: { campaignId, creatorId: resolvedCreatorId, status: "PENDING", sentAt: new Date() },
           update: { status: "PENDING", sentAt: new Date() },
         })
 
         if (data.destination) {
-          const existingLink = await prisma.link.findFirst({ where: { creatorId, campaignId } })
+          const existingLink = await prisma.link.findFirst({ where: { creatorId: resolvedCreatorId, campaignId } })
           if (!existingLink) {
             const slug = await ensureUniqueSlug(generateSlug(creator.name))
             await prisma.link.create({
               data: {
                 workspaceId: campaign.workspaceId,
-                creatorId,
+                creatorId: resolvedCreatorId,
                 campaignId,
                 slug,
                 destination: data.destination,
