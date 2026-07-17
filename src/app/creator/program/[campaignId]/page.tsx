@@ -7,7 +7,7 @@ import { formatCurrency, formatDate } from "@/lib/utils"
 import { getCampaignProgress, progressForMetric, rewardLabel } from "@/lib/bounties"
 import Link from "next/link"
 import { CopyLinkButton } from "./copy-link-button"
-import { Tag, DollarSign, Trophy, Check, Gift, Package } from "lucide-react"
+import { Tag, DollarSign, Trophy, Check, Gift, Package, FileText, Download } from "lucide-react"
 
 export default async function ProgramOverviewPage({
   params,
@@ -50,7 +50,7 @@ export default async function ProgramOverviewPage({
   const [totalClickCount, commissions] = await Promise.all([
     linkIds.length ? prisma.click.count({ where: { linkId: { in: linkIds } } }) : 0,
     prisma.commission.findMany({
-      where: { creatorId: creator.id },
+      where: { creatorId: creator.id, conversion: { link: { campaignId } } },
       orderBy: { createdAt: "desc" },
       take: 30,
       include: {
@@ -82,6 +82,16 @@ export default async function ProgramOverviewPage({
   }
 
   const recentEarnings = commissions.slice(0, 8)
+
+  // Briefs for this creator in this campaign
+  const briefRecipients = await prisma.briefingRecipient.findMany({
+    where: { creatorId: creator.id, briefing: { campaignId } },
+    include: {
+      briefing: { select: { id: true, subject: true, body: true, assets: true, sentAt: true } },
+    },
+    orderBy: { sentAt: "desc" },
+  })
+  const briefs = briefRecipients.map((r) => r.briefing)
 
   // Bounties (objetivos con recompensa) de esta campaña + progreso del creator
   const [bounties, campaignProgress] = await Promise.all([
@@ -154,6 +164,52 @@ export default async function ProgramOverviewPage({
           </div>
         </div>
       </div>
+
+      {/* Briefs */}
+      {briefs.length > 0 && (
+        <div className="bg-white rounded-2xl border border-gray-200 p-5 space-y-4">
+          <div className="flex items-center gap-2">
+            <FileText size={15} className="text-gray-400" />
+            <p className="text-[13px] font-semibold text-gray-900">Brief{briefs.length > 1 ? "s" : ""}</p>
+          </div>
+          {briefs.map((brief) => {
+            const assets = (brief.assets as { name: string; url: string; type?: string }[] | null) ?? []
+            return (
+              <div key={brief.id} className="space-y-3">
+                <div>
+                  <p className="text-[13px] font-medium text-gray-800">{brief.subject}</p>
+                  {brief.sentAt && (
+                    <p className="text-[11px] text-gray-400 mt-0.5">
+                      {new Date(brief.sentAt).toLocaleDateString("es-AR", { day: "numeric", month: "long", year: "numeric" })}
+                    </p>
+                  )}
+                </div>
+                <div
+                  className="text-[13px] text-gray-600 leading-relaxed prose prose-sm max-w-none"
+                  dangerouslySetInnerHTML={{ __html: brief.body }}
+                />
+                {assets.length > 0 && (
+                  <div className="space-y-2">
+                    <p className="text-[11px] font-medium text-gray-400 uppercase tracking-wide">Archivos adjuntos</p>
+                    {assets.map((a, i) => (
+                      <a
+                        key={i}
+                        href={a.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-2.5 bg-gray-50 hover:bg-gray-100 transition-colors rounded-xl px-3 py-2.5"
+                      >
+                        <Download size={13} className="text-gray-400 shrink-0" />
+                        <span className="text-[12px] text-gray-700 flex-1 truncate">{a.name}</span>
+                      </a>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      )}
 
       {/* Bounties / Objetivos */}
       {bounties.length > 0 && (

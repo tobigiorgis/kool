@@ -1,390 +1,16 @@
 "use client"
 
-import { useState } from "react"
 import { usePathname } from "next/navigation"
 import Link from "next/link"
 import { SignOutButton } from "@clerk/nextjs"
 import { creatorPath } from "@/lib/host"
-import {
-  LayoutGrid,
-  UserPlus,
-  Home,
-  Link2,
-  DollarSign,
-  BarChart3,
-  Zap,
-  Megaphone,
-  Wallet,
-  User,
-  LogOut,
-  ChevronDown,
-  Check,
-  Search,
-} from "lucide-react"
-
-// ─── Mobile bottom nav ───────────────────────────────────────────────────────
-
-function MobileCreatorNav({
-  pathname,
-  currentCampaignId,
-  isInProgram,
-  pendingInvites,
-}: {
-  pathname: string
-  currentCampaignId: string | undefined
-  isInProgram: boolean
-  pendingInvites: number
-}) {
-  const items =
-    isInProgram && currentCampaignId
-      ? [
-          {
-            href: creatorPath(`program/${currentCampaignId}`),
-            label: "Overview",
-            icon: Home,
-            active: pathname === creatorPath(`program/${currentCampaignId}`),
-          },
-          {
-            href: creatorPath(`program/${currentCampaignId}/links`),
-            label: "Links",
-            icon: Link2,
-            active: pathname.endsWith("/links"),
-          },
-          {
-            href: creatorPath(`program/${currentCampaignId}/earnings`),
-            label: "Earnings",
-            icon: DollarSign,
-            active: pathname.endsWith("/earnings"),
-          },
-          {
-            href: creatorPath(`program/${currentCampaignId}/analytics`),
-            label: "Analytics",
-            icon: BarChart3,
-            active: pathname.endsWith("/analytics"),
-          },
-          {
-            href: creatorPath("profile"),
-            label: "Profile",
-            icon: User,
-            active: pathname.includes("/profile"),
-          },
-        ]
-      : [
-          {
-            href: creatorPath("programs"),
-            label: "Programs",
-            icon: LayoutGrid,
-            active: pathname === creatorPath("programs") || pathname === creatorPath(""),
-          },
-          {
-            href: creatorPath("programs/invitations"),
-            label: "Invites",
-            icon: UserPlus,
-            active: pathname.includes("invitations"),
-            badge: pendingInvites > 0 ? pendingInvites : undefined,
-          },
-          {
-            href: creatorPath("payouts"),
-            label: "Earnings",
-            icon: Wallet,
-            active: pathname.includes("/payouts"),
-          },
-          {
-            href: creatorPath("profile"),
-            label: "Profile",
-            icon: User,
-            active: pathname.includes("/profile"),
-          },
-        ]
-
-  return (
-    <nav className="lg:hidden fixed bottom-0 inset-x-0 bg-white/90 backdrop-blur-xl shadow-[0_-1px_0_#F5F4F4] z-50 flex items-stretch pb-[env(safe-area-inset-bottom)]">
-      {items.map(({ href, label, icon: Icon, active, badge }) => (
-        <Link
-          key={href}
-          href={href}
-          className={`flex-1 flex flex-col items-center justify-center gap-1 py-2 relative transition-colors duration-fast ${active ? "text-ink" : "text-ink-tertiary"}`}
-        >
-          <Icon
-            size={20}
-            strokeWidth={1.5}
-            className={active ? "text-pink" : "text-ink-tertiary"}
-          />
-          <span className="text-[9px] font-medium">{label}</span>
-          {badge !== undefined && (
-            <span className="absolute top-1.5 right-[calc(50%-14px)] text-[9px] font-semibold bg-pink text-white rounded-full w-4 h-4 flex items-center justify-center">
-              {badge}
-            </span>
-          )}
-        </Link>
-      ))}
-    </nav>
-  )
-}
-
-interface Program {
-  campaignId: string
-  campaignName: string
-  brandName: string
-  brandLogo: string | null
-  brandColor: string | null
-}
+import { Home, Link2, UserPlus, Wallet, User, LogOut } from "lucide-react"
 
 interface Props {
   creatorName: string
   creatorAvatar: string | null
-  programs: Program[]
+  programs: unknown[]
   pendingInvites: number
-}
-
-export function CreatorSidebar({ creatorName, creatorAvatar, programs, pendingInvites }: Props) {
-  const pathname = usePathname()
-  const [dropdownOpen, setDropdownOpen] = useState(false)
-  const [searchQuery, setSearchQuery] = useState("")
-
-  // Tolera el path con o sin prefijo /creator (limpio en prod, prefijado en dev).
-  const campaignIdMatch = pathname.match(/\/program\/([^/]+)/)
-  const currentCampaignId = campaignIdMatch?.[1]
-  const currentProgram = programs.find((p) => p.campaignId === currentCampaignId)
-  const isInProgram = !!currentProgram
-
-  const filteredPrograms = programs.filter(
-    (p) =>
-      p.brandName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.campaignName.toLowerCase().includes(searchQuery.toLowerCase())
-  )
-
-  return (
-    <>
-      <MobileCreatorNav
-        pathname={pathname}
-        currentCampaignId={currentCampaignId}
-        isInProgram={isInProgram}
-        pendingInvites={pendingInvites}
-      />
-      <aside className="hidden lg:flex w-[220px] bg-surface flex-col h-full shrink-0">
-        {/* Logo */}
-        <div className="px-4 h-14 flex items-center">
-          <Link href={creatorPath("")} className="flex items-center gap-1">
-            <span className="text-[17px] font-medium tracking-[-0.03em] text-ink">kool</span>
-            <span className="kool-dot mb-0.5 ml-0.5" />
-          </Link>
-        </div>
-
-        {/* Program selector */}
-        <div className="px-3 py-2.5 relative">
-          <button
-            onClick={() => setDropdownOpen(!dropdownOpen)}
-            className="w-full flex items-center justify-between gap-2 px-2 py-1.5 hover:bg-surface-hover rounded-field transition-colors duration-fast pressable"
-          >
-            <div className="flex items-center gap-2 min-w-0">
-              {isInProgram && currentProgram ? (
-                <>
-                  <BrandAvatar
-                    name={currentProgram.brandName}
-                    logo={currentProgram.brandLogo}
-                    size={22}
-                  />
-                  <span className="text-[13px] font-medium text-ink truncate">
-                    {currentProgram.brandName}
-                  </span>
-                </>
-              ) : (
-                <>
-                  <div className="w-[22px] h-[22px] rounded-md bg-pink-fill flex items-center justify-center shrink-0">
-                    <LayoutGrid size={11} strokeWidth={1.5} className="text-pink-deep" />
-                  </div>
-                  <span className="text-[13px] font-medium text-ink">All programs</span>
-                </>
-              )}
-            </div>
-            <ChevronDown size={13} strokeWidth={1.5} className="text-ink-tertiary shrink-0" />
-          </button>
-
-          {dropdownOpen && (
-            <>
-              <div className="fixed inset-0 z-40" onClick={() => setDropdownOpen(false)} />
-              <div className="absolute top-full left-2 right-2 mt-1 bg-white shadow-overlay rounded-card z-50 py-1.5 max-h-72 overflow-y-auto animate-scale-in origin-top">
-                <div className="px-2 pb-1.5">
-                  <div className="relative">
-                    <Search
-                      size={12}
-                      className="absolute left-2.5 top-1/2 -translate-y-1/2 text-ink-tertiary"
-                    />
-                    <input
-                      type="text"
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      placeholder="Find program..."
-                      className="w-full pl-7 pr-2.5 py-1.5 text-[12px] bg-surface rounded-field focus:outline-none focus:bg-white focus:shadow-[0_0_0_2px_rgba(251,113,133,0.35)] transition-[background-color,box-shadow] duration-fast"
-                      autoFocus
-                    />
-                  </div>
-                </div>
-
-                {filteredPrograms.length > 0 && (
-                  <>
-                    <div className="border-t border-hairline my-1" />
-                    <p className="px-3 py-0.5 text-[10px] font-medium text-ink-tertiary uppercase tracking-wider">
-                      Programs
-                    </p>
-                    {filteredPrograms.map((p) => (
-                      <Link
-                        key={p.campaignId}
-                        href={creatorPath(`program/${p.campaignId}`)}
-                        onClick={() => {
-                          setDropdownOpen(false)
-                          setSearchQuery("")
-                        }}
-                        className="flex items-center gap-2 px-2.5 py-1.5 text-[13px] text-ink hover:bg-surface mx-1 rounded-field transition-colors duration-fast"
-                      >
-                        <BrandAvatar name={p.brandName} logo={p.brandLogo} size={18} />
-                        <span className="flex-1 truncate">{p.brandName}</span>
-                        {currentCampaignId === p.campaignId && (
-                          <Check size={13} strokeWidth={1.5} className="text-pink shrink-0" />
-                        )}
-                      </Link>
-                    ))}
-                  </>
-                )}
-
-                <div className="border-t border-hairline my-1" />
-                <Link
-                  href={creatorPath("programs")}
-                  onClick={() => {
-                    setDropdownOpen(false)
-                    setSearchQuery("")
-                  }}
-                  className="flex items-center gap-2 px-2.5 py-1.5 text-[13px] text-ink hover:bg-surface mx-1 rounded-field transition-colors duration-fast"
-                >
-                  <div className="w-[18px] h-[18px] rounded bg-pink-fill flex items-center justify-center shrink-0">
-                    <LayoutGrid size={10} strokeWidth={1.5} className="text-pink-deep" />
-                  </div>
-                  <span className="flex-1">All programs</span>
-                  {!isInProgram && (
-                    <Check size={13} strokeWidth={1.5} className="text-pink shrink-0" />
-                  )}
-                </Link>
-              </div>
-            </>
-          )}
-        </div>
-
-        {/* Nav */}
-        <nav className="flex-1 p-2 space-y-0.5 overflow-y-auto">
-          {!isInProgram ? (
-            <>
-              <NavItem
-                href={creatorPath("programs")}
-                icon={LayoutGrid}
-                label="Programs"
-                active={pathname === creatorPath("programs") || pathname === creatorPath("")}
-              />
-              <NavItem
-                href={creatorPath("programs/invitations")}
-                icon={UserPlus}
-                label="Invitations"
-                active={pathname.includes("invitations")}
-                badge={pendingInvites > 0 ? pendingInvites : undefined}
-              />
-            </>
-          ) : (
-            <>
-              <NavItem
-                href={creatorPath(`program/${currentCampaignId}`)}
-                icon={Home}
-                label="Overview"
-                active={pathname === creatorPath(`program/${currentCampaignId}`)}
-              />
-              <NavItem
-                href={creatorPath(`program/${currentCampaignId}/links`)}
-                icon={Link2}
-                label="Links"
-                active={pathname.endsWith("/links")}
-              />
-              <p className="text-[10px] font-medium text-ink-tertiary uppercase tracking-wider px-3 pt-3 pb-0.5">
-                Insights
-              </p>
-              <NavItem
-                href={creatorPath(`program/${currentCampaignId}/earnings`)}
-                icon={DollarSign}
-                label="Earnings"
-                active={pathname.endsWith("/earnings")}
-              />
-              <NavItem
-                href={creatorPath(`program/${currentCampaignId}/analytics`)}
-                icon={BarChart3}
-                label="Analytics"
-                active={pathname.endsWith("/analytics")}
-              />
-              <NavItem
-                href={creatorPath(`program/${currentCampaignId}/events`)}
-                icon={Zap}
-                label="Events"
-                active={pathname.endsWith("/events")}
-              />
-            </>
-          )}
-        </nav>
-
-        {/* Footer */}
-        <div className="border-t border-hairline p-2 space-y-0.5">
-          <NavItem
-            href={creatorPath("programs")}
-            icon={Megaphone}
-            label="Programs"
-            active={false}
-          />
-          <NavItem
-            href={creatorPath("payouts")}
-            icon={Wallet}
-            label="Earnings"
-            active={pathname.includes("/payouts")}
-          />
-          <NavItem
-            href={creatorPath("profile")}
-            icon={User}
-            label="Profile"
-            active={pathname.includes("/profile")}
-          />
-          <div className="border-t border-hairline mt-2 pt-2">
-            <SignOutButton>
-              <button className="flex items-center gap-3 px-3 py-1.5 text-[13px] text-ink-secondary hover:text-[#E5484D] hover:bg-[#FEF2F2] rounded-pill transition-colors duration-fast w-full">
-                <LogOut size={14} strokeWidth={1.5} />
-                Log out
-              </button>
-            </SignOutButton>
-          </div>
-        </div>
-      </aside>
-    </>
-  )
-}
-
-function BrandAvatar({ name, logo, size }: { name: string; logo: string | null; size: number }) {
-  if (logo) {
-    return (
-      <img
-        src={logo}
-        className="rounded-md object-cover shrink-0"
-        style={{ width: size, height: size }}
-        alt={name}
-      />
-    )
-  }
-  return (
-    <div
-      className="rounded-md bg-pink-fill flex items-center justify-center shrink-0"
-      style={{ width: size, height: size }}
-    >
-      <span
-        className="text-pink-deep font-medium"
-        style={{ fontSize: Math.max(8, Math.round(size * 0.44)) }}
-      >
-        {name[0]?.toUpperCase()}
-      </span>
-    </div>
-  )
 }
 
 function NavItem({
@@ -409,20 +35,100 @@ function NavItem({
           : "text-ink-secondary hover:text-ink hover:bg-surface-hover"
       }`}
     >
-      <Icon
-        size={14}
-        strokeWidth={1.5}
-        className={active ? "text-pink-deep" : "text-ink-tertiary"}
-      />
+      <Icon size={14} strokeWidth={1.5} className={active ? "text-pink-deep" : "text-ink-tertiary"} />
       <span className="flex-1">{label}</span>
-      {active && badge === undefined && (
-        <span className="kool-dot" style={{ width: 4, height: 4 }} />
-      )}
+      {active && badge === undefined && <span className="kool-dot" style={{ width: 4, height: 4 }} />}
       {badge !== undefined && (
-        <span className="text-[10px] font-medium bg-pink text-white px-1.5 py-0.5 rounded-full min-w-[18px] text-center font-mono tnum">
+        <span className="text-[10px] font-medium bg-pink text-white px-1.5 py-0.5 rounded-full min-w-[18px] text-center tnum">
           {badge}
         </span>
       )}
     </Link>
+  )
+}
+
+// ─── Mobile bottom nav ────────────────────────────────────────────────────────
+
+function MobileCreatorNav({ pathname, pendingInvites }: { pathname: string; pendingInvites: number }) {
+  const items = [
+    { href: creatorPath(""), label: "Overview", icon: Home, active: pathname === creatorPath("") || pathname === creatorPath("/") },
+    { href: creatorPath("links"), label: "Links", icon: Link2, active: pathname.includes("/links") && !pathname.includes("/program/") },
+    { href: creatorPath("programs/invitations"), label: "Invites", icon: UserPlus, active: pathname.includes("invitations"), badge: pendingInvites > 0 ? pendingInvites : undefined },
+    { href: creatorPath("earnings"), label: "Earnings", icon: Wallet, active: pathname.includes("/earnings") && !pathname.includes("/program/") },
+    { href: creatorPath("profile"), label: "Profile", icon: User, active: pathname.includes("/profile") },
+  ]
+
+  return (
+    <nav className="lg:hidden fixed bottom-0 inset-x-0 bg-white/90 backdrop-blur-xl shadow-[0_-1px_0_#F5F4F4] z-50 flex items-stretch pb-[env(safe-area-inset-bottom)]">
+      {items.map(({ href, label, icon: Icon, active, badge }) => (
+        <Link
+          key={href}
+          href={href}
+          className={`flex-1 flex flex-col items-center justify-center gap-1 py-2 relative transition-colors duration-fast ${active ? "text-ink" : "text-ink-tertiary"}`}
+        >
+          <Icon size={20} strokeWidth={1.5} className={active ? "text-pink" : "text-ink-tertiary"} />
+          <span className="text-[9px] font-medium">{label}</span>
+          {badge !== undefined && (
+            <span className="absolute top-1.5 right-[calc(50%-14px)] text-[9px] font-semibold bg-pink text-white rounded-full w-4 h-4 flex items-center justify-center">
+              {badge}
+            </span>
+          )}
+        </Link>
+      ))}
+    </nav>
+  )
+}
+
+// ─── Sidebar ─────────────────────────────────────────────────────────────────
+
+export function CreatorSidebar({ pendingInvites }: Props) {
+  const pathname = usePathname()
+
+  const isOverview = pathname === creatorPath("") || pathname === creatorPath("/")
+  const isLinks = pathname.includes("/links") && !pathname.includes("/program/")
+  const isInvites = pathname.includes("invitations")
+  const isEarnings = (pathname.includes("/earnings") || pathname.includes("/payouts")) && !pathname.includes("/program/")
+  const isProfile = pathname.includes("/profile")
+
+  return (
+    <>
+      <MobileCreatorNav pathname={pathname} pendingInvites={pendingInvites} />
+      <aside className="hidden lg:flex w-[220px] bg-surface flex-col h-full shrink-0">
+        {/* Logo */}
+        <div className="px-4 h-14 flex items-center">
+          <Link href={creatorPath("")} className="flex items-center gap-1">
+            <span className="text-[17px] font-medium tracking-[-0.03em] text-ink">kool</span>
+            <span className="kool-dot mb-0.5 ml-0.5" />
+          </Link>
+        </div>
+
+        {/* Nav */}
+        <nav className="flex-1 p-2 space-y-0.5 overflow-y-auto">
+          <NavItem href={creatorPath("")} icon={Home} label="Overview" active={isOverview} />
+          <NavItem href={creatorPath("links")} icon={Link2} label="Links" active={isLinks} />
+          <NavItem
+            href={creatorPath("programs/invitations")}
+            icon={UserPlus}
+            label="Invites"
+            active={isInvites}
+            badge={pendingInvites > 0 ? pendingInvites : undefined}
+          />
+          <NavItem href={creatorPath("earnings")} icon={Wallet} label="Earnings" active={isEarnings} />
+          <NavItem href={creatorPath("profile")} icon={User} label="Profile" active={isProfile} />
+        </nav>
+
+        {/* Footer */}
+        <div className="border-t border-hairline p-2">
+          <div className="border-t border-hairline pt-2">
+            <SignOutButton>
+              <button className="flex items-center gap-3 px-3 py-1.5 text-[13px] text-ink-secondary hover:text-[#E5484D] hover:bg-[#FEF2F2] rounded-pill transition-colors duration-fast w-full">
+                <LogOut size={14} strokeWidth={1.5} />
+                Log out
+              </button>
+            </SignOutButton>
+          </div>
+        </div>
+      </aside>
+    </>
   )
 }
