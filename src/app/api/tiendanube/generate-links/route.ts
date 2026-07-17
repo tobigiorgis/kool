@@ -6,6 +6,18 @@ import { getTiendanubeStore } from "@/lib/tiendanube"
 import { ok, fail, unauthorized, handleError } from "@/lib/api/response"
 import { logger } from "@/lib/logger"
 
+async function ensureUniqueSlug(base: string): Promise<string> {
+  let slug = base
+  let attempts = 0
+  while (attempts < 5) {
+    const existing = await prisma.link.findUnique({ where: { slug } })
+    if (!existing) return slug
+    slug = `${base.slice(0, 16)}-${Math.random().toString(36).slice(2, 6)}`
+    attempts++
+  }
+  return slug
+}
+
 export async function POST() {
   const { userId } = await auth()
   if (!userId) return unauthorized()
@@ -26,49 +38,13 @@ export async function POST() {
       return fail("Tiendanube no está conectado", 400)
     }
 
-    let storeUrl =
-      connection.storeUrl ||
-      (connection.storeDomain ? `https://${connection.storeDomain}` : null)
+    // Always fetch from TN API to get the current store URL
+    const accessToken = decrypt(connection.accessToken)
+    const store = await getTiendanubeStore(connection.storeId, accessToken)
+    const storeUrl = store.url || (store.main_domain ? `https://${store.main_domain}` : null)
 
     if (!storeUrl) {
-      // Fetch from Tiendanube API and cache for future use
-      logger.info("[generate-links] storeUrl/storeDomain null, fetching from TN API", "tn_fetch", {
-        storeId: connection.storeId,
-        hasAccessToken: !!connection.accessToken,
-        storeUrl: connection.storeUrl,
-        storeDomain: connection.storeDomain,
-      })
-      let tnError: string | null = null
-      try {
-        const accessToken = decrypt(connection.accessToken)
-        const store = await getTiendanubeStore(connection.storeId, accessToken)
-        logger.info("[generate-links] TN store fetched", "tn_store", { url: store.url, main_domain: store.main_domain })
-        const fetchedUrl = store.url || (store.main_domain ? `https://${store.main_domain}` : null)
-        const fetchedDomain = store.main_domain || null
-
-        if (fetchedUrl) {
-          storeUrl = fetchedUrl
-          await prisma.tiendanubeConnection.update({
-            where: { workspaceId },
-            data: {
-              storeUrl: store.url || undefined,
-              storeDomain: fetchedDomain || undefined,
-            },
-          })
-        }
-      } catch (err) {
-        tnError = err instanceof Error ? err.message : String(err)
-        logger.error("[generate-links] Failed to fetch store from TN API", err)
-      }
-
-      if (!storeUrl) {
-        return fail(
-          tnError
-            ? `Error al obtener la tienda: ${tnError}`
-            : "No se encontró la URL de la tienda. Reconectá Tiendanube.",
-          400
-        )
-      }
+      return fail("No se encontró la URL de la tienda en Tiendanube", 400)
     }
 
     const campaignCreators = await prisma.campaignCreator.findMany({
@@ -87,10 +63,7 @@ export async function POST() {
       if (existing) continue
 
       const base = slugify(cc.creator.name).slice(0, 20)
-      let slug = base
-      while (await prisma.link.findUnique({ where: { slug } })) {
-        slug = `${base.slice(0, 16)}-${Math.random().toString(36).slice(2, 6)}`
-      }
+      const slug = await ensureUniqueSlug(base)
 
       await prisma.link.create({
         data: {
