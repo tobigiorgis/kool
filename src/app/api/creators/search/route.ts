@@ -39,7 +39,6 @@ export async function GET(request: NextRequest) {
       inCampaignSet = new Set(existing.map((cc) => cc.creatorId))
     }
 
-    // Check which creators are already in this workspace
     let inWorkspaceEmails = new Set<string>()
     if (workspaceId && creatorsRaw.length > 0) {
       const existing = await prisma.creator.findMany({
