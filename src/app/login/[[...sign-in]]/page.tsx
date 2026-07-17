@@ -1,12 +1,18 @@
 "use client"
 
-import { useState } from "react"
+import { useSearchParams, useRouter } from "next/navigation"
 import { SignIn } from "@clerk/nextjs"
 import Link from "next/link"
 import { roleHomeUrl } from "@/lib/host"
 
 export default function LoginPage() {
-  const [role, setRole] = useState<"brand" | "creator">("brand")
+  const searchParams = useSearchParams()
+  const router = useRouter()
+  const role = searchParams.get("role") === "creator" ? "creator" : "brand"
+
+  const setRole = (r: "brand" | "creator") => {
+    router.replace(r === "creator" ? "/login?role=creator" : "/login")
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
