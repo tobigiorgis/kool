@@ -1001,9 +1001,17 @@ function CreatorRow({
 
   const createLink = async () => {
     setCreatingLink(true)
-    await fetch(`/api/tiendanube/generate-links`, { method: "POST" })
-    setCreatingLink(false)
-    onUpdated()
+    try {
+      const res = await fetch(`/api/tiendanube/generate-links`, { method: "POST" })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        alert(data.error ?? "No se pudo crear el link. Verificá que Tiendanube esté conectado.")
+        return
+      }
+      onUpdated()
+    } finally {
+      setCreatingLink(false)
+    }
   }
 
   const displayCommission = cc.commissionPct != null ? `${cc.commissionPct}%` : "—"
