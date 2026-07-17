@@ -37,6 +37,7 @@ import { Area, AreaChart, ResponsiveContainer, XAxis, YAxis, Tooltip } from "rec
 import { formatNumber, formatCurrency, formatDate, generateDiscountCode } from "@/lib/utils"
 import { buildShortUrl, shortUrlLabel } from "@/lib/links"
 import BountiesTab from "./BountiesTab"
+import { CreateLinkModal } from "@/components/CreateLinkModal"
 
 interface CampaignCreator {
   id: string
@@ -457,6 +458,7 @@ export default function CampaignDetailPage() {
       {tab === "creators" && (
         <CreatorsTab
           campaign={campaign}
+          workspaceId={campaign.workspaceId}
           links={campaign.links}
           onAdd={() => setShowAddCreators(true)}
           onRemove={removeCreator}
@@ -964,12 +966,14 @@ function OverviewTab({
 function CreatorRow({
   cc,
   campaignId,
+  workspaceId,
   links,
   onRemove,
   onUpdated,
 }: {
   cc: CampaignCreator
   campaignId: string
+  workspaceId: string
   links: CampaignLink[]
   onRemove: (id: string) => void
   onUpdated: () => void
@@ -978,7 +982,7 @@ function CreatorRow({
   const [commission, setCommission] = useState(cc.commissionPct?.toString() ?? "")
   const [discount, setDiscount] = useState(cc.discountCode ?? "")
   const [saving, setSaving] = useState(false)
-  const [creatingLink, setCreatingLink] = useState(false)
+  const [showLinkModal, setShowLinkModal] = useState(false)
 
   const creatorLink = links.find((l) => l.creatorId === cc.creator.id)
   const hasLink = !!creatorLink
@@ -997,21 +1001,6 @@ function CreatorRow({
     setSaving(false)
     setEditing(false)
     onUpdated()
-  }
-
-  const createLink = async () => {
-    setCreatingLink(true)
-    try {
-      const res = await fetch(`/api/tiendanube/generate-links`, { method: "POST" })
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}))
-        alert(data.error ?? "No se pudo crear el link. Verificá que Tiendanube esté conectado.")
-        return
-      }
-      onUpdated()
-    } finally {
-      setCreatingLink(false)
-    }
   }
 
   const displayCommission = cc.commissionPct != null ? `${cc.commissionPct}%` : "—"
@@ -1044,13 +1033,21 @@ function CreatorRow({
             </span>
           ) : (
             <button
-              onClick={createLink}
-              disabled={creatingLink}
-              className="flex items-center gap-1 text-xs text-gray-600 border border-gray-200 px-2 py-0.5 rounded-full hover:bg-gray-50 disabled:opacity-50 transition-colors"
+              onClick={() => setShowLinkModal(true)}
+              className="flex items-center gap-1 text-xs text-gray-600 border border-gray-200 px-2 py-0.5 rounded-full hover:bg-gray-50 transition-colors"
             >
               <Link2 size={11} />
-              {creatingLink ? "Creando..." : "Crear link"}
+              Crear link
             </button>
+          )}
+          {showLinkModal && (
+            <CreateLinkModal
+              workspaceId={workspaceId}
+              defaultCampaignId={campaignId}
+              defaultCreatorId={cc.creator.id}
+              onClose={() => setShowLinkModal(false)}
+              onCreated={() => { setShowLinkModal(false); onUpdated() }}
+            />
           )}
         </td>
         <td className="px-6 py-4">
@@ -1125,12 +1122,14 @@ function CreatorRow({
 
 function CreatorsTab({
   campaign,
+  workspaceId,
   links,
   onAdd,
   onRemove,
   onRefresh,
 }: {
   campaign: CampaignDetail
+  workspaceId: string
   links: CampaignLink[]
   onAdd: () => void
   onRemove: (id: string) => void
@@ -1178,6 +1177,7 @@ function CreatorsTab({
                   key={cc.id}
                   cc={cc}
                   campaignId={campaign.id}
+                  workspaceId={workspaceId}
                   links={links}
                   onRemove={onRemove}
                   onUpdated={onRefresh}
