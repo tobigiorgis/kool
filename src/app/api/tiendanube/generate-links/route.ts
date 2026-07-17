@@ -22,11 +22,17 @@ export async function POST() {
     const connection = await prisma.tiendanubeConnection.findUnique({
       where: { workspaceId },
     })
-    if (!connection?.active || !connection.storeUrl) {
-      return fail("Tiendanube no conectado o sin storeUrl", 400)
+    if (!connection?.active) {
+      return fail("Tiendanube no está conectado", 400)
     }
 
-    const storeUrl = connection.storeUrl
+    const storeUrl =
+      connection.storeUrl ||
+      (connection.storeDomain ? `https://${connection.storeDomain}` : null)
+
+    if (!storeUrl) {
+      return fail("No se encontró la URL de la tienda. Reconectá Tiendanube.", 400)
+    }
 
     const campaignCreators = await prisma.campaignCreator.findMany({
       where: { campaign: { workspaceId } },

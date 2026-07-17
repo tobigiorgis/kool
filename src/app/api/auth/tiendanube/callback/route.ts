@@ -108,9 +108,10 @@ export async function GET(request: NextRequest) {
     logger.info("[Tiendanube OAuth] DB saved OK", "db_saved")
 
     // 4. Crear links para creators existentes sin link (after response)
-    if (store.url) {
+    const callbackStoreUrl = store.url || (store.main_domain ? `https://${store.main_domain}` : null)
+    if (callbackStoreUrl) {
       const _workspaceId = workspaceId
-      const _storeUrl = store.url
+      const _storeUrl = callbackStoreUrl
       after(async () => {
         await generateMissingLinks(_workspaceId, _storeUrl).catch((err) =>
           logger.error("[Tiendanube OAuth] generateMissingLinks failed", err)
