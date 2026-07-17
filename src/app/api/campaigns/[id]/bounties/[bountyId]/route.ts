@@ -20,10 +20,20 @@ async function getBountyWithAccess(campaignId: string, bountyId: string, userId:
   return { bounty }
 }
 
+const TierSchema = z.object({
+  threshold: z.number().positive(),
+  rewardType: z.enum(["CASH", "PRODUCT", "CUSTOM"]),
+  rewardValue: z.number().nullable().optional(),
+  rewardProductName: z.string().nullable().optional(),
+  rewardDescription: z.string().nullable().optional(),
+})
+
 const UpdateBountySchema = z.object({
   name: z.string().min(1).optional(),
   description: z.string().nullable().optional(),
   status: z.enum(["ACTIVE", "PAUSED", "ENDED"]).optional(),
+  metric: z.enum(["SALES", "REVENUE"]).optional(),
+  tiers: z.array(TierSchema).optional(),
 })
 
 export async function PATCH(
@@ -43,11 +53,28 @@ export async function PATCH(
     const body = await request.json()
     const data = UpdateBountySchema.parse(body)
 
+    const { tiers, ...bountyData } = data
+
     const updated = await prisma.bounty.update({
       where: { id: bountyId },
-      data,
+      data: bountyData,
       include: { tiers: { orderBy: { threshold: "asc" } } },
     })
+
+    if (tiers) {
+      await prisma.bountyTier.deleteMany({ where: { bountyId } })
+      await prisma.bountyTier.createMany({
+        data: tiers.map((t, i) => ({
+          bountyId,
+          threshold: t.threshold,
+          rewardType: t.rewardType,
+          rewardValue: t.rewardValue ?? null,
+          rewardProductName: t.rewardProductName ?? null,
+          rewardDescription: t.rewardDescription ?? null,
+          order: i,
+        })),
+      })
+    }
 
     return ok({ bounty: updated })
   } catch (error) {

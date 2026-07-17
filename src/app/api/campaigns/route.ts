@@ -130,10 +130,19 @@ export async function GET(request: NextRequest) {
   if (!workspaceId) return badRequest("Missing workspaceId")
 
   try {
+    const includeCreators = request.nextUrl.searchParams.get("includeCreators") === "true"
+
     const campaigns = await prisma.campaign.findMany({
       where: { workspaceId },
       include: {
         _count: { select: { creators: true, links: true, applications: true } },
+        ...(includeCreators
+          ? {
+              creators: {
+                include: { creator: { select: { id: true, name: true, email: true } } },
+              },
+            }
+          : {}),
       },
       orderBy: { createdAt: "desc" },
     })

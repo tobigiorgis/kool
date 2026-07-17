@@ -15,6 +15,7 @@ import {
   Play,
   Flag,
   ChevronDown,
+  Pencil,
 } from "lucide-react"
 import { formatCurrency } from "@/lib/utils"
 
@@ -95,6 +96,7 @@ export default function BountiesTab({ campaignId }: { campaignId: string }) {
   const [bounties, setBounties] = useState<Bounty[]>([])
   const [loading, setLoading] = useState(true)
   const [showCreate, setShowCreate] = useState(false)
+  const [editingBounty, setEditingBounty] = useState<Bounty | null>(null)
 
   const load = useCallback(() => {
     setLoading(true)
@@ -145,19 +147,25 @@ export default function BountiesTab({ campaignId }: { campaignId: string }) {
       ) : (
         <div className="space-y-3">
           {bounties.map((b) => (
-            <BountyCard key={b.id} bounty={b} campaignId={campaignId} onChange={load} />
+            <BountyCard key={b.id} bounty={b} campaignId={campaignId} onChange={load} onEdit={setEditingBounty} />
           ))}
         </div>
       )}
 
       {showCreate && (
-        <CreateBountyModal
+        <BountyModal
           campaignId={campaignId}
           onClose={() => setShowCreate(false)}
-          onCreated={() => {
-            setShowCreate(false)
-            load()
-          }}
+          onSaved={() => { setShowCreate(false); load() }}
+        />
+      )}
+
+      {editingBounty && (
+        <BountyModal
+          campaignId={campaignId}
+          bounty={editingBounty}
+          onClose={() => setEditingBounty(null)}
+          onSaved={() => { setEditingBounty(null); load() }}
         />
       )}
     </div>
@@ -170,10 +178,12 @@ function BountyCard({
   bounty,
   campaignId,
   onChange,
+  onEdit,
 }: {
   bounty: Bounty
   campaignId: string
   onChange: () => void
+  onEdit: (b: Bounty) => void
 }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -256,6 +266,7 @@ function BountyCard({
             <>
               <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(false)} />
               <div className="absolute right-0 top-8 z-20 bg-white border border-gray-100 rounded-xl shadow-lg py-1 w-44">
+                <MenuItem icon={Pencil} label="Editar" onClick={() => { setMenuOpen(false); onEdit(bounty) }} />
                 {bounty.status !== "ACTIVE" && (
                   <MenuItem
                     icon={Play}
@@ -411,19 +422,32 @@ const emptyTier = (): DraftTier => ({
   rewardDescription: "",
 })
 
-function CreateBountyModal({
+function BountyModal({
   campaignId,
+  bounty,
   onClose,
-  onCreated,
+  onSaved,
 }: {
   campaignId: string
+  bounty?: Bounty
   onClose: () => void
-  onCreated: () => void
+  onSaved: () => void
 }) {
-  const [name, setName] = useState("")
-  const [description, setDescription] = useState("")
-  const [metric, setMetric] = useState<Metric>("SALES")
-  const [tiers, setTiers] = useState<DraftTier[]>([emptyTier()])
+  const isEdit = !!bounty
+  const [name, setName] = useState(bounty?.name ?? "")
+  const [description, setDescription] = useState(bounty?.description ?? "")
+  const [metric, setMetric] = useState<Metric>(bounty?.metric ?? "SALES")
+  const [tiers, setTiers] = useState<DraftTier[]>(
+    bounty?.tiers.length
+      ? bounty.tiers.map((t) => ({
+          threshold: t.threshold.toString(),
+          rewardType: t.rewardType,
+          rewardValue: t.rewardValue?.toString() ?? "",
+          rewardProductName: t.rewardProductName ?? "",
+          rewardDescription: t.rewardDescription ?? "",
+        }))
+      : [emptyTier()]
+  )
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
 
@@ -459,16 +483,16 @@ function CreateBountyModal({
 
     setLoading(true)
     try {
-      const res = await fetch(`/api/campaigns/${campaignId}/bounties`, {
-        method: "POST",
+      const url = isEdit
+        ? `/api/campaigns/${campaignId}/bounties/${bounty!.id}`
+        : `/api/campaigns/${campaignId}/bounties`
+      const res = await fetch(url, {
+        method: isEdit ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name, description: description || null, metric, tiers: built }),
       })
-      if (!res.ok) {
-        setError("No se pudo crear el bounty.")
-        return
-      }
-      onCreated()
+      if (!res.ok) { setError("No se pudo guardar el bounty."); return }
+      onSaved()
     } finally {
       setLoading(false)
     }
@@ -478,7 +502,7 @@ function CreateBountyModal({
     <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
         <div className="px-6 py-5 border-b border-gray-100 flex items-center justify-between">
-          <h2 className="text-base font-semibold text-gray-900">Nuevo bounty</h2>
+          <h2 className="text-base font-semibold text-gray-900">{isEdit ? "Editar bounty" : "Nuevo bounty"}</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
             <X size={18} />
           </button>
@@ -627,7 +651,7 @@ function CreateBountyModal({
             className="flex items-center gap-1.5 text-[13px] font-medium text-white bg-brand-500 px-4 py-2 rounded-lg hover:bg-brand-600 transition-colors disabled:opacity-50"
           >
             {loading ? <RefreshCw size={14} className="animate-spin" /> : <Trophy size={14} />}
-            Crear bounty
+            {isEdit ? "Guardar cambios" : "Crear bounty"}
           </button>
         </div>
       </div>

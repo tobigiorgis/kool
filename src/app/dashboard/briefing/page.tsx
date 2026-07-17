@@ -9,6 +9,12 @@ interface Creator {
   email: string
 }
 
+interface Campaign {
+  id: string
+  name: string
+  creators: { creator: Creator }[]
+}
+
 interface BriefingAsset {
   name: string
   url: string
@@ -32,6 +38,7 @@ interface Briefing {
 export default function BriefingPage() {
   const [briefings, setBriefings] = useState<Briefing[]>([])
   const [workspaceId, setWorkspaceId] = useState<string | null>(null)
+  const [campaigns, setCampaigns] = useState<Campaign[]>([])
   const [showCreate, setShowCreate] = useState(false)
   const [editingBriefing, setEditingBriefing] = useState<Briefing | null>(null)
   const [loading, setLoading] = useState(true)
@@ -45,11 +52,12 @@ export default function BriefingPage() {
       if (!workspace) return
 
       setWorkspaceId(workspace.id)
-      const res = await fetch(`/api/briefing?workspaceId=${workspace.id}`)
-      if (res.ok) {
-        const data = await res.json()
-        setBriefings(data.briefings)
-      }
+      const [briefRes, campRes] = await Promise.all([
+        fetch(`/api/briefing?workspaceId=${workspace.id}`),
+        fetch(`/api/campaigns?workspaceId=${workspace.id}&includeCreators=true`),
+      ])
+      if (briefRes.ok) setBriefings((await briefRes.json()).briefings)
+      if (campRes.ok) setCampaigns((await campRes.json()).campaigns ?? [])
     } finally {
       setLoading(false)
     }
@@ -167,6 +175,7 @@ export default function BriefingPage() {
       {showCreate && workspaceId && (
         <BriefingModal
           workspaceId={workspaceId}
+          campaigns={campaigns}
           onClose={() => setShowCreate(false)}
           onSaved={loadData}
         />
@@ -175,6 +184,7 @@ export default function BriefingPage() {
       {editingBriefing && workspaceId && (
         <BriefingModal
           workspaceId={workspaceId}
+          campaigns={campaigns}
           briefing={editingBriefing}
           onClose={() => setEditingBriefing(null)}
           onSaved={() => { loadData(); setEditingBriefing(null) }}
@@ -190,11 +200,13 @@ export default function BriefingPage() {
 
 function BriefingModal({
   workspaceId,
+  campaigns,
   briefing,
   onClose,
   onSaved,
 }: {
-  workspaceId: string   // workspaceId para create, briefing.id para edit (no se usa en edit)
+  workspaceId: string
+  campaigns: Campaign[]
   briefing?: Briefing
   onClose: () => void
   onSaved: () => void
@@ -203,27 +215,28 @@ function BriefingModal({
 
   const [form, setForm] = useState({
     subject: briefing?.subject ?? "",
-    campaignName: briefing?.campaignName ?? "",
     startDate: briefing?.startDate ? briefing.startDate.slice(0, 10) : "",
     endDate: briefing?.endDate ? briefing.endDate.slice(0, 10) : "",
     body: briefing?.body ?? "",
   })
+  const [selectedCampaignId, setSelectedCampaignId] = useState<string>("")
   const [assets, setAssets] = useState<BriefingAsset[]>(briefing?.assets ?? [])
   const [uploading, setUploading] = useState(false)
-  const [creators, setCreators] = useState<Creator[]>([])
   const [selectedCreators, setSelectedCreators] = useState<string[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
   const fileInputRef = useRef<HTMLInputElement>(null)
 
+  const selectedCampaign = campaigns.find((c) => c.id === selectedCampaignId) ?? null
+
+  // Auto-select all creators of the chosen campaign
   useEffect(() => {
-    if (!isEdit && workspaceId) {
-      fetch(`/api/creators?workspaceId=${workspaceId}`)
-        .then((r) => r.json())
-        .then((d) => setCreators(d.creators ?? []))
-        .catch(() => {})
+    if (selectedCampaign) {
+      setSelectedCreators(selectedCampaign.creators.map((cc) => cc.creator.id))
+    } else {
+      setSelectedCreators([])
     }
-  }, [workspaceId, isEdit])
+  }, [selectedCampaignId])
 
   const toggleCreator = (id: string) =>
     setSelectedCreators((prev) => prev.includes(id) ? prev.filter((c) => c !== id) : [...prev, id])
@@ -286,7 +299,8 @@ function BriefingModal({
           body: JSON.stringify({
             workspaceId,
             subject: form.subject,
-            campaignName: form.campaignName || undefined,
+            campaignId: selectedCampaignId || undefined,
+            campaignName: selectedCampaign?.name || undefined,
             startDate: form.startDate || undefined,
             endDate: form.endDate || undefined,
             body: form.body,
@@ -317,28 +331,32 @@ function BriefingModal({
         </div>
 
         <div className="p-6 space-y-4 overflow-y-auto flex-1">
-          <div className="grid grid-cols-2 gap-3">
+          {!isEdit && (
             <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1.5">Nombre de campaña</label>
-              <input
-                type="text"
-                value={form.campaignName}
-                onChange={(e) => setForm((f) => ({ ...f, campaignName: e.target.value }))}
-                placeholder="Invierno 2026"
-                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400"
-              />
+              <label className="block text-xs font-medium text-gray-700 mb-1.5">Campaña *</label>
+              <select
+                value={selectedCampaignId}
+                onChange={(e) => setSelectedCampaignId(e.target.value)}
+                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400 bg-white"
+              >
+                <option value="">Seleccioná una campaña</option>
+                {campaigns.map((c) => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
             </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1.5">Asunto del email *</label>
-              <input
-                type="text"
-                value={form.subject}
-                onChange={(e) => setForm((f) => ({ ...f, subject: e.target.value }))}
-                placeholder="Brief: Campaña Invierno 2026"
-                required
-                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400"
-              />
-            </div>
+          )}
+
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1.5">Asunto del email *</label>
+            <input
+              type="text"
+              value={form.subject}
+              onChange={(e) => setForm((f) => ({ ...f, subject: e.target.value }))}
+              placeholder="Brief: Campaña Invierno 2026"
+              required
+              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400"
+            />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
@@ -425,14 +443,31 @@ function BriefingModal({
           </div>
 
           {/* Destinatarios (solo en creación) */}
-          {!isEdit && (
+          {!isEdit && selectedCampaign && (
             <div>
-              <label className="block text-xs font-medium text-gray-700 mb-2">Destinatarios</label>
-              {creators.length === 0 ? (
-                <p className="text-xs text-gray-400">No hay creators disponibles todavía.</p>
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-xs font-medium text-gray-700">
+                  Destinatarios ({selectedCampaign.creators.length} creators en esta campaña)
+                </label>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setSelectedCreators(
+                      selectedCreators.length === selectedCampaign.creators.length
+                        ? []
+                        : selectedCampaign.creators.map((cc) => cc.creator.id)
+                    )
+                  }
+                  className="text-xs text-brand-600 hover:underline"
+                >
+                  {selectedCreators.length === selectedCampaign.creators.length ? "Deseleccionar todos" : "Seleccionar todos"}
+                </button>
+              </div>
+              {selectedCampaign.creators.length === 0 ? (
+                <p className="text-xs text-gray-400">Esta campaña no tiene creators todavía.</p>
               ) : (
                 <div className="space-y-2">
-                  {creators.map((c) => (
+                  {selectedCampaign.creators.map(({ creator: c }) => (
                     <label
                       key={c.id}
                       className={`flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition-colors ${
@@ -444,7 +479,11 @@ function BriefingModal({
                       <input
                         type="checkbox"
                         checked={selectedCreators.includes(c.id)}
-                        onChange={() => toggleCreator(c.id)}
+                        onChange={() =>
+                          setSelectedCreators((prev) =>
+                            prev.includes(c.id) ? prev.filter((x) => x !== c.id) : [...prev, c.id]
+                          )
+                        }
                         className="rounded text-brand-400"
                       />
                       <div>
@@ -487,7 +526,7 @@ function BriefingModal({
               </button>
               <button
                 onClick={(e) => handleSubmit(e, true)}
-                disabled={loading || selectedCreators.length === 0 || !form.subject || !form.body}
+                disabled={loading || !selectedCampaignId || selectedCreators.length === 0 || !form.subject || !form.body}
                 className="flex-1 flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium bg-brand-400 text-white rounded-lg hover:bg-brand-500 disabled:opacity-50"
               >
                 <Send size={14} />
