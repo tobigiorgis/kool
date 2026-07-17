@@ -284,7 +284,7 @@ function BriefingModal({
           body: JSON.stringify({
             subject: form.subject,
             body: form.body,
-            campaignName: form.campaignName || undefined,
+            campaignName: briefing?.campaignName || undefined,
             startDate: form.startDate || undefined,
             endDate: form.endDate || undefined,
             assets,
