@@ -22,7 +22,7 @@ export const env = createEnv({
     TINYBIRD_API_KEY: z.string().min(1).optional(),
     TINYBIRD_BASE_URL: z.string().url().default("https://api.tinybird.co"),
     // Opcionales — features que no todos los entornos usan.
-    BLOB_READ_WRITE_TOKEN: z.string().optional(),
+    BRIEFDOCS_READ_WRITE_TOKEN: z.string().optional(),
     WEBHOOK_SECRET: z.string().optional(),
   },
   client: {
@@ -47,7 +47,7 @@ export const env = createEnv({
     TIENDANUBE_REDIRECT_URI: process.env.TIENDANUBE_REDIRECT_URI,
     TINYBIRD_API_KEY: process.env.TINYBIRD_API_KEY,
     TINYBIRD_BASE_URL: process.env.TINYBIRD_BASE_URL,
-    BLOB_READ_WRITE_TOKEN: process.env.BLOB_READ_WRITE_TOKEN,
+    BRIEFDOCS_READ_WRITE_TOKEN: process.env.BRIEFDOCS_READ_WRITE_TOKEN,
     WEBHOOK_SECRET: process.env.WEBHOOK_SECRET,
     NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
     NEXT_PUBLIC_SHORT_DOMAIN: process.env.NEXT_PUBLIC_SHORT_DOMAIN,
