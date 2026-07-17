@@ -276,7 +276,7 @@ model Creator {
   
   // Código de descuento asignado
   discountCode String?      // ej: "CAMILA15"
-  commissionPct Float       @default(10) // % de comisión
+  commissionPct Float?      // % de comisión (null = sin comisión configurada)
   
   // Nombre dividido (para invites)
   firstName    String?

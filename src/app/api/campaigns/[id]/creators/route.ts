@@ -135,7 +135,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
             firstName: data.firstName,
             lastName: data.lastName,
             email: data.email,
-            commissionPct: data.commissionPct ?? 10,
+            commissionPct: data.commissionPct ?? null,
             discountCode,
             status: "PENDING",
             inviteToken,
@@ -201,7 +201,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
           await createTiendanubeCoupon(connection.storeId, accessToken, {
             code: discountCode,
             type: "percentage",
-            value: data.commissionPct ?? 10,
+            value: data.commissionPct ?? 0,
             valid: true,
           })
         } catch (error) {
@@ -399,7 +399,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
           await createTiendanubeCoupon(connection.storeId, accessToken, {
             code: data.discountCode,
             type: "percentage",
-            value: data.commissionPct ?? cc.commissionPct ?? 10,
+            value: data.commissionPct ?? cc.commissionPct ?? 0,
             valid: true,
           })
         } catch (error) {

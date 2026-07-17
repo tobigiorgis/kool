@@ -144,24 +144,28 @@ export default async function ProgramOverviewPage({
           )}
 
           {/* Rewards */}
-          <div>
-            <p className="text-[11px] font-medium text-gray-400 uppercase tracking-wide mb-1.5">
-              Rewards
-            </p>
-            <div className="space-y-1.5">
-              <div className="flex items-center gap-2 text-[13px] text-gray-700">
-                <DollarSign size={13} className="text-gray-400" />
-                {commissionPct}% por venta
+          {(commissionPct !== null || discountCode) && (
+            <div>
+              <p className="text-[11px] font-medium text-gray-400 uppercase tracking-wide mb-1.5">
+                Rewards
+              </p>
+              <div className="space-y-1.5">
+                {commissionPct !== null && (
+                  <div className="flex items-center gap-2 text-[13px] text-gray-700">
+                    <DollarSign size={13} className="text-gray-400" />
+                    {commissionPct}% por venta
+                  </div>
+                )}
+                {discountCode && (
+                  <div className="flex items-center gap-2 text-[13px] text-gray-700">
+                    <Tag size={13} className="text-gray-400" />
+                    Tus seguidores obtienen descuento con código{" "}
+                    <span className="font-mono font-semibold">{discountCode}</span>
+                  </div>
+                )}
               </div>
-              {discountCode && (
-                <div className="flex items-center gap-2 text-[13px] text-gray-700">
-                  <Tag size={13} className="text-gray-400" />
-                  Tus seguidores obtienen descuento con código{" "}
-                  <span className="font-mono font-semibold">{discountCode}</span>
-                </div>
-              )}
             </div>
-          </div>
+          )}
         </div>
       </div>
 

@@ -459,6 +459,7 @@ export default function CampaignDetailPage() {
           campaign={campaign}
           onAdd={() => setShowAddCreators(true)}
           onRemove={removeCreator}
+          onRefresh={loadData}
         />
       )}
 
@@ -959,14 +960,141 @@ function OverviewTab({
   )
 }
 
+function CreatorRow({
+  cc,
+  campaignId,
+  onRemove,
+  onUpdated,
+}: {
+  cc: CampaignCreator
+  campaignId: string
+  onRemove: (id: string) => void
+  onUpdated: () => void
+}) {
+  const [editing, setEditing] = useState(false)
+  const [commission, setCommission] = useState(cc.commissionPct?.toString() ?? "")
+  const [discount, setDiscount] = useState(cc.discountCode ?? "")
+  const [saving, setSaving] = useState(false)
+
+  const save = async () => {
+    setSaving(true)
+    await fetch(`/api/campaigns/${campaignId}/creators`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        creatorId: cc.creator.id,
+        commissionPct: commission !== "" ? parseFloat(commission) : null,
+        discountCode: discount || null,
+      }),
+    })
+    setSaving(false)
+    setEditing(false)
+    onUpdated()
+  }
+
+  const displayCommission = cc.commissionPct != null ? `${cc.commissionPct}%` : "—"
+  const displayDiscount = cc.discountCode || cc.creator.discountCode || "—"
+
+  return (
+    <>
+      <tr className="hover:bg-gray-50">
+        <td className="px-6 py-4">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-full bg-brand-100 flex items-center justify-center text-brand-700 text-xs font-semibold">
+              {cc.creator.name.split(" ").map((n) => n[0]).join("").slice(0, 2)}
+            </div>
+            <div>
+              <p className="text-sm font-medium text-gray-900">{cc.creator.name}</p>
+              <p className="text-xs text-gray-400">{cc.creator.email}</p>
+            </div>
+          </div>
+        </td>
+        <td className="px-6 py-4">
+          <span className="font-mono text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded">
+            {displayDiscount}
+          </span>
+        </td>
+        <td className="px-6 py-4 text-sm text-gray-700">{displayCommission}</td>
+        <td className="px-6 py-4">
+          <div className="flex items-center gap-1 justify-end">
+            <button
+              onClick={() => setEditing(!editing)}
+              className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+              title="Editar condiciones"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+              </svg>
+            </button>
+            <button
+              onClick={() => onRemove(cc.creator.id)}
+              className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+              title="Quitar de la campaña"
+            >
+              <Trash2 size={14} />
+            </button>
+          </div>
+        </td>
+      </tr>
+      {editing && (
+        <tr className="bg-gray-50 border-t border-gray-100">
+          <td colSpan={4} className="px-6 py-4">
+            <div className="flex items-end gap-3">
+              <div>
+                <label className="block text-[11px] font-medium text-gray-500 mb-1">Comisión (%)</label>
+                <input
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="0.5"
+                  value={commission}
+                  onChange={(e) => setCommission(e.target.value)}
+                  placeholder="Sin comisión"
+                  className="w-32 text-sm border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] font-medium text-gray-500 mb-1">Código de descuento</label>
+                <input
+                  type="text"
+                  value={discount}
+                  onChange={(e) => setDiscount(e.target.value.toUpperCase())}
+                  placeholder="Sin código"
+                  className="w-40 text-sm font-mono border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                />
+              </div>
+              <button
+                onClick={save}
+                disabled={saving}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-900 text-white text-[13px] font-medium rounded-lg hover:bg-gray-700 transition-colors disabled:opacity-50"
+              >
+                {saving ? "Guardando..." : "Guardar"}
+              </button>
+              <button
+                onClick={() => setEditing(false)}
+                className="text-[13px] text-gray-400 hover:text-gray-600"
+              >
+                Cancelar
+              </button>
+            </div>
+          </td>
+        </tr>
+      )}
+    </>
+  )
+}
+
 function CreatorsTab({
   campaign,
   onAdd,
   onRemove,
+  onRefresh,
 }: {
   campaign: CampaignDetail
   onAdd: () => void
   onRemove: (id: string) => void
+  onRefresh: () => void
 }) {
   return (
     <div>
@@ -1005,40 +1133,13 @@ function CreatorsTab({
             </thead>
             <tbody className="divide-y divide-gray-50">
               {campaign.creators.map((cc) => (
-                <tr key={cc.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-brand-100 flex items-center justify-center text-brand-700 text-xs font-semibold">
-                        {cc.creator.name
-                          .split(" ")
-                          .map((n) => n[0])
-                          .join("")
-                          .slice(0, 2)}
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-gray-900">{cc.creator.name}</p>
-                        <p className="text-xs text-gray-400">{cc.creator.email}</p>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className="font-mono text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded">
-                      {cc.discountCode || cc.creator.discountCode || "—"}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-700">
-                    {cc.commissionPct ?? cc.creator.commissionPct}%
-                  </td>
-                  <td className="px-6 py-4">
-                    <button
-                      onClick={() => onRemove(cc.creator.id)}
-                      className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                      title="Quitar de la campaña"
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  </td>
-                </tr>
+                <CreatorRow
+                  key={cc.id}
+                  cc={cc}
+                  campaignId={campaign.id}
+                  onRemove={onRemove}
+                  onUpdated={onRefresh}
+                />
               ))}
             </tbody>
           </table>
