@@ -3,7 +3,7 @@
  * GET /api/auth/tiendanube/callback?code=XXX&state=YYY
  */
 
-import { NextRequest, NextResponse } from "next/server"
+import { NextRequest, NextResponse, after } from "next/server"
 import { auth } from "@clerk/nextjs/server"
 import { prisma } from "@/lib/prisma"
 import {
@@ -107,11 +107,15 @@ export async function GET(request: NextRequest) {
     })
     logger.info("[Tiendanube OAuth] DB saved OK", "db_saved")
 
-    // 4. Crear links para creators existentes sin link
+    // 4. Crear links para creators existentes sin link (after response)
     if (store.url) {
-      void generateMissingLinks(workspaceId, store.url).catch((err) =>
-        logger.error("[Tiendanube OAuth] generateMissingLinks failed", err)
-      )
+      const _workspaceId = workspaceId
+      const _storeUrl = store.url
+      after(async () => {
+        await generateMissingLinks(_workspaceId, _storeUrl).catch((err) =>
+          logger.error("[Tiendanube OAuth] generateMissingLinks failed", err)
+        )
+      })
     }
 
     // 5. Registrar webhooks
