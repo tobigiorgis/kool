@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
   const url = request.nextUrl.searchParams.get("url")
   if (!url) return NextResponse.json({ error: "Missing url" }, { status: 400 })
 
-  const token = env.BRIEF_READ_WRITE_TOKEN
+  const token = env.BLOB_READ_WRITE_TOKEN
   if (!token) return NextResponse.json({ error: "Storage not configured" }, { status: 500 })
 
   try {
