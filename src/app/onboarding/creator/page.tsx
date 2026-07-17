@@ -66,6 +66,11 @@ function CreatorOnboardingForm() {
           setLoadError(d.error)
           return
         }
+        // Already activated — send them straight to their panel
+        if (d.creator.profileCompleted) {
+          window.location.href = creatorUrl("")
+          return
+        }
         setCreator(d.creator)
         setForm((f) => ({
           ...f,

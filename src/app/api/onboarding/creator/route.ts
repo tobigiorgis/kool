@@ -26,6 +26,7 @@ export async function GET(request: NextRequest) {
         discountCode: true,
         commissionPct: true,
         status: true,
+        profileCompleted: true,
         workspace: { select: { name: true, brandLogo: true } },
       },
     })
