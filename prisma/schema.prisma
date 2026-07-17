@@ -518,6 +518,7 @@ model Bounty {
   metric      BountyMetric @default(SALES) // SALES (cantidad) | REVENUE (monto)
 
   status      BountyStatus @default(ACTIVE)
+  endDate     DateTime?
 
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt

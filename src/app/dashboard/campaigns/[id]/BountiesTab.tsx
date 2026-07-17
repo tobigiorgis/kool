@@ -16,6 +16,7 @@ import {
   Flag,
   ChevronDown,
   Pencil,
+  Calendar,
 } from "lucide-react"
 import { formatCurrency } from "@/lib/utils"
 
@@ -52,6 +53,7 @@ interface Bounty {
   description: string | null
   metric: Metric
   status: BountyStatus
+  endDate: string | null
   tiers: Tier[]
   achievements: Achievement[]
 }
@@ -251,6 +253,12 @@ function BountyCard({
             {bounty.description && (
               <p className="text-xs text-gray-400 mt-0.5">{bounty.description}</p>
             )}
+            {bounty.endDate && (
+              <p className="flex items-center gap-1 text-[11px] text-gray-400 mt-0.5">
+                <Calendar size={11} />
+                Vence {new Date(bounty.endDate).toLocaleDateString("es-AR", { day: "numeric", month: "short", year: "numeric" })}
+              </p>
+            )}
           </div>
         </div>
 
@@ -437,6 +445,9 @@ function BountyModal({
   const [name, setName] = useState(bounty?.name ?? "")
   const [description, setDescription] = useState(bounty?.description ?? "")
   const [metric, setMetric] = useState<Metric>(bounty?.metric ?? "SALES")
+  const [endDate, setEndDate] = useState(
+    bounty?.endDate ? new Date(bounty.endDate).toISOString().split("T")[0] : ""
+  )
   const [tiers, setTiers] = useState<DraftTier[]>(
     bounty?.tiers.length
       ? bounty.tiers.map((t) => ({
@@ -489,7 +500,7 @@ function BountyModal({
       const res = await fetch(url, {
         method: isEdit ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, description: description || null, metric, tiers: built }),
+        body: JSON.stringify({ name, description: description || null, metric, endDate: endDate || null, tiers: built }),
       })
       if (!res.ok) { setError("No se pudo guardar el bounty."); return }
       onSaved()
@@ -526,6 +537,18 @@ function BountyModal({
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Opcional"
+              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1.5">
+              Fecha de finalización <span className="text-gray-400 font-normal">(opcional)</span>
+            </label>
+            <input
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
               className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400"
             />
           </div>

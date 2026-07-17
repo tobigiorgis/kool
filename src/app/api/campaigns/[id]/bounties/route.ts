@@ -60,6 +60,7 @@ const CreateBountySchema = z.object({
   name: z.string().min(1),
   description: z.string().nullable().optional(),
   metric: z.enum(["SALES", "REVENUE"]).default("SALES"),
+  endDate: z.string().nullable().optional(),
   tiers: z.array(TierSchema).min(1),
 })
 
@@ -83,6 +84,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         name: data.name,
         description: data.description ?? null,
         metric: data.metric,
+        endDate: data.endDate ? new Date(data.endDate) : null,
         tiers: {
           create: data.tiers
             .slice()

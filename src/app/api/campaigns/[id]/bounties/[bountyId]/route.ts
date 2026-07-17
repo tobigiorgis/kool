@@ -33,6 +33,7 @@ const UpdateBountySchema = z.object({
   description: z.string().nullable().optional(),
   status: z.enum(["ACTIVE", "PAUSED", "ENDED"]).optional(),
   metric: z.enum(["SALES", "REVENUE"]).optional(),
+  endDate: z.string().nullable().optional(),
   tiers: z.array(TierSchema).optional(),
 })
 
@@ -53,11 +54,14 @@ export async function PATCH(
     const body = await request.json()
     const data = UpdateBountySchema.parse(body)
 
-    const { tiers, ...bountyData } = data
+    const { tiers, endDate, ...bountyData } = data
 
     const updated = await prisma.bounty.update({
       where: { id: bountyId },
-      data: bountyData,
+      data: {
+        ...bountyData,
+        endDate: endDate !== undefined ? (endDate ? new Date(endDate) : null) : undefined,
+      },
       include: { tiers: { orderBy: { threshold: "asc" } } },
     })
 
