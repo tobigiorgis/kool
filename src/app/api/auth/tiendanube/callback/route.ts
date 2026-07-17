@@ -12,6 +12,7 @@ import {
   registerTiendanubeWebhooks,
 } from "@/lib/tiendanube"
 import { encrypt } from "@/lib/utils/crypto"
+import { slugify } from "@/lib/utils"
 import { logger } from "@/lib/logger"
 import { env } from "@/lib/env"
 
@@ -106,7 +107,14 @@ export async function GET(request: NextRequest) {
     })
     logger.info("[Tiendanube OAuth] DB saved OK", "db_saved")
 
-    // 4. Registrar webhooks
+    // 4. Crear links para creators existentes sin link
+    if (store.url) {
+      void generateMissingLinks(workspaceId, store.url).catch((err) =>
+        logger.error("[Tiendanube OAuth] generateMissingLinks failed", err)
+      )
+    }
+
+    // 5. Registrar webhooks
     logger.info("[Tiendanube OAuth] Registering webhooks", "webhooks_register")
     try {
       const webhookResults = await registerTiendanubeWebhooks(storeId, tokenData.access_token)
@@ -119,6 +127,7 @@ export async function GET(request: NextRequest) {
 
     logger.info("[Tiendanube OAuth] Done", "done")
 
+    // Redirect after fire-and-forget link generation
     return NextResponse.redirect(
       new URL(
         `/dashboard/settings?tiendanube=connected&store=${encodeURIComponent(store.main_domain)}`,
@@ -131,4 +140,46 @@ export async function GET(request: NextRequest) {
       new URL("/dashboard/settings?error=tiendanube_connection_failed", env.NEXT_PUBLIC_APP_URL)
     )
   }
+}
+
+async function generateMissingLinks(workspaceId: string, storeUrl: string) {
+  const campaignCreators = await prisma.campaignCreator.findMany({
+    where: { campaign: { workspaceId } },
+    include: {
+      creator: { select: { id: true, name: true } },
+      campaign: { select: { id: true, workspaceId: true } },
+    },
+  })
+
+  for (const cc of campaignCreators) {
+    const existing = await prisma.link.findFirst({
+      where: { creatorId: cc.creatorId, campaignId: cc.campaignId },
+    })
+    if (existing) continue
+
+    const base = slugify(cc.creator.name).slice(0, 20)
+    let slug = base
+    while (await prisma.link.findUnique({ where: { slug } })) {
+      slug = `${base.slice(0, 16)}-${Math.random().toString(36).slice(2, 6)}`
+    }
+
+    await prisma.link.create({
+      data: {
+        workspaceId,
+        creatorId: cc.creatorId,
+        campaignId: cc.campaignId,
+        slug,
+        destination: storeUrl,
+        discountCode: cc.discountCode,
+        utmSource: slugify(cc.creator.name),
+        utmMedium: "influencer",
+        utmCampaign: cc.discountCode || undefined,
+      },
+    })
+  }
+
+  logger.info("[Tiendanube OAuth] Links generated", "links_generated", {
+    workspaceId,
+    count: campaignCreators.length,
+  })
 }
