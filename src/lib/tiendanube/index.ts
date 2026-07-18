@@ -50,6 +50,7 @@ export interface TiendanubeOrder {
   status: string
   payment_status: string
   total: string
+  subtotal?: string
   currency: string
   created_at: string // ISO 8601
   paid_at?: string // ISO 8601, disponible cuando payment_status = "paid"
@@ -476,7 +477,7 @@ export function parseTiendanubeOrderWebhook(order: TiendanubeOrder): {
 
   return {
     orderId: order.id.toString(),
-    orderAmount: parseFloat(order.total),
+    orderAmount: parseFloat(order.subtotal ?? order.total),
     currency: order.currency,
     orderDate: new Date(order.paid_at || order.created_at),
     creatorCode,
