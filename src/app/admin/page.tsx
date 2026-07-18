@@ -3,6 +3,7 @@ import { redirect } from "next/navigation"
 import { prisma } from "@/lib/prisma"
 import { formatNumber, formatCurrency } from "@/lib/utils"
 import { AdminCharts } from "./AdminCharts"
+import Link from "next/link"
 
 const ADMIN_EMAIL = "tobigiorgis@icloud.com"
 
@@ -130,12 +131,13 @@ export default async function AdminPage() {
   }
 
   const metrics = [
-    { label: "Marcas (workspaces)", value: formatNumber(workspacesTotal), color: "#A78BFA" },
+    { label: "Marcas", value: formatNumber(workspacesTotal), color: "#A78BFA", href: "/admin/workspaces" },
     {
       label: "Creators totales",
       value: formatNumber(creatorsTotal),
       sub: `${formatNumber(creatorsActive)} activos`,
       color: "#60A5FA",
+      href: "/admin/creators",
     },
     { label: "Campañas", value: formatNumber(campaignsTotal), color: "#34D399" },
     { label: "Links creados", value: formatNumber(linksTotal), color: "#FB7185" },
@@ -150,18 +152,21 @@ export default async function AdminPage() {
       value: formatNumber(conversionsTotal),
       sub: `${conversionRate}% tasa`,
       color: "#34D399",
+      href: "/admin/conversions",
     },
     {
       label: "Revenue atribuido",
       value: formatCurrency(totalRevenue),
       sub: "total órdenes",
       color: "#F59E0B",
+      href: "/admin/conversions",
     },
     {
       label: "Comisiones generadas",
       value: formatCurrency(totalCommissions),
       sub: "acumuladas",
       color: "#F59E0B",
+      href: "/admin/conversions",
     },
     { label: "Briefings", value: formatNumber(briefingsTotal), color: "#6B7280" },
     { label: "Giftings", value: formatNumber(giftingsTotal), color: "#6B7280" },
@@ -184,21 +189,34 @@ export default async function AdminPage() {
 
         {/* Metric grid */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-          {metrics.map((m) => (
-            <div
-              key={m.label}
-              className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 flex flex-col gap-1"
-            >
-              <p className="text-[11px] font-medium text-gray-400 uppercase tracking-wide leading-none">
-                {m.label}
-              </p>
-              <p className="font-mono text-2xl font-semibold tracking-tight text-gray-900">
-                {m.value}
-              </p>
-              {m.sub && <p className="text-[11px] text-gray-400 font-mono">{m.sub}</p>}
-              <div className="mt-2 h-1 w-8 rounded-full" style={{ backgroundColor: m.color }} />
-            </div>
-          ))}
+          {metrics.map((m) => {
+            const inner = (
+              <div className="flex flex-col gap-1">
+                <p className="text-[11px] font-medium text-gray-400 uppercase tracking-wide leading-none">
+                  {m.label}
+                  {m.href && <span className="ml-1 opacity-40">→</span>}
+                </p>
+                <p className="font-mono text-2xl font-semibold tracking-tight text-gray-900">
+                  {m.value}
+                </p>
+                {m.sub && <p className="text-[11px] text-gray-400 font-mono">{m.sub}</p>}
+                <div className="mt-2 h-1 w-8 rounded-full" style={{ backgroundColor: m.color }} />
+              </div>
+            )
+            return m.href ? (
+              <Link
+                key={m.label}
+                href={m.href}
+                className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 hover:shadow-md hover:-translate-y-px transition-all duration-150"
+              >
+                {inner}
+              </Link>
+            ) : (
+              <div key={m.label} className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+                {inner}
+              </div>
+            )
+          })}
         </div>
 
         {/* Charts */}
