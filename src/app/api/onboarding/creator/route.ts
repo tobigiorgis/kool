@@ -72,14 +72,27 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const data = OnboardingSchema.parse(body)
 
-    // Buscar creator por invite token o por email
+    // Buscar creator:
+    // 1. Por token de invite (si viene con link)
+    // 2. Por userId ya vinculado (re-activación / idempotencia)
+    // 3. Por email como fallback (self-serve)
+    //
+    // El orden importa: si hay múltiples registros para el mismo email
+    // (creator añadido a varios workspaces), debemos encontrar el que ya
+    // tiene este userId asignado; de lo contrario el update falla por @unique.
     const creator = data.token
       ? await prisma.creator.findUnique({ where: { inviteToken: data.token } })
-      : await prisma.creator.findFirst({ where: { email: userEmail } })
+      : (await prisma.creator.findFirst({ where: { userId } })) ??
+        (await prisma.creator.findFirst({ where: { email: userEmail } }))
 
     // Token presente pero inválido → link roto. (Sin token y sin match → self-serve: se crea abajo.)
     if (!creator && data.token) {
       return NextResponse.json({ error: "Creator no encontrado" }, { status: 404 })
+    }
+
+    // Si el token apunta a un creator ya vinculado a OTRO usuario, rechazar.
+    if (creator?.userId && creator.userId !== userId) {
+      return NextResponse.json({ error: "Este link ya fue activado por otro usuario." }, { status: 409 })
     }
 
     // Ensure user record exists
@@ -175,6 +188,17 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ ok: true, creatorId: updated.id })
   } catch (error) {
+    // Unique constraint en userId: el creator ya fue activado con esta cuenta
+    if (
+      error instanceof Error &&
+      "code" in error &&
+      (error as { code: string }).code === "P2002"
+    ) {
+      return NextResponse.json(
+        { error: "Esta cuenta ya tiene un perfil activo. Iniciá sesión normalmente." },
+        { status: 409 }
+      )
+    }
     return handleError("[Onboarding] POST", error)
   }
 }
