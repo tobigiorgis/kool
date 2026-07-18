@@ -31,6 +31,7 @@ function CreatorOnboardingForm() {
   const [submitting, setSubmitting] = useState(false)
   const [done, setDone] = useState(false)
   const [error, setError] = useState("")
+  const [stepError, setStepError] = useState("")
   const [step, setStep] = useState(1)
 
   const [form, setForm] = useState({
@@ -84,12 +85,57 @@ function CreatorOnboardingForm() {
 
   const goToStep2 = (e: React.FormEvent) => {
     e.preventDefault()
+    setStepError("")
+
+    if (!form.instagram && !form.tiktok) {
+      setStepError("Completá al menos una red social (Instagram o TikTok).")
+      return
+    }
+    if (!form.phone.trim()) {
+      setStepError("El teléfono es obligatorio.")
+      return
+    }
+    if (!form.dateOfBirth) {
+      setStepError("La fecha de nacimiento es obligatoria.")
+      return
+    }
+    if (!form.province || !form.city) {
+      setStepError("Seleccioná tu provincia y ciudad.")
+      return
+    }
+    if (form.niches.length === 0) {
+      setStepError("Elegí al menos un nicho.")
+      return
+    }
+
     setStep(2)
     window.scrollTo({ top: 0, behavior: "smooth" })
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setError("")
+
+    if (!form.shippingStreet.trim()) {
+      setError("La calle de envío es obligatoria.")
+      return
+    }
+    if (!form.shippingNumber.trim()) {
+      setError("El número de la calle es obligatorio.")
+      return
+    }
+    if (!form.shippingProvince || !form.shippingCity) {
+      setError("Seleccioná la provincia y ciudad de envío.")
+      return
+    }
+    if (!form.shippingZipCode.trim()) {
+      setError("El código postal es obligatorio.")
+      return
+    }
+    if (!form.bankAlias.trim()) {
+      setError("El alias o CBU es obligatorio para recibir tus comisiones.")
+      return
+    }
     if (!form.acceptTerms) {
       setError("Debés aceptar los términos para continuar.")
       return
@@ -329,6 +375,12 @@ function CreatorOnboardingForm() {
                 onChange={(niches) => setForm((f) => ({ ...f, niches }))}
               />
             </section>
+
+            {stepError && (
+              <div className="p-3 bg-red-50 border border-red-100 rounded-lg">
+                <p className="text-[12px] text-red-600">{stepError}</p>
+              </div>
+            )}
 
             <button
               type="submit"

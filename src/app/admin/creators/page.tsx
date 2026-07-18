@@ -20,26 +20,42 @@ const TIER_COLOR: Record<string, string> = {
   PLATINUM: "bg-purple-50 text-purple-700",
 }
 
+interface ClickRow {
+  creatorId: string
+  count: bigint
+}
+
 export default async function AdminCreatorsPage() {
   const user = await currentUser()
   if (user?.emailAddresses[0]?.emailAddress !== ADMIN_EMAIL) redirect("/dashboard")
 
-  const creators = await prisma.creator.findMany({
-    include: {
-      workspace: { select: { name: true, slug: true } },
-      _count: {
-        select: {
-          links: true,
-          conversions: true,
-          campaigns: true,
+  const [creators, clickRows] = await Promise.all([
+    prisma.creator.findMany({
+      include: {
+        workspace: { select: { name: true, slug: true } },
+        _count: {
+          select: {
+            links: true,
+            conversions: true,
+            campaigns: true,
+          },
+        },
+        commissions: {
+          select: { amount: true },
         },
       },
-      commissions: {
-        select: { amount: true },
-      },
-    },
-    orderBy: { createdAt: "desc" },
-  })
+      orderBy: { createdAt: "desc" },
+    }),
+    prisma.$queryRaw<ClickRow[]>`
+      SELECT l."creatorId", COUNT(c.id)::bigint as count
+      FROM links l
+      LEFT JOIN clicks c ON c."linkId" = l.id
+      WHERE l."creatorId" IS NOT NULL
+      GROUP BY l."creatorId"
+    `,
+  ])
+
+  const clicksByCreator = new Map(clickRows.map((r) => [r.creatorId, Number(r.count)]))
 
   return (
     <div className="min-h-screen bg-[#F9F9FB] px-4 py-8 lg:px-10 lg:py-12">
@@ -62,15 +78,16 @@ export default async function AdminCreatorsPage() {
                   <th className="text-left text-[11px] font-medium text-gray-400 uppercase tracking-wide px-4 py-3">Marca</th>
                   <th className="text-left text-[11px] font-medium text-gray-400 uppercase tracking-wide px-4 py-3">Código</th>
                   <th className="text-left text-[11px] font-medium text-gray-400 uppercase tracking-wide px-4 py-3">Redes</th>
-                  <th className="text-center text-[11px] font-medium text-gray-400 uppercase tracking-wide px-4 py-3">Links</th>
+                  <th className="text-center text-[11px] font-medium text-gray-400 uppercase tracking-wide px-4 py-3">Clicks</th>
                   <th className="text-center text-[11px] font-medium text-gray-400 uppercase tracking-wide px-4 py-3">Ventas</th>
+                  <th className="text-center text-[11px] font-medium text-gray-400 uppercase tracking-wide px-4 py-3">Perfil</th>
                   <th className="text-right text-[11px] font-medium text-gray-400 uppercase tracking-wide px-5 py-3">Comisiones</th>
                 </tr>
               </thead>
               <tbody>
                 {creators.map((c, i) => {
                   const totalCommissions = c.commissions.reduce((sum, cm) => sum + cm.amount, 0)
-                  const followers = c.instagramFollowers ?? c.tiktokFollowers ?? c.audienceSize
+                  const clicks = clicksByCreator.get(c.id) ?? 0
                   return (
                     <tr key={c.id} className={i < creators.length - 1 ? "border-b border-gray-50" : ""}>
                       <td className="px-5 py-3.5">
@@ -129,10 +146,21 @@ export default async function AdminCreatorsPage() {
                         </div>
                       </td>
                       <td className="px-4 py-3.5 text-center">
-                        <span className="font-mono text-[13px] text-gray-700">{c._count.links}</span>
+                        <span className="font-mono text-[13px] text-gray-700">{clicks}</span>
                       </td>
                       <td className="px-4 py-3.5 text-center">
                         <span className="font-mono text-[13px] text-gray-700">{c._count.conversions}</span>
+                      </td>
+                      <td className="px-4 py-3.5 text-center">
+                        {c.profileCompleted ? (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full bg-green-50 text-green-700">
+                            ✓ Completo
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full bg-amber-50 text-amber-700">
+                            Pendiente
+                          </span>
+                        )}
                       </td>
                       <td className="px-5 py-3.5 text-right">
                         <span className={`font-mono text-[13px] font-medium ${totalCommissions > 0 ? "text-green-700" : "text-gray-300"}`}>
