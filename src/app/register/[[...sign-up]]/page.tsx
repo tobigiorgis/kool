@@ -23,9 +23,29 @@ function RegisterForm() {
   const roleParam = searchParams.get("role")
 
   useEffect(() => {
-    if (roleParam === "creator" || (token && roleParam !== "collaborator")) setRole("creator")
-    else if (roleParam === "brand") setRole("brand")
+    if (roleParam === "creator" || (token && roleParam !== "collaborator")) {
+      setRole("creator")
+      return
+    }
+    if (roleParam === "brand") {
+      setRole("brand")
+      return
+    }
+    // Google/OAuth sends the browser back to this same page mid-flow (full
+    // reload, so React state is gone) as `#/sso-callback`. Without a role,
+    // we'd show the picker instead of the <SignUp> Clerk needs mounted to
+    // finish the redirect, and the flow gets stuck. Restore the role picked
+    // right before leaving for the OAuth provider.
+    if (window.location.hash.startsWith("#/sso-callback")) {
+      const saved = sessionStorage.getItem("kool_register_role")
+      if (saved === "brand" || saved === "creator") setRole(saved)
+    }
   }, [searchParams, token, roleParam])
+
+  const selectRole = (r: "brand" | "creator") => {
+    sessionStorage.setItem("kool_register_role", r)
+    setRole(r)
+  }
 
   // Invite-link flow: creator activates directly, no role picker
   if (token && roleParam !== "collaborator") {
@@ -76,7 +96,7 @@ function RegisterForm() {
       <Logo />
       <div className="w-full max-w-sm">
         {role === null ? (
-          <RolePicker onSelect={setRole} />
+          <RolePicker onSelect={selectRole} />
         ) : (
           <>
             <button
