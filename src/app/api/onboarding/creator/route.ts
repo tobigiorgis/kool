@@ -106,7 +106,7 @@ export async function POST(request: NextRequest) {
           : null,
         role: "CREATOR",
       },
-      update: {},
+      update: { role: "CREATOR" },
     })
 
     // Campos de perfil comunes al alta (create) y a la activación (update).

@@ -87,6 +87,7 @@ export default async function AdminPage() {
     briefingsTotal,
     giftingsTotal,
     bountiesTotal,
+    usersTotal,
     commissionsAgg,
     revenueAgg,
     clicksSeries,
@@ -104,6 +105,7 @@ export default async function AdminPage() {
     prisma.briefing.count(),
     prisma.giftingOrder.count(),
     prisma.bounty.count(),
+    prisma.user.count(),
     prisma.commission.aggregate({ _sum: { amount: true } }),
     prisma.conversion.aggregate({ _sum: { orderAmount: true } }),
     getTimeSeries("clicks", "timestamp"),
@@ -171,6 +173,7 @@ export default async function AdminPage() {
     { label: "Briefings", value: formatNumber(briefingsTotal), color: "#6B7280" },
     { label: "Giftings", value: formatNumber(giftingsTotal), color: "#6B7280" },
     { label: "Bounties", value: formatNumber(bountiesTotal), color: "#6B7280" },
+    { label: "Usuarios", value: formatNumber(usersTotal), color: "#A78BFA", href: "/admin/users" },
   ]
 
   return (

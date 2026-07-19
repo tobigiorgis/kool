@@ -60,8 +60,8 @@ export async function POST(request: NextRequest) {
     } else {
       await prisma.user.upsert({
         where: { id: userId },
-        create: { id: userId, email, name: userName, avatar },
-        update: {},
+        create: { id: userId, email, name: userName, avatar, role: "BRAND" },
+        update: { role: "BRAND" },
       })
     }
 
