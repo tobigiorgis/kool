@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 import { Loader2, X } from "lucide-react"
 
 interface Campaign {
@@ -16,6 +17,7 @@ interface Props {
 }
 
 export function AddToCampaignButton({ creatorId, creatorName, campaigns }: Props) {
+  const router = useRouter()
   const [open, setOpen] = useState(false)
   const [campaignId, setCampaignId] = useState("")
   const [commissionPct, setCommissionPct] = useState("")
@@ -62,6 +64,7 @@ export function AddToCampaignButton({ creatorId, creatorName, campaigns }: Props
         return
       }
       setSuccess(true)
+      router.refresh()
       setTimeout(() => setOpen(false), 1200)
     } catch {
       setError("Error de conexión.")
