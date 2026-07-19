@@ -1,19 +1,9 @@
 "use client"
 
-import { useSearchParams, useRouter } from "next/navigation"
 import { SignIn } from "@clerk/nextjs"
 import Link from "next/link"
-import { roleHomeUrl } from "@/lib/host"
 
 export default function LoginPage() {
-  const searchParams = useSearchParams()
-  const router = useRouter()
-  const role = searchParams.get("role") === "creator" ? "creator" : "brand"
-
-  const setRole = (r: "brand" | "creator") => {
-    router.replace(r === "creator" ? "/login?role=creator" : "/login")
-  }
-
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
       {/* Logo */}
@@ -25,70 +15,22 @@ export default function LoginPage() {
       </div>
 
       <div className="w-full max-w-sm">
-        {/* Toggle */}
-        <div className="flex bg-white border border-gray-200 rounded-xl p-1 mb-6 shadow-sm">
-          <button
-            onClick={() => setRole("brand")}
-            className={`flex-1 py-2 text-sm font-medium rounded-lg transition-colors duration-fast ${
-              role === "brand"
-                ? "bg-gray-900 text-white shadow-sm"
-                : "text-gray-500 hover:text-gray-700"
-            }`}
-          >
-            Soy marca
-          </button>
-          <button
-            onClick={() => setRole("creator")}
-            className={`flex-1 py-2 text-sm font-medium rounded-lg transition-colors duration-fast ${
-              role === "creator"
-                ? "bg-gray-900 text-white shadow-sm"
-                : "text-gray-500 hover:text-gray-700"
-            }`}
-          >
-            Soy creator
-          </button>
-        </div>
-
-        {/* Copy contextual */}
         <div className="text-center mb-6">
-          {role === "brand" ? (
-            <>
-              <h1 className="text-lg font-semibold text-gray-900">Ingresá a tu workspace</h1>
-              <p className="text-sm text-gray-500 mt-1">Gestioná tus creators y campañas</p>
-            </>
-          ) : (
-            <>
-              <h1 className="text-lg font-semibold text-gray-900">Portal de creators</h1>
-              <p className="text-sm text-gray-500 mt-1">Accedé a tus comisiones y briefings</p>
-            </>
-          )}
+          <h1 className="text-lg font-semibold text-gray-900">Ingresá a tu cuenta</h1>
+          <p className="text-sm text-gray-500 mt-1">Te llevamos a donde corresponda</p>
         </div>
 
         {/* Clerk sign in */}
         <div className="flex justify-center">
-          <SignIn forceRedirectUrl={roleHomeUrl(role)} routing="hash" />
+          <SignIn forceRedirectUrl="/login/redirect" routing="hash" />
         </div>
 
         {/* Footer */}
         <p className="text-center text-xs text-gray-400 mt-6">
-          {role === "brand" ? (
-            <>
-              ¿No tenés cuenta?{" "}
-              <Link href="/register" className="text-gray-600 font-medium hover:underline">
-                Registrate
-              </Link>
-            </>
-          ) : (
-            <>
-              ¿Primera vez?{" "}
-              <Link
-                href="/register?role=creator"
-                className="text-gray-600 font-medium hover:underline"
-              >
-                Creá tu cuenta
-              </Link>
-            </>
-          )}
+          ¿No tenés cuenta?{" "}
+          <Link href="/register" className="text-gray-600 font-medium hover:underline">
+            Registrate
+          </Link>
         </p>
       </div>
     </div>

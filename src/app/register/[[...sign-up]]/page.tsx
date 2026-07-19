@@ -176,7 +176,7 @@ function CreatorSelfSignUp() {
 
       <p className="text-center text-xs text-gray-400">
         ¿Ya tenés cuenta?{" "}
-        <Link href="/login?role=creator" className="text-gray-600 font-medium hover:underline">
+        <Link href="/login" className="text-gray-600 font-medium hover:underline">
           Ingresá
         </Link>
       </p>
