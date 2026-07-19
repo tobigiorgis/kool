@@ -3,6 +3,7 @@ import { redirect } from "next/navigation"
 import { prisma } from "@/lib/prisma"
 import { formatCurrency } from "@/lib/utils"
 import Link from "next/link"
+import { AddToCampaignButton } from "./AddToCampaignButton"
 
 const ADMIN_EMAIL = "tobigiorgis@icloud.com"
 
@@ -29,7 +30,7 @@ export default async function AdminCreatorsPage() {
   const user = await currentUser()
   if (user?.emailAddresses[0]?.emailAddress !== ADMIN_EMAIL) redirect("/dashboard")
 
-  const [creators, clickRows] = await Promise.all([
+  const [creators, clickRows, campaigns] = await Promise.all([
     prisma.creator.findMany({
       include: {
         workspace: { select: { name: true, slug: true } },
@@ -53,6 +54,10 @@ export default async function AdminCreatorsPage() {
       WHERE l."creatorId" IS NOT NULL
       GROUP BY l."creatorId"
     `,
+    prisma.campaign.findMany({
+      select: { id: true, name: true, workspace: { select: { name: true } } },
+      orderBy: [{ workspace: { name: "asc" } }, { name: "asc" }],
+    }),
   ])
 
   const clicksByCreator = new Map(clickRows.map((r) => [r.creatorId, Number(r.count)]))
@@ -82,6 +87,7 @@ export default async function AdminCreatorsPage() {
                   <th className="text-center text-[11px] font-medium text-gray-400 uppercase tracking-wide px-4 py-3">Ventas</th>
                   <th className="text-center text-[11px] font-medium text-gray-400 uppercase tracking-wide px-4 py-3">Perfil</th>
                   <th className="text-right text-[11px] font-medium text-gray-400 uppercase tracking-wide px-5 py-3">Comisiones</th>
+                  <th className="px-4 py-3" />
                 </tr>
               </thead>
               <tbody>
@@ -166,6 +172,13 @@ export default async function AdminCreatorsPage() {
                         <span className={`font-mono text-[13px] font-medium ${totalCommissions > 0 ? "text-green-700" : "text-gray-300"}`}>
                           {totalCommissions > 0 ? formatCurrency(totalCommissions) : "—"}
                         </span>
+                      </td>
+                      <td className="px-4 py-3.5 text-right">
+                        <AddToCampaignButton
+                          creatorId={c.id}
+                          creatorName={c.name}
+                          campaigns={campaigns}
+                        />
                       </td>
                     </tr>
                   )
