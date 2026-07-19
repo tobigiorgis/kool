@@ -56,6 +56,7 @@ model User {
   // Relaciones
   workspaces WorkspaceMember[]
   creatorProfile Creator?
+  campaignCollaborations CampaignCollaborator[]
 
   @@map("users")
 }
@@ -125,6 +126,7 @@ model Campaign {
   invites       CampaignInvite[]
   conversions   Conversion[]
   bounties      Bounty[]
+  collaborators CampaignCollaborator[]
 
   @@map("campaigns")
 }
@@ -651,6 +653,35 @@ enum BriefingStatus {
   DRAFT
   SENT
   ARCHIVED
+}
+
+enum CollaboratorRole {
+  EDITOR
+  VIEWER
+}
+
+enum CollaboratorStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+}
+
+model CampaignCollaborator {
+  id          String             @id @default(cuid())
+  campaignId  String
+  email       String
+  userId      String?
+  role        CollaboratorRole   @default(VIEWER)
+  status      CollaboratorStatus @default(PENDING)
+  inviteToken String?            @unique
+  invitedAt   DateTime           @default(now())
+  acceptedAt  DateTime?
+
+  campaign    Campaign           @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  user        User?              @relation(fields: [userId], references: [id])
+
+  @@unique([campaignId, email])
+  @@map("campaign_collaborators")
 }
 
 enum CommissionStatus {

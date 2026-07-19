@@ -11,6 +11,7 @@ import {
   Gift,
   Mail,
   Settings,
+  Handshake,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -22,6 +23,7 @@ const NAV = [
   { href: "/dashboard/campaigns", label: "Campañas", icon: Megaphone },
   { href: "/dashboard/gifting", label: "Gifting", icon: Gift },
   { href: "/dashboard/briefing", label: "Briefing", icon: Mail },
+  { href: "/dashboard/collaborations", label: "Colaboraciones", icon: Handshake },
   { href: "/dashboard/settings", label: "Settings", icon: Settings },
 ]
 

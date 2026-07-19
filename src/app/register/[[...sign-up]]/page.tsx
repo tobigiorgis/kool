@@ -9,10 +9,48 @@ function RegisterForm() {
   const searchParams = useSearchParams()
   const [role, setRole] = useState<"brand" | "creator">("brand")
   const token = searchParams.get("token")
+  const roleParam = searchParams.get("role")
 
   useEffect(() => {
-    if (searchParams.get("role") === "creator" || token) setRole("creator")
-  }, [searchParams, token])
+    if (roleParam === "creator" || (token && roleParam !== "collaborator")) setRole("creator")
+  }, [searchParams, token, roleParam])
+
+  // Collaborator invite flow: straight to dashboard/collaborations after sign-up
+  if (roleParam === "collaborator" && token) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
+        <div className="mb-8 text-center">
+          <div className="inline-flex items-center gap-1.5">
+            <span className="text-2xl font-bold tracking-tight text-gray-900">kool</span>
+            <span className="w-2 h-2 rounded-full bg-[#FB7185] mb-0.5" />
+          </div>
+        </div>
+        <div className="w-full max-w-sm">
+          <div className="text-center mb-6">
+            <h1 className="text-lg font-semibold text-gray-900">Accedé a la colaboración</h1>
+            <p className="text-sm text-gray-500 mt-1">
+              Creá tu cuenta o iniciá sesión para aceptar la invitación
+            </p>
+          </div>
+          <div className="flex justify-center">
+            <SignUp
+              forceRedirectUrl={`/dashboard/collaborations?token=${token}`}
+              routing="hash"
+            />
+          </div>
+          <p className="text-center text-xs text-gray-400 mt-6">
+            ¿Ya tenés cuenta?{" "}
+            <Link
+              href={`/login?redirect=/dashboard/collaborations?token=${token}`}
+              className="text-gray-600 font-medium hover:underline"
+            >
+              Ingresá
+            </Link>
+          </p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">

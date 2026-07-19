@@ -38,6 +38,7 @@ import { formatNumber, formatCurrency, formatDate, generateDiscountCode } from "
 import { buildShortUrl, shortUrlLabel } from "@/lib/links"
 import BountiesTab from "./BountiesTab"
 import { CreateLinkModal } from "@/components/CreateLinkModal"
+import { CollaboratorsModal } from "./CollaboratorsModal"
 
 interface CampaignCreator {
   id: string
@@ -211,6 +212,7 @@ export default function CampaignDetailPage() {
   const [tab, setTab] = useState<Tab>("overview")
   const [showAddCreators, setShowAddCreators] = useState(false)
   const [showCreateBriefing, setShowCreateBriefing] = useState(false)
+  const [showCollaborators, setShowCollaborators] = useState(false)
   const [statusUpdating, setStatusUpdating] = useState(false)
   const [giftingOrders, setGiftingOrders] = useState<GiftingOrder[]>([])
   const [giftingLoading, setGiftingLoading] = useState(false)
@@ -364,8 +366,15 @@ export default function CampaignDetailPage() {
             )}
           </div>
 
-          {/* Status controls */}
+          {/* Status controls + collaborators */}
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowCollaborators(true)}
+              className="flex items-center gap-1.5 text-[12px] font-medium text-gray-500 border border-gray-200 px-3 py-1.5 rounded-lg hover:border-indigo-300 hover:text-indigo-600 transition-colors"
+            >
+              <UserPlus size={13} />
+              Compartir
+            </button>
             {STATUS_ORDER.map((s) => {
               const c = STATUS_CONFIG[s]
               const isActive = campaign.status === s
@@ -513,6 +522,13 @@ export default function CampaignDetailPage() {
           campaign={campaign}
           onClose={() => setShowCreateBriefing(false)}
           onCreated={loadData}
+        />
+      )}
+
+      {showCollaborators && (
+        <CollaboratorsModal
+          campaignId={campaign.id}
+          onClose={() => setShowCollaborators(false)}
         />
       )}
     </div>

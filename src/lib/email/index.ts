@@ -625,3 +625,52 @@ export async function sendGiftingReceived({
     html,
   })
 }
+
+// ─── Invitación a colaborar en campaña ────────
+
+export async function sendCollaboratorInvite({
+  to,
+  inviterName,
+  brandName,
+  campaignName,
+  role,
+  acceptUrl,
+}: {
+  to: string
+  inviterName: string
+  brandName: string
+  campaignName: string
+  role: "EDITOR" | "VIEWER"
+  acceptUrl: string
+}) {
+  const roleLabel = role === "EDITOR" ? "Editor" : "Viewer"
+  const roleDesc =
+    role === "EDITOR"
+      ? "Podés ver y editar los contenidos de la campaña."
+      : "Podés ver los contenidos de la campaña (solo lectura)."
+
+  const html = baseTemplate(
+    `
+    <h1>Te invitaron a colaborar</h1>
+    <p><strong>${inviterName}</strong> de <strong>${brandName}</strong> te invitó a colaborar en la campaña:</p>
+    <p style="font-size:18px; font-weight:600; color:#111827; margin: 8px 0 16px;">${campaignName}</p>
+    <p>Tu rol: <span style="background:#f3f4f6; padding: 3px 10px; border-radius:6px; font-size:13px; font-weight:600;">${roleLabel}</span></p>
+    <p style="color:#6b7280; font-size:13px;">${roleDesc}</p>
+    <hr class="divider">
+    <p style="text-align:center;">
+      <a href="${acceptUrl}" class="btn">Aceptar invitación →</a>
+    </p>
+    <p style="color:#9ca3af; font-size:12px; text-align:center; margin-top:8px;">
+      Si no esperabas esta invitación, podés ignorar este email.
+    </p>
+    `,
+    brandName
+  )
+
+  return sendEmail({
+    to,
+    subject: `${inviterName} te invitó a colaborar en "${campaignName}"`,
+    html,
+  })
+}
+
