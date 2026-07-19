@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma"
 import { formatCurrency } from "@/lib/utils"
 import Link from "next/link"
 import { AddToCampaignButton } from "./AddToCampaignButton"
+import { CreatorCampaignsButton } from "./CreatorCampaignsButton"
 
 const ADMIN_EMAIL = "tobigiorgis@icloud.com"
 
@@ -38,11 +39,25 @@ export default async function AdminCreatorsPage() {
           select: {
             links: true,
             conversions: true,
-            campaigns: true,
           },
         },
         commissions: {
           select: { amount: true },
+        },
+        campaigns: {
+          select: {
+            status: true,
+            createdAt: true,
+            campaign: {
+              select: {
+                id: true,
+                name: true,
+                status: true,
+                workspace: { select: { name: true } },
+              },
+            },
+          },
+          orderBy: { createdAt: "desc" },
         },
       },
       orderBy: { createdAt: "desc" },
@@ -76,13 +91,14 @@ export default async function AdminCreatorsPage() {
 
         <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[800px]">
+            <table className="w-full min-w-[900px]">
               <thead>
                 <tr className="border-b border-gray-100">
                   <th className="text-left text-[11px] font-medium text-gray-400 uppercase tracking-wide px-5 py-3">Creator</th>
                   <th className="text-left text-[11px] font-medium text-gray-400 uppercase tracking-wide px-4 py-3">Marca</th>
                   <th className="text-left text-[11px] font-medium text-gray-400 uppercase tracking-wide px-4 py-3">Código</th>
                   <th className="text-left text-[11px] font-medium text-gray-400 uppercase tracking-wide px-4 py-3">Redes</th>
+                  <th className="text-center text-[11px] font-medium text-gray-400 uppercase tracking-wide px-4 py-3">Campañas</th>
                   <th className="text-center text-[11px] font-medium text-gray-400 uppercase tracking-wide px-4 py-3">Clicks</th>
                   <th className="text-center text-[11px] font-medium text-gray-400 uppercase tracking-wide px-4 py-3">Ventas</th>
                   <th className="text-center text-[11px] font-medium text-gray-400 uppercase tracking-wide px-4 py-3">Perfil</th>
@@ -150,6 +166,19 @@ export default async function AdminCreatorsPage() {
                             <span className="text-[11px] text-gray-300">—</span>
                           )}
                         </div>
+                      </td>
+                      <td className="px-4 py-3.5 text-center">
+                        <CreatorCampaignsButton
+                          creatorName={c.name}
+                          campaigns={c.campaigns.map((cc) => ({
+                            id: cc.campaign.id,
+                            name: cc.campaign.name,
+                            workspaceName: cc.campaign.workspace.name,
+                            campaignStatus: cc.campaign.status,
+                            creatorStatus: cc.status,
+                            joinedAt: cc.createdAt.toISOString(),
+                          }))}
+                        />
                       </td>
                       <td className="px-4 py-3.5 text-center">
                         <span className="font-mono text-[13px] text-gray-700">{clicks}</span>
