@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@clerk/nextjs/server"
 import { prisma } from "@/lib/prisma"
-import { createTiendanubeCoupon } from "@/lib/tiendanube"
-import { decrypt } from "@/lib/utils/crypto"
+import { ensureTiendanubeCoupon } from "@/lib/api/coupon"
 import { generateDiscountCode, slugify } from "@/lib/utils"
 import { handleError } from "@/lib/api/response"
 import { z } from "zod"
@@ -46,6 +45,10 @@ export async function POST(request: NextRequest) {
     let discountCode = data.discountCode
     let utmCampaign = data.utmCampaign
 
+    // % de descuento del cupón: override explícito del request, si no el del
+    // CampaignCreator/creator (mismo lugar de donde sale el código).
+    let discountPct = data.discountValue
+
     if (data.creatorId && !discountCode) {
       // El código vive en CampaignCreator (por campaña). Buscarlo ahí primero;
       // fallback al discountCode legacy del creator si no hay campaña.
@@ -54,13 +57,15 @@ export async function POST(request: NextRequest) {
           where: {
             campaignId_creatorId: { campaignId: data.campaignId, creatorId: data.creatorId },
           },
-          select: { discountCode: true },
+          select: { discountCode: true, discountPct: true },
         })
         if (cc?.discountCode) discountCode = cc.discountCode
+        if (discountPct == null && cc?.discountPct != null) discountPct = cc.discountPct
       }
-      if (!discountCode) {
+      if (!discountCode || discountPct == null) {
         const creator = await prisma.creator.findUnique({ where: { id: data.creatorId } })
-        if (creator?.discountCode) discountCode = creator.discountCode
+        if (!discountCode && creator?.discountCode) discountCode = creator.discountCode
+        if (discountPct == null && creator?.discountPct != null) discountPct = creator.discountPct
       }
       if (discountCode) utmCampaign = utmCampaign || discountCode
     }
@@ -82,25 +87,12 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    // Crear cupón en Tiendanube si hay código de descuento
-    if (discountCode && data.discountValue) {
-      try {
-        const tnConn = await prisma.tiendanubeConnection.findUnique({
-          where: { workspaceId: data.workspaceId },
-        })
-        if (tnConn?.active) {
-          const { decrypt } = await import("@/lib/utils/crypto")
-          await createTiendanubeCoupon(tnConn.storeId, decrypt(tnConn.accessToken), {
-            code: discountCode,
-            type: data.discountType ?? "percentage",
-            value: data.discountValue,
-            valid: true,
-          })
-        }
-      } catch {
-        // El cupón puede ya existir — no es error crítico
-      }
-    }
+    // Crear el cupón en Tiendanube (idempotente, no-op si no hay tienda o %).
+    await ensureTiendanubeCoupon({
+      workspaceId: data.workspaceId,
+      code: discountCode,
+      discountPct,
+    })
 
     return NextResponse.json({ ok: true, link })
   } catch (error) {

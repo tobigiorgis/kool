@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { currentUser } from "@clerk/nextjs/server"
 import { prisma } from "@/lib/prisma"
 import { handleError } from "@/lib/api/response"
+import { ensureTiendanubeCoupon } from "@/lib/api/coupon"
 import { z } from "zod"
 
 const ADMIN_EMAIL = "tobigiorgis@icloud.com"
@@ -10,6 +11,7 @@ const Schema = z.object({
   campaignId: z.string().min(1),
   commissionPct: z.number().min(0).max(100).optional(),
   discountCode: z.string().optional(),
+  discountPct: z.number().min(1).max(100).optional(),
 })
 
 export async function POST(
@@ -36,6 +38,7 @@ export async function POST(
     if (!campaign) return NextResponse.json({ error: "Campaña no encontrada" }, { status: 404 })
 
     const discountCode = data.discountCode || creator.discountCode || undefined
+    const discountPct = data.discountPct ?? creator.discountPct ?? undefined
 
     // CampaignCreator/CampaignInvite no están atados a un workspace propio, así
     // que un creator se puede sumar a campañas de marcas distintas a la suya sin
@@ -52,10 +55,12 @@ export async function POST(
         creatorId: creator.id,
         commissionPct: data.commissionPct,
         discountCode,
+        discountPct,
       },
       update: {
         ...(data.commissionPct !== undefined && { commissionPct: data.commissionPct }),
         ...(discountCode !== undefined && { discountCode }),
+        ...(discountPct !== undefined && { discountPct }),
       },
     })
 
@@ -73,6 +78,13 @@ export async function POST(
         sentAt: new Date(),
       },
       update: { status: "PENDING", sentAt: new Date() },
+    })
+
+    // Crear el cupón en Tiendanube del workspace de la campaña (idempotente).
+    await ensureTiendanubeCoupon({
+      workspaceId: campaign.workspaceId,
+      code: discountCode,
+      discountPct,
     })
 
     return NextResponse.json({ ok: true, creatorId: creator.id })

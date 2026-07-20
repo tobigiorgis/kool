@@ -22,6 +22,7 @@ export function AddToCampaignButton({ creatorId, creatorName, campaigns }: Props
   const [campaignId, setCampaignId] = useState("")
   const [commissionPct, setCommissionPct] = useState("")
   const [discountCode, setDiscountCode] = useState("")
+  const [discountPct, setDiscountPct] = useState("")
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
   const [success, setSuccess] = useState(false)
@@ -30,6 +31,7 @@ export function AddToCampaignButton({ creatorId, creatorName, campaigns }: Props
     setCampaignId("")
     setCommissionPct("")
     setDiscountCode("")
+    setDiscountPct("")
     setError("")
     setSuccess(false)
   }
@@ -56,6 +58,7 @@ export function AddToCampaignButton({ creatorId, creatorName, campaigns }: Props
           campaignId,
           ...(commissionPct ? { commissionPct: parseFloat(commissionPct) } : {}),
           ...(discountCode ? { discountCode: discountCode.toUpperCase() } : {}),
+          ...(discountCode && discountPct ? { discountPct: parseFloat(discountPct) } : {}),
         }),
       })
       const data = await res.json()
@@ -151,6 +154,23 @@ export function AddToCampaignButton({ creatorId, creatorName, campaigns }: Props
                     />
                   </div>
                 </div>
+
+                {discountCode && (
+                  <div>
+                    <label className="block text-[12px] font-medium text-gray-700 mb-1.5">
+                      Descuento al cliente % <span className="text-gray-400 font-normal">(para crear el cupón)</span>
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="100"
+                      value={discountPct}
+                      onChange={(e) => setDiscountPct(e.target.value)}
+                      placeholder="10"
+                      className="w-full px-3 py-2 text-[13px] border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-300"
+                    />
+                  </div>
+                )}
 
                 {error && (
                   <p className="text-[12px] text-red-600 bg-red-50 px-3 py-2 rounded-lg">{error}</p>

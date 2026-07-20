@@ -18,7 +18,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     // Find the invite and verify it belongs to this user's creator profile
     const invite = await prisma.campaignInvite.findUnique({
       where: { id },
-      include: { creator: { select: { userId: true, name: true, discountCode: true } } },
+      include: { creator: { select: { userId: true, name: true, discountCode: true, discountPct: true } } },
     })
 
     if (!invite) return NextResponse.json({ error: "Not found" }, { status: 404 })
@@ -48,6 +48,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
         campaignId: invite.campaignId,
         creatorName: invite.creator.name,
         discountCode: cc?.discountCode ?? invite.creator.discountCode,
+        discountPct: cc?.discountPct ?? invite.creator.discountPct,
       })
     }
 

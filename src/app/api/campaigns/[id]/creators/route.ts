@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@clerk/nextjs/server"
 import { prisma } from "@/lib/prisma"
-import { createTiendanubeCoupon } from "@/lib/tiendanube"
-import { decrypt } from "@/lib/utils/crypto"
+import { ensureTiendanubeCoupon } from "@/lib/api/coupon"
 import { slugify, generateDiscountCode } from "@/lib/utils"
 import { sendCampaignInviteExisting, sendCampaignInviteNew } from "@/lib/email"
 import { ok, fail, unauthorized, notFound, badRequest, handleError } from "@/lib/api/response"
@@ -47,6 +46,7 @@ const InviteCreatorSchema = z.object({
   email: z.string().email(),
   commissionPct: z.number().min(1).max(50).optional(),
   discountCode: z.string().optional(),
+  discountPct: z.number().min(1).max(100).optional(),
   destination: z.string().url().optional(),
 })
 
@@ -55,6 +55,7 @@ const AddCreatorsSchema = z.object({
   creatorIds: z.array(z.string()).min(1),
   commissionPct: z.number().min(1).max(50).optional(),
   discountCode: z.string().optional(),
+  discountPct: z.number().min(1).max(100).optional(),
   destination: z.string().url().optional(),
 })
 
@@ -62,6 +63,7 @@ const UpdateCreatorSchema = z.object({
   creatorId: z.string(),
   commissionPct: z.number().min(1).max(50).optional(),
   discountCode: z.string().optional(),
+  discountPct: z.number().min(1).max(100).optional(),
   destination: z.string().url().optional(),
 })
 
@@ -108,10 +110,6 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     })
     if (!member) return fail("No access", 403)
 
-    const connection = await prisma.tiendanubeConnection.findUnique({
-      where: { workspaceId: campaign.workspaceId },
-    })
-
     const appUrl = env.NEXT_PUBLIC_APP_URL
 
     // ── New invite-by-email flow ───────────────
@@ -137,6 +135,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
             email: data.email,
             commissionPct: data.commissionPct ?? null,
             discountCode,
+            discountPct: data.discountPct ?? null,
             status: "PENDING",
             inviteToken,
             invitedAt: new Date(),
@@ -158,9 +157,11 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
           creatorId: creator.id,
           commissionPct: data.commissionPct,
           discountCode,
+          discountPct: data.discountPct,
         },
         update: {
           ...(data.commissionPct !== undefined && { commissionPct: data.commissionPct }),
+          ...(data.discountPct !== undefined && { discountPct: data.discountPct }),
           discountCode,
         },
       })
@@ -194,22 +195,12 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         }
       }
 
-      // Create Tiendanube coupon
-      if (discountCode && connection?.active) {
-        try {
-          const accessToken = decrypt(connection.accessToken)
-          await createTiendanubeCoupon(connection.storeId, accessToken, {
-            code: discountCode,
-            type: "percentage",
-            value: data.commissionPct ?? 0,
-            valid: true,
-          })
-        } catch (error) {
-          if (!(error instanceof Error) || !error.message.includes("422")) {
-            logger.error("[Campaigns creators] invite coupon", error)
-          }
-        }
-      }
+      // Crear el cupón en Tiendanube (idempotente, no-op si no hay tienda)
+      await ensureTiendanubeCoupon({
+        workspaceId: campaign.workspaceId,
+        code: discountCode,
+        discountPct: data.discountPct,
+      })
 
       const brandName = campaign.workspace.name
 
@@ -261,10 +252,12 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
             creatorId: resolvedCreatorId,
             commissionPct: data.commissionPct,
             discountCode: data.discountCode,
+            discountPct: data.discountPct,
           },
           update: {
             ...(data.commissionPct !== undefined && { commissionPct: data.commissionPct }),
             ...(data.discountCode !== undefined && { discountCode: data.discountCode }),
+            ...(data.discountPct !== undefined && { discountPct: data.discountPct }),
           },
         })
 
@@ -294,21 +287,11 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
           }
         }
 
-        if (data.discountCode && connection?.active) {
-          try {
-            const accessToken = decrypt(connection.accessToken)
-            await createTiendanubeCoupon(connection.storeId, accessToken, {
-              code: data.discountCode,
-              type: "percentage",
-              value: data.commissionPct ?? 10,
-              valid: true,
-            })
-          } catch (error) {
-            if (!(error instanceof Error) || !error.message.includes("422")) {
-              logger.error("[Campaigns creators] add coupon", error)
-            }
-          }
-        }
+        await ensureTiendanubeCoupon({
+          workspaceId: campaign.workspaceId,
+          code: data.discountCode,
+          discountPct: data.discountPct,
+        })
 
         return cc
       })
@@ -354,6 +337,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       data: {
         ...(data.commissionPct !== undefined && { commissionPct: data.commissionPct }),
         ...(data.discountCode !== undefined && { discountCode: data.discountCode }),
+        ...(data.discountPct !== undefined && { discountPct: data.discountPct }),
       },
     })
 
@@ -394,26 +378,15 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       }
     }
 
-    // Si el código cambió, crear nuevo cupón en Tiendanube
-    if (data.discountCode && data.discountCode !== existing.discountCode) {
-      const connection = await prisma.tiendanubeConnection.findUnique({
-        where: { workspaceId: campaign.workspaceId },
+    // Si el código o el % de descuento cambió, (re)crear el cupón en Tiendanube.
+    const codeChanged = data.discountCode && data.discountCode !== existing.discountCode
+    const pctChanged = data.discountPct !== undefined && data.discountPct !== existing.discountPct
+    if (codeChanged || pctChanged) {
+      await ensureTiendanubeCoupon({
+        workspaceId: campaign.workspaceId,
+        code: cc.discountCode,
+        discountPct: cc.discountPct,
       })
-      if (connection?.active) {
-        try {
-          const accessToken = decrypt(connection.accessToken)
-          await createTiendanubeCoupon(connection.storeId, accessToken, {
-            code: data.discountCode,
-            type: "percentage",
-            value: data.commissionPct ?? cc.commissionPct ?? 0,
-            valid: true,
-          })
-        } catch (error) {
-          if (!(error instanceof Error) || !error.message.includes("422")) {
-            logger.error("[Campaigns creators] update coupon", error)
-          }
-        }
-      }
     }
 
     return ok()

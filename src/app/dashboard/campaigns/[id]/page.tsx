@@ -44,6 +44,7 @@ interface CampaignCreator {
   id: string
   commissionPct: number | null
   discountCode: string | null
+  discountPct: number | null
   status: string
   creator: {
     id: string
@@ -997,6 +998,7 @@ function CreatorRow({
   const [editing, setEditing] = useState(false)
   const [commission, setCommission] = useState(cc.commissionPct?.toString() ?? "")
   const [discount, setDiscount] = useState(cc.discountCode ?? "")
+  const [discountPctEdit, setDiscountPctEdit] = useState(cc.discountPct?.toString() ?? "")
   const [saving, setSaving] = useState(false)
   const [showLinkModal, setShowLinkModal] = useState(false)
 
@@ -1012,6 +1014,7 @@ function CreatorRow({
         creatorId: cc.creator.id,
         commissionPct: commission !== "" ? parseFloat(commission) : null,
         discountCode: discount || null,
+        ...(discountPctEdit !== "" ? { discountPct: parseFloat(discountPctEdit) } : {}),
       }),
     })
     setSaving(false)
@@ -1113,6 +1116,18 @@ function CreatorRow({
                   onChange={(e) => setDiscount(e.target.value.toUpperCase())}
                   placeholder="Sin código"
                   className="w-40 text-sm font-mono border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] font-medium text-gray-500 mb-1">Descuento (%)</label>
+                <input
+                  type="number"
+                  min="1"
+                  max="100"
+                  value={discountPctEdit}
+                  onChange={(e) => setDiscountPctEdit(e.target.value)}
+                  placeholder="—"
+                  className="w-24 text-sm border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-brand-500"
                 />
               </div>
               <button
@@ -1564,6 +1579,7 @@ function AddCreatorsModal({
   const [commissionPct, setCommissionPct] = useState("10")
   const [withDiscount, setWithDiscount] = useState(true)
   const [discountCode, setDiscountCode] = useState("")
+  const [discountPct, setDiscountPct] = useState("10")
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
@@ -1600,21 +1616,24 @@ function AddCreatorsModal({
   const handleSubmit = async () => {
     setLoading(true)
     try {
+      const commissionDiscount = {
+        ...(withCommission && commissionPct ? { commissionPct: parseFloat(commissionPct) } : {}),
+        ...(withDiscount && discountCode ? { discountCode } : {}),
+        ...(withDiscount && discountCode && discountPct
+          ? { discountPct: parseFloat(discountPct) }
+          : {}),
+      }
       if (mode === "search" && selected) {
         await fetch(`/api/campaigns/${campaignId}/creators`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            creatorId: selected.id,
-            ...(withCommission && commissionPct ? { commissionPct: parseFloat(commissionPct) } : {}),
-            ...(withDiscount && discountCode ? { discountCode } : {}),
-          }),
+          body: JSON.stringify({ creatorId: selected.id, ...commissionDiscount }),
         })
       } else {
         await fetch(`/api/campaigns/${campaignId}/creators`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ firstName, lastName, email }),
+          body: JSON.stringify({ firstName, lastName, email, ...commissionDiscount }),
         })
       }
       onAdded()
@@ -1865,15 +1884,29 @@ function AddCreatorsModal({
                   </div>
                 </button>
                 {withDiscount && (
-                  <div className="px-4 pb-3 border-t border-gray-100">
-                    <label className="block text-xs font-medium text-gray-700 mb-1.5 mt-3">Código de descuento</label>
-                    <input
-                      type="text"
-                      value={discountCode}
-                      onChange={(e) => setDiscountCode(e.target.value.toUpperCase())}
-                      placeholder="CAMILA10"
-                      className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400 font-mono"
-                    />
+                  <div className="px-4 pb-3 border-t border-gray-100 grid grid-cols-3 gap-2">
+                    <div className="col-span-2">
+                      <label className="block text-xs font-medium text-gray-700 mb-1.5 mt-3">Código de descuento</label>
+                      <input
+                        type="text"
+                        value={discountCode}
+                        onChange={(e) => setDiscountCode(e.target.value.toUpperCase())}
+                        placeholder="CAMILA10"
+                        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400 font-mono"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1.5 mt-3">Descuento (%)</label>
+                      <input
+                        type="number"
+                        min="1"
+                        max="100"
+                        value={discountPct}
+                        onChange={(e) => setDiscountPct(e.target.value)}
+                        placeholder="10"
+                        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400"
+                      />
+                    </div>
                   </div>
                 )}
               </div>

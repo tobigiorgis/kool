@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma"
 import { slugify } from "@/lib/utils"
+import { ensureTiendanubeCoupon } from "@/lib/api/coupon"
 
 function generateSlug(name: string): string {
   const base = slugify(name).slice(0, 20)
@@ -29,14 +30,19 @@ export async function ensureAffiliateLink(params: {
   campaignId: string
   creatorName: string
   discountCode?: string | null
+  discountPct?: number | null
 }): Promise<void> {
-  const { creatorId, campaignId, creatorName, discountCode } = params
-
-  const existingLink = await prisma.link.findFirst({ where: { creatorId, campaignId } })
-  if (existingLink) return
+  const { creatorId, campaignId, creatorName, discountCode, discountPct } = params
 
   const campaign = await prisma.campaign.findUnique({ where: { id: campaignId } })
   if (!campaign) return
+
+  // Asegurar el cupón en la tienda aunque el link ya exista: el código pudo
+  // haberse asignado sin que el cupón se llegara a crear (idempotente).
+  await ensureTiendanubeCoupon({ workspaceId: campaign.workspaceId, code: discountCode, discountPct })
+
+  const existingLink = await prisma.link.findFirst({ where: { creatorId, campaignId } })
+  if (existingLink) return
 
   const connection = await prisma.tiendanubeConnection.findUnique({
     where: { workspaceId: campaign.workspaceId },

@@ -189,6 +189,7 @@ export async function POST(request: NextRequest) {
           campaignId,
           creatorName: updated.name,
           discountCode: cc?.discountCode ?? updated.discountCode,
+          discountPct: cc?.discountPct ?? updated.discountPct,
         })
       }
     }

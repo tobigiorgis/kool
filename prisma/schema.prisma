@@ -139,6 +139,7 @@ model CampaignCreator {
   // Override de comisión/descuento por campaña
   commissionPct Float?   // Si es null, usa el del creator
   discountCode  String?  // Código específico para esta campaña
+  discountPct   Float?   // % de descuento al cliente del cupón (si es null, usa el del creator)
 
   // Estado dentro de la campaña
   status       CampaignCreatorStatus @default(INVITED)
@@ -278,6 +279,7 @@ model Creator {
   
   // Código de descuento asignado
   discountCode String?      // ej: "CAMILA15"
+  discountPct  Float?       // % de descuento al cliente del cupón (distinto de la comisión)
   commissionPct Float?      // % de comisión (null = sin comisión configurada)
   
   // Nombre dividido (para invites)
