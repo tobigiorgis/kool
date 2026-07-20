@@ -106,8 +106,14 @@ function creatorRewrite(req: NextRequest): NextResponse | null {
 }
 
 // authorizedParties: lockea el audience de Clerk a los orígenes conocidos.
+// Incluye SHORT_DOMAIN (refer.joinkool.co) aunque no tenga login propio: al ser
+// subdominio de joinkool.co comparte la cookie de sesión de Clerk, así que el
+// middleware intenta validarla en cada request — sin esto tira "Invalid JWT
+// Authorized party claim (azp)" para requests al dominio de shortlinks.
 // undefined en dev (sin domains) para no romper localhost.
-const authorizedParties = [APP_DOMAIN, CREATOR_DOMAIN].filter(Boolean).map((d) => `https://${d}`)
+const authorizedParties = [APP_DOMAIN, CREATOR_DOMAIN, SHORT_DOMAIN]
+  .filter(Boolean)
+  .map((d) => `https://${d}`)
 
 export default clerkMiddleware(
   async (auth, req) => {
