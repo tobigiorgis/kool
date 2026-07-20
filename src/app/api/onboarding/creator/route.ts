@@ -3,6 +3,7 @@ import { auth, currentUser } from "@clerk/nextjs/server"
 import { prisma } from "@/lib/prisma"
 import { sendWelcomeCreator } from "@/lib/email"
 import { handleError } from "@/lib/api/response"
+import { ensureAffiliateLink } from "@/lib/api/affiliate-link"
 import { env } from "@/lib/env"
 import { z } from "zod"
 
@@ -163,6 +164,11 @@ export async function POST(request: NextRequest) {
 
     // Aceptar invites pendientes — solo aplica a creators ya existentes (no-op en self-serve).
     if (creator) {
+      const pendingInvites = await prisma.campaignInvite.findMany({
+        where: { creatorId: creator.id, status: "PENDING" },
+        select: { campaignId: true },
+      })
+
       await prisma.campaignInvite.updateMany({
         where: { creatorId: creator.id, status: "PENDING" },
         data: { status: "ACCEPTED", respondedAt: new Date() },
@@ -172,6 +178,19 @@ export async function POST(request: NextRequest) {
         where: { creatorId: creator.id, status: "INVITED" },
         data: { status: "ACCEPTED" },
       })
+
+      // Crear el link de afiliado de cada campaña aceptada (si todavía no tenía uno).
+      for (const { campaignId } of pendingInvites) {
+        const cc = await prisma.campaignCreator.findUnique({
+          where: { campaignId_creatorId: { campaignId, creatorId: creator.id } },
+        })
+        await ensureAffiliateLink({
+          creatorId: creator.id,
+          campaignId,
+          creatorName: updated.name,
+          discountCode: cc?.discountCode ?? updated.discountCode,
+        })
+      }
     }
 
     // Email de bienvenida (fire-and-forget — no bloquea la respuesta)
