@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@clerk/nextjs/server"
 import { prisma } from "@/lib/prisma"
 import { ok, fail, unauthorized, notFound, badRequest, handleError } from "@/lib/api/response"
+import { requireCampaignAccess, canEdit } from "@/lib/api/campaign-access"
 import { logger } from "@/lib/logger"
 import { z } from "zod"
 
@@ -12,6 +13,9 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   const { id } = await params
 
   try {
+    const access = await requireCampaignAccess(id, userId)
+    if (access.error) return access.error
+
     const campaign = await prisma.campaign.findUnique({
       where: { id },
       include: {
@@ -55,12 +59,6 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     })
 
     if (!campaign) return notFound()
-
-    // Verify workspace access
-    const member = await prisma.workspaceMember.findFirst({
-      where: { userId, workspaceId: campaign.workspaceId },
-    })
-    if (!member) return fail("No access", 403)
 
     // Compute analytics: clicks, conversions, revenue, commissions
     const linkIds = campaign.links.map((l) => l.id)
@@ -172,10 +170,9 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     const campaign = await prisma.campaign.findUnique({ where: { id } })
     if (!campaign) return notFound()
 
-    const member = await prisma.workspaceMember.findFirst({
-      where: { userId, workspaceId: campaign.workspaceId },
-    })
-    if (!member) return fail("No access", 403)
+    const access = await requireCampaignAccess(id, userId)
+    if (access.error) return access.error
+    if (!canEdit(access)) return fail("No access", 403)
 
     const updated = await prisma.campaign.update({
       where: { id },
