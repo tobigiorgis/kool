@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getDateRange } from "@/lib/utils"
 import { requireWorkspace } from "@/lib/api/workspace"
+import { requireCampaignAccess } from "@/lib/api/campaign-access"
 import { handleError } from "@/lib/api/response"
 
 function buildDayRange(from: string, to: string): string[] {
@@ -18,7 +19,7 @@ function buildDayRange(from: string, to: string): string[] {
 export async function GET(request: NextRequest) {
   const ws = await requireWorkspace()
   if (ws.error) return ws.error
-  const { workspaceId } = ws
+  const { workspaceId, userId } = ws
 
   const sp = request.nextUrl.searchParams
   const period = (sp.get("period") ?? "30d") as "7d" | "30d" | "90d"
@@ -35,17 +36,35 @@ export async function GET(request: NextRequest) {
     let targetLinkIds: string[]
 
     if (linkId) {
-      const link = await prisma.link.findFirst({
-        where: { id: linkId, workspaceId },
-        select: { id: true },
+      // El link puede vivir en OTRO workspace (campaña compartida como
+      // colaborador). Lo buscamos sin scope y validamos el acceso: dueño del
+      // workspace, o colaborador ACCEPTED de la campaña a la que pertenece.
+      const link = await prisma.link.findUnique({
+        where: { id: linkId },
+        select: { id: true, workspaceId: true, campaignId: true },
       })
-      targetLinkIds = link ? [link.id] : []
+      if (!link) {
+        targetLinkIds = []
+      } else if (link.workspaceId === workspaceId) {
+        targetLinkIds = [link.id]
+      } else if (link.campaignId) {
+        const access = await requireCampaignAccess(link.campaignId, userId)
+        targetLinkIds = access.error ? [] : [link.id]
+      } else {
+        targetLinkIds = []
+      }
     } else if (campaignId) {
-      const campaignLinks = await prisma.link.findMany({
-        where: { campaignId, workspaceId },
-        select: { id: true },
-      })
-      targetLinkIds = campaignLinks.map((l) => l.id)
+      // Owner o colaborador → usar el workspace real de la campaña.
+      const access = await requireCampaignAccess(campaignId, userId)
+      if (access.error) {
+        targetLinkIds = []
+      } else {
+        const campaignLinks = await prisma.link.findMany({
+          where: { campaignId, workspaceId: access.workspaceId },
+          select: { id: true },
+        })
+        targetLinkIds = campaignLinks.map((l) => l.id)
+      }
     } else if (creatorId) {
       const creatorLinks = await prisma.link.findMany({
         where: { creatorId, workspaceId },
